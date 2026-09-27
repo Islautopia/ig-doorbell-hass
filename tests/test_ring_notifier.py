@@ -189,9 +189,8 @@ async def test_answered_clears_everywhere_by_the_same_tag_and_panels_go_home(has
     # Android: the clear must be a high-priority push, or a phone in Doze holds it for minutes.
     (clear_android,) = [m for m in _msgs(calls, "M23 Test") if m["message"] == "clear_notification"]
     assert clear_android["data"]["priority"] == "high" and clear_android["data"]["ttl"] == 0
-    home = [m for m in _msgs(calls, "Tab Test") if m["message"] == "command_webview"]
-    assert home and home[0]["data"]["command"] == "/lovelace/home"
-    assert not [m for m in _msgs(calls, "Ipad Test") if m["message"] == "command_webview"]
+    # Answered: the panel STAYS (it may be the one answering). Measured on the salon tablet.
+    assert not [m for m in _msgs(calls, "Tab Test") if m["message"] == "command_webview"]
 
 
 async def test_missed_replaces_the_ring_quietly_on_phones(hass, rung):

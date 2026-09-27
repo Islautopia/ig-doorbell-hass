@@ -366,7 +366,12 @@ class RingNotifier:
             else:
                 coros.append(self._clear(call, t))
         await self._each(coros)
-        await self._panels_home(call)
+        # ⚠️ AN ANSWERED CALL LEAVES THE PANELS WHERE THEY ARE (Iñaki, 2026-09-27: "if answered
+        # during the call, do nothing"). Measured on the salon tablet: answering ON the panel sent it
+        # home at once (command_webview relaunches the companion), cutting the call being answered.
+        # Missed/declined still send them home; the safety net was already cancelled above.
+        if call.outcome != "call_answered":
+            await self._panels_home(call)
 
     async def _clear(self, call: Call, target: Target) -> None:
         data: dict[str, Any] = {"tag": call.tag}
