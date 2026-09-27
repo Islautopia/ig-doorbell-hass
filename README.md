@@ -83,20 +83,6 @@ you have. No pictures, no audio.
 
 ## Installing
 
-### With HACS (recommended)
-
-1. In HACS, open the **⋮** menu and choose **Custom repositories**.
-2. Paste `https://github.com/Islautopia/ig-doorbell-hass` and pick the **Integration** category.
-3. Find **Islautopia Garage Doorbell** in the list and download it.
-4. Restart Home Assistant.
-
-The card comes with the integration. You do **not** add a dashboard resource.
-
-### By hand
-
-Copy the `custom_components/ig_doorbell/` folder into your Home Assistant `custom_components`
-folder, then restart.
-
 ### Before you start
 
 1. **An IG Doorbell that is already set up**, on your network, with an administrator account. If
@@ -105,6 +91,22 @@ folder, then restart.
 3. **Home Assistant reachable from the doorbell on your own network.** The doorbell writes to Home
    Assistant directly, so Home Assistant needs a *local* address (Settings → System → Network →
    *Home Assistant URL*).
+
+### With HACS (recommended)
+
+1. In HACS, open the **⋮** menu and choose **Custom repositories**.
+2. Paste `https://github.com/Islautopia/ig-doorbell-hass` and pick the **Integration** category.
+3. Find **Islautopia Garage Doorbell** in the list and download it.
+4. Restart Home Assistant.
+5. **Add it:** Settings → Devices & services → **Add integration** → *Islautopia Garage Doorbell*
+   (or accept it under *Discovered*), and pair your doorbell — see [Pairing a doorbell](#pairing-a-doorbell).
+
+The card comes with the integration. You do **not** add a dashboard resource.
+
+### By hand
+
+Copy the `custom_components/ig_doorbell/` folder into your Home Assistant `custom_components`
+folder, restart, and add it as in step 5 above.
 
 ---
 
