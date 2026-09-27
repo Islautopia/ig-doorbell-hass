@@ -594,7 +594,7 @@ function qualityModeMeta(wire) {
   return QUALITY_MODES.find((m) => m.wire === wire) || null;
 }
 
-// Mode chips (2026-07-10, see COORDINATION.md Q22-bis in ig_hassio_addons) - same
+// Mode chips (2026-07-10) - same
 // icon per mode as the real Figma mockup (the tint/border of each active mode lives in
 // injectStyles(), rules `.chip.active.mode-<key>` - this table only maps each option's LABEL
 // to a known icon). The `select.*` entity configured in `mode_entity` is the source
@@ -678,7 +678,7 @@ class IgDoorbellView extends HTMLElement {
     this._rescueTimers = [];
 
     // Legacy go2rtc/gateway mode COMPLETELY REMOVED (2026-07-10, explicit decision by the
-    // user - see COORDINATION.md in ig_hassio_addons): the project speaks native WebRTC
+    // user): the project speaks native WebRTC
     // directly with the device/relay, never go2rtc - keeping that dead branch around only added
     // confusion. The only mode supported now: native (the doorbell's own protocol,
     // ICE-Lite+DTLS-SRTP+RTP, via the ig_doorbell integration).
@@ -4368,7 +4368,7 @@ class IgDoorbellView extends HTMLElement {
   render() {
     if (!this.content) {
       // Visual language aligned with the real Figma mockup (android_app/ios_app, 2026-07-10 -
-      // see COORDINATION.md Q22-bis in ig_hassio_addons): exact palette, rounded video
+      // the apps share it): exact palette, rounded video
       // frame with the HUD overlaid INSIDE the video itself (LIVE + time, "Audio active",
       // "Motion detected"), asymmetric action buttons (mic as the star/door as
       // secondary), status line under the video, and mode chips. The mockup elements
@@ -4807,7 +4807,7 @@ class IgDoorbellView extends HTMLElement {
   // Speaks the doorbell's own protocol (ICE-Lite + DTLS-SRTP + RTP), direct or via relay.
   // Credentials/host served by the ig_doorbell integration
   // over HA's internal WebSocket API (never pasted by hand in YAML). See
-  // API_CONTRACT.md §1.4/§3.2/§3.3 (IG_Doorbell) and ARCHITECTURE.md §5 (ig_hassio_addons).
+  // API_CONTRACT.md §1.4/§3.2/§3.3 of the IG_Doorbell firmware repository.
   // ==============================================================================
 
   // Real instrumentation with timestamps (added 2026-07-10, see COORDINATION.md - real user
@@ -5851,8 +5851,8 @@ class IgDoorbellView extends HTMLElement {
     style.textContent = `
       ${CARD_TAG}, ${VIEW_TAG} { display: block; width: 100%; box-sizing: border-box; }
 
-      /* Exact palette from the Figma mockup (android_app/ios_app) - see COORDINATION.md Q22-bis
-         in ig_hassio_addons. Custom properties scoped to .ig-container (not :root - this
+      /* Exact palette from the Figma mockup, shared with the mobile apps.
+         Custom properties scoped to .ig-container (not :root - this
          card does not use Shadow DOM, so :root would leak into HA's whole document). */
       .ig-container {
         /* EXACT values confirmed against the real source code of android_app/ios_app
