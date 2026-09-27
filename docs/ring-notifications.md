@@ -39,7 +39,8 @@ older firmware they still ring, but they are not cleared. Panels go back to thei
   locked, and the iPhone stays silent. The Watch rings instead; that is how iOS handles it.
 - An iPad can't be woken into a page remotely; that is an iOS limit. As a wall panel, leave the
   call page open (`/ig-doorbell?device=<id>`, or just `/ig-doorbell` with one doorbell) in
-  **Guided Access**. The page reacts to the ring by itself. The iPad also gets the notification.
+  **Guided Access**. The page reacts to the ring by itself. The iPad also gets the notification. *(iPad as a
+  panel: designed, not measured on a device yet.)*
 
 **Android phone / tablet (companion app)**
 - Allow notifications.

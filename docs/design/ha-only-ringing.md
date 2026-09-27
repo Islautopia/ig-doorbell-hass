@@ -202,6 +202,15 @@ internet (local push / persistent connection). Phones: see above.
   the replacement carries the picture of that same call, and none if a newer ring came in between.
   The ring now also waits, at most 1.5 s, for its picture (measured ready 0.8 s after the ring),
   because iOS downloads the attachment only once.
+- **Android wall tablet (companion, real HA)**: ring → screen on, the call page full-screen and
+  live; answered → back to the home dashboard ~5 s later; missed → back at the end of the ring;
+  a ring with no resolution (as from a firmware before 0.101.3) → back at 120 s. The call is only
+  answered when the microphone opens: opening the call page does not answer (measured on the
+  doorbell's call status, iPhone case). **Not measured**: the iPad as a panel; whether Android asks
+  to unlock before a notification action (the test phone has no lock), which is why "Open door"
+  stays off by default.
+- **Open items**: a call answered from an HA card shows `by` = the integration's pairing label,
+  not the HA user who answered; quick replies from the notification.
 - **Fixed on the way**: the missed-call time now uses the doorbell's `tz_name`, not HA's zone (the
   Docker HA was on UTC and showed the wrong hour).
 
