@@ -645,3 +645,163 @@ async def test_the_fix_flow_names_the_hostname_and_moves_it(hass, env):
         await flow.async_step_confirm({})
         await env.mgr._public_task
     assert cloud.claims[-1]["replace"] is True and env.mgr.public["state"] == "ok"
+
+
+# ----------------------------------------------------------------------------- first enable (1.1.1)
+# Seen on a real Home Assistant with 1.1.0: HTTPS was enabled, the name was claimed, and seconds
+# later the setting was OFF - the certificate call to the VPS was cut (the VPS logged a broken
+# pipe writing an already issued certificate) and HTTPS stayed off until enabled again. The only
+# writer of `enabled` is the options form, so these pin both ends: nothing but a choice made
+# against the CURRENT value turns it off, and nothing in the public-name path ever does.
+class _FakeVps:
+    """A real HTTP server speaking the section 4-ter v2 endpoints, with a slow Let's Encrypt."""
+
+    def __init__(self, cert_delay: float = 0.0) -> None:
+        self.cert_delay = cert_delay
+        self.issued: dict[str, str] = {}  # hostname -> chain, cached like the VPS does
+        self.cert_calls = 0
+        self.cert_answers_written = 0
+        self.app = web.Application()
+        self.app.router.add_post("/ha_instance/v2/claim", self._claim)
+        self.app.router.add_post("/ha_instance/v2/cert", self._cert)
+        self.runner = web.AppRunner(self.app)
+        self.base = ""
+
+    async def _claim(self, request: web.Request) -> web.Response:
+        await request.json()
+        return web.json_response({"hostname": PUBLIC, "ha_instance_id": PUBLIC.split(".")[0], "status": "created"})
+
+    async def _cert(self, request: web.Request) -> web.Response:
+        body = await request.json()
+        self.cert_calls += 1
+        if PUBLIC in self.issued:
+            return web.json_response({"hostname": PUBLIC, "cert": self.issued[PUBLIC], "not_after": 0, "reused": True})
+        # Issuing goes on even if the client gives up (it did on the real VPS).
+        chain = await asyncio.shield(asyncio.ensure_future(self._issue(body["csr"])))
+        self.cert_answers_written += 1
+        return web.json_response({"hostname": PUBLIC, "cert": chain, "not_after": 0, "reused": False})
+
+    async def _issue(self, csr: str) -> str:
+        await asyncio.sleep(self.cert_delay)
+        chain, _ = _sign_as_fake_le(csr)
+        self.issued[PUBLIC] = chain
+        return chain
+
+    async def __aenter__(self):
+        await self.runner.setup()
+        port = _free_port()
+        await web.TCPSite(self.runner, "127.0.0.1", port).start()
+        self.base = f"http://127.0.0.1:{port}"
+        return self
+
+    async def __aexit__(self, *exc):
+        await self.runner.cleanup()
+
+
+async def _voucher_only(session, device_id, credential, purpose, ha_key):
+    return f"igv1.fake.{purpose}"
+
+
+def _against(vps: _FakeVps):
+    return patch.object(https_cloud, "VPS_BASE", vps.base), patch.object(https_cloud, "async_voucher", _voucher_only)
+
+
+async def _enable_against(env, vps: _FakeVps, port: int | None = None):
+    p1, p2 = _against(vps)
+    with p1, p2:
+        await env.mgr.async_configure(enabled=True, port=port or _free_port(), device_id=DEVICE_ID)
+        if env.mgr._public_task is not None:
+            await env.mgr._public_task
+
+
+@pytest.mark.timeout(120)
+async def test_a_slow_production_certificate_is_waited_for(hass, env):
+    """Production Let's Encrypt takes tens of seconds (the Docker check used staging)."""
+    async with _FakeVps(cert_delay=45) as vps:
+        await _enable_against(env, vps)
+    assert env.mgr.public["state"] == "ok", env.mgr.public
+    assert vps.cert_answers_written == 1 and vps.cert_calls == 1
+    assert env.mgr.enabled and env.mgr.server is not None
+
+
+async def test_an_abandoned_certificate_call_keeps_https_on_and_retries_soon(hass, env, monkeypatch):
+    """Our timeout fires before the VPS answers: HTTPS stays ON, the local path keeps serving,
+    the setting stays stored ON, and a retry soon picks up the certificate the VPS finished."""
+    import aiohttp
+    from homeassistant.util import dt as dt_util
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    monkeypatch.setattr(https_cloud, "_VPS_TIMEOUT", aiohttp.ClientTimeout(total=1))
+    async with _FakeVps(cert_delay=2) as vps:
+        port = _free_port()
+        await _enable_against(env, vps, port)
+        assert env.mgr.public["state"] == "unavailable" and env.mgr.public["code"] == "vps_unreachable"
+        assert env.mgr.enabled and env.mgr.server is not None and env.mgr.bound_port == port
+        stored = await https_manager.Store(hass, https_manager.STORAGE_VERSION, https_manager.STORAGE_KEY).async_load()
+        assert stored["enabled"] is True
+        await asyncio.sleep(2.5)  # the VPS finishes issuing after we gave up
+        assert PUBLIC in vps.issued
+        p1, p2 = _against(vps)
+        with p1, p2:
+            async_fire_time_changed(hass, dt_util.utcnow() + dt.timedelta(seconds=31))
+            await hass.async_block_till_done()
+            if env.mgr._public_task is not None:
+                await env.mgr._public_task
+    assert env.mgr.public["state"] == "ok", env.mgr.public
+    assert vps.cert_calls == 2
+    assert env.mgr.enabled and env.mgr.server is not None
+
+
+async def test_weather_failures_repair_after_an_hour_and_never_turn_https_off(hass, env):
+    cloud = _Cloud(voucher_error="doorbell_unreachable")
+    await _enable(env, cloud)
+    assert (DOMAIN, https_manager.ISSUE_PUBLIC_FAILED) not in ir.async_get(hass).issues  # not yet
+    assert env.mgr._retry_unsub is not None
+    env.mgr._failing_since -= dt.timedelta(minutes=61)
+    p1, p2, p3 = cloud.patch()
+    with p1, p2, p3:
+        await env.mgr._async_periodic()
+        if env.mgr._public_task is not None:
+            await env.mgr._public_task
+    issue = ir.async_get(hass).issues.get((DOMAIN, https_manager.ISSUE_PUBLIC_FAILED))
+    assert issue is not None and issue.translation_placeholders == {"code": "doorbell_unreachable"}
+    assert env.mgr.enabled and env.mgr.server is not None
+
+
+async def test_a_form_opened_before_https_was_enabled_cannot_turn_it_off(hass, env):
+    """The form shows the toggle as it was when OPENED. Submitting a stale one must not undo a
+    change made meanwhile; a choice made on the refreshed form is honoured."""
+    port = _free_port()
+    stale = await _https_step(hass, env)  # opened while HTTPS is off: toggle shows off
+    await _enable(env, _Cloud(), port)  # someone else turns it on meanwhile
+    assert env.mgr.enabled and env.mgr.server is not None
+    result = await hass.config_entries.options.async_configure(stale["flow_id"], {"enabled": False, "port": port})
+    assert result["type"] == "form" and result["errors"] == {"base": "https_changed_elsewhere"}
+    assert env.mgr.enabled and env.mgr.server is not None
+    # The form now shows the current value; turning it off from there is the user's choice.
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"enabled": False, "port": port})
+    assert result["type"] == "create_entry"
+    assert not env.mgr.enabled and env.mgr.server is None
+
+
+async def test_the_manager_is_visible_only_once_loaded(hass, tmp_path, monkeypatch):
+    """An options flow reaching a half-loaded manager would have its choice overwritten by the
+    stored setting when the load finished."""
+    monkeypatch.setattr(hass.config, "config_dir", str(tmp_path))
+    gate = asyncio.Event()
+    seen: list = []
+
+    async def slow_load(self):
+        seen.append(https_manager.get_manager(hass))
+        await gate.wait()
+        return {"enabled": False, "port": 8443}
+
+    monkeypatch.setattr(https_manager.Store, "async_load", slow_load)
+    task = hass.async_create_task(https_manager.async_setup_manager(hass))
+    for _ in range(3):
+        await asyncio.sleep(0)
+    assert seen == [None] and https_manager.get_manager(hass) is None
+    gate.set()
+    mgr = await task
+    assert https_manager.get_manager(hass) is mgr
+    hass.data.pop(https_manager.DATA_HTTPS)

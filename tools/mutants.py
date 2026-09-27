@@ -104,6 +104,22 @@ MUTANTS = [
      "def _from_lan(request: web.Request) -> bool:\n    return True\n    try:"),
     ("the card is not told where the install page is", PKG + "websocket_api.py",
      '            "install_path": INSTALL_PATH,\n', ""),
+    # 1.1.1: HTTPS turned itself off seconds after the first enable on a real Home Assistant.
+    ("a stale options form turns HTTPS off", PKG + "config_flow.py",
+     "            if mgr.enabled != shown and enabled != mgr.enabled:\n",
+     "            if False:\n"),
+    ("no retry after a transient public-name failure", PKG + "https_manager.py",
+     "                self._retry_unsub = async_call_later(self.hass, delay, self._retry_public)\n",
+     "                pass\n"),
+    ("weather failures never raise a repair", PKG + "https_manager.py",
+     "            and dt_util.utcnow() - self._failing_since < PUBLIC_REPAIR_AFTER\n",
+     "            and True\n"),
+    ("the manager is visible before it is loaded", PKG + "https_manager.py",
+     "    await mgr.async_load()\n    hass.data[DATA_HTTPS] = mgr\n",
+     "    hass.data[DATA_HTTPS] = mgr\n    await mgr.async_load()\n"),
+    ("the cert call gives up before production Let's Encrypt answers", PKG + "https_cloud.py",
+     "_VPS_TIMEOUT = aiohttp.ClientTimeout(total=180)\n",
+     "_VPS_TIMEOUT = aiohttp.ClientTimeout(total=30)\n"),
 ]
 
 

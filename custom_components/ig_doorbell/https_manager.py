@@ -50,9 +50,10 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from . import https_certs, https_cloud
 from .const import CONF_CREDENTIAL, CONF_DEVICE_ID, DOMAIN
@@ -71,6 +72,15 @@ INSTALL_PATH = f"/{DOMAIN}/https"
 # LOCAL checks only; the VPS is called only when one of them says so (or after a failure).
 CHECK_INTERVAL = dt.timedelta(hours=1)
 PUBLIC_RENEW_DAYS = 30
+
+# After a failure that may pass by itself (VPS or doorbell unreachable, a cert call abandoned by
+# our timeout while Let's Encrypt was still working...), the public name is tried again after
+# these delays, then every CHECK_INTERVAL. The first retry is short on purpose: a cert call we
+# gave up on is usually finished and cached on the VPS by then, and comes back "reused" at once.
+PUBLIC_RETRY_DELAYS_S = (30, 60, 120, 300, 900, 1800)
+# "Weather" failures raise no repair for a line that is down for a while, but they do once the
+# public name has been failing for this long: after that it is not weather any more.
+PUBLIC_REPAIR_AFTER = dt.timedelta(hours=1)
 
 ISSUE_PORT_IN_USE = "https_port_in_use"
 ISSUE_UNSUPPORTED = "https_unsupported"
@@ -91,8 +101,10 @@ async def async_setup_manager(hass: HomeAssistant) -> HttpsManager:
     if (mgr := get_manager(hass)) is not None:
         return mgr
     mgr = HttpsManager(hass)
-    hass.data[DATA_HTTPS] = mgr
+    # Loaded BEFORE anyone can see it: an options flow that reached a half-loaded manager would
+    # store the user's choice and then have the stored (older) setting written over it.
     await mgr.async_load()
+    hass.data[DATA_HTTPS] = mgr
 
     @callback
     def _started(_hass: HomeAssistant) -> None:
@@ -138,6 +150,9 @@ class HttpsManager:
         self._public_task: asyncio.Task | None = None
         self._public_permanent: str | None = None
         self._replace_next = False
+        self._retry_unsub = None
+        self._fail_streak = 0
+        self._failing_since: dt.datetime | None = None
 
     # ------------------------------------------------------------------ settings
     @property
@@ -157,13 +172,20 @@ class HttpsManager:
         await self._store.async_save(self.data)
 
     async def async_configure(self, *, enabled: bool, port: int, device_id: str | None) -> None:
-        """Options flow: store the setting and apply it now (no reload of any entry)."""
+        """Options flow: store the setting and apply it now (no reload of any entry).
+
+        ⚠️ THE ONLY PLACE `enabled` IS WRITTEN, and only the user's own choice in the options
+        reaches it. Nothing in the public-name path may ever turn HTTPS off: whatever happens to
+        the public name (VPS down, a timeout, a refused certificate), the local path keeps
+        running, a repair explains the public-name problem and a retry comes back later.
+        """
         self.data["enabled"] = enabled
         self.data["port"] = port
         if device_id and not self.data.get("device_id"):
             self.data["device_id"] = device_id
         # A new decision by the user deserves a new attempt at the public name.
         self._public_permanent = None
+        self._reset_retry()
         await self.async_save()
         await self.async_apply()
 
@@ -257,6 +279,7 @@ class HttpsManager:
         )
 
     async def _async_stop(self, *, close_clients: bool) -> None:
+        self._reset_retry()
         if self._unsub_timer is not None:
             self._unsub_timer()
             self._unsub_timer = None
@@ -347,6 +370,18 @@ class HttpsManager:
         except (OSError, ValueError, IndexError):
             return False
         return left > dt.timedelta(days=min_days)
+
+    def _reset_retry(self) -> None:
+        if self._retry_unsub is not None:
+            self._retry_unsub()
+            self._retry_unsub = None
+        self._fail_streak = 0
+        self._failing_since = None
+
+    @callback
+    def _retry_public(self, _now: dt.datetime) -> None:
+        self._retry_unsub = None
+        self._kick_public()
 
     def _kick_public(self) -> None:
         if self._public_task is not None and not self._public_task.done():
@@ -472,6 +507,7 @@ class HttpsManager:
                 )
             not_after_ts = await self.hass.async_add_executor_job(self._public_not_after)
             self.public = {"state": "ok", "hostname": hostname, "not_after": not_after_ts}
+            self._reset_retry()
             for issue in PUBLIC_ISSUES:
                 ir.async_delete_issue(self.hass, DOMAIN, issue)
         except https_cloud.PublicNameError as err:
@@ -535,14 +571,35 @@ class HttpsManager:
         elif code == "doorbell_has_ha_name":
             issue, placeholders = ISSUE_NAME_TAKEN, {"hostname": str(err.detail.get("hostname") or "")}
         transient = code not in https_cloud.PERMANENT and code != "no_doorbell"
+        delay = None
+        if transient:
+            now = dt_util.utcnow()
+            if self._failing_since is None:
+                self._failing_since = now
+            delays = PUBLIC_RETRY_DELAYS_S
+            delay = delays[self._fail_streak] if self._fail_streak < len(delays) else None
+            self._fail_streak += 1
+            if self._retry_unsub is not None:
+                self._retry_unsub()
+                self._retry_unsub = None
+            if delay is not None:
+                # Beyond the list, the hourly upkeep (_async_periodic) is the retry.
+                self._retry_unsub = async_call_later(self.hass, delay, self._retry_public)
         _LOGGER.log(
             logging.INFO if transient else logging.WARNING,
             "Public name for Home Assistant not available (%s)%s; local HTTPS is not affected",
-            code, ", retrying within the hour" if transient else "",
+            code,
+            (f", retrying in {delay} s" if delay is not None else ", retrying within the hour")
+            if transient else "",
         )
-        if transient and code in ("vps_unreachable", "doorbell_unreachable", "rate_limited",
-                                  "upstream_failed", "clock_not_set"):
-            # Weather, not a fault: no repair issue for a line that is down for an hour.
+        if (
+            transient
+            and code in ("vps_unreachable", "doorbell_unreachable", "rate_limited",
+                         "upstream_failed", "clock_not_set")
+            and dt_util.utcnow() - self._failing_since < PUBLIC_REPAIR_AFTER
+        ):
+            # Weather, not a fault: no repair issue for a line that is down for a while. After
+            # PUBLIC_REPAIR_AFTER of failing it is not weather any more, and the user is told.
             return
         for other in PUBLIC_ISSUES:
             if other != issue:

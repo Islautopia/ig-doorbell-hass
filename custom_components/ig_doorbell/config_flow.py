@@ -426,10 +426,22 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
             return self.async_abort(reason="https_unavailable")
         errors: dict[str, str] = {}
         enabled, port = mgr.enabled, mgr.port
-        if user_input is not None:
+        if user_input is None:
+            self._https_shown = mgr.enabled
+        else:
             enabled = bool(user_input.get("enabled"))
             port = int(user_input.get("port") or DEFAULT_PORT)
-            if enabled:
+            # ⚠️ A form opened BEFORE the setting changed elsewhere (another browser, another
+            # doorbell's options, a tab left open) still carries the old toggle as its default,
+            # and submitting it would silently undo that change - e.g. turn HTTPS off seconds
+            # after someone else turned it on, cancelling the certificate request in flight.
+            # Only a choice made against the CURRENT value may change it: show the form again.
+            shown = getattr(self, "_https_shown", mgr.enabled)
+            if mgr.enabled != shown and enabled != mgr.enabled:
+                self._https_shown = mgr.enabled
+                enabled = mgr.enabled
+                errors = {"base": "https_changed_elsewhere"}
+            elif enabled:
                 errors = await _check_port(self.hass, mgr, port)
             if not errors:
                 await mgr.async_configure(

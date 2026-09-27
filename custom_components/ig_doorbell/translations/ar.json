@@ -30,7 +30,8 @@
     "error": {
       "too_many": "عدد كبير جدًا من الكيانات - اختر {max} كحد أقصى",
       "port_in_use": "المنفذ {port} يستخدمه برنامج آخر. اختر منفذًا آخر.",
-      "port_is_ha": "هذا منفذ Home Assistant نفسه. اختر منفذًا آخر."
+      "port_is_ha": "هذا منفذ Home Assistant نفسه. اختر منفذًا آخر.",
+      "https_changed_elsewhere": "تم تغيير هذا الإعداد من مكان آخر أثناء فتح هذا النموذج. يعرض الآن القيمة الحالية: تحقق منها وأرسل مرة أخرى."
     },
     "abort": {
       "https_unavailable": "HTTPS غير متاح في هذا الـ Home Assistant."

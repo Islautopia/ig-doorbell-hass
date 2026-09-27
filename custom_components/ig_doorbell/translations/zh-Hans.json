@@ -30,7 +30,8 @@
     "error": {
       "too_many": "实体过多——最多选择 {max} 个",
       "port_in_use": "端口 {port} 已被其他程序占用。请选择其他端口。",
-      "port_is_ha": "这是 Home Assistant 自身的端口。请选择其他端口。"
+      "port_is_ha": "这是 Home Assistant 自身的端口。请选择其他端口。",
+      "https_changed_elsewhere": "此表单打开期间，该设置已在别处被更改。现在显示的是当前值：请检查后重新提交。"
     },
     "abort": {
       "https_unavailable": "此 Home Assistant 不支持 HTTPS。"

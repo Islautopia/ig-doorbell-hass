@@ -95,7 +95,8 @@
       "cloud_authorize_failed": "El videoportero no pudo registrar este emparejamiento",
       "too_many": "Demasiadas entidades: elige {max} como máximo",
       "port_in_use": "El puerto {port} ya lo usa otro programa. Elige otro.",
-      "port_is_ha": "Ese es el puerto de Home Assistant. Elige otro."
+      "port_is_ha": "Ese es el puerto de Home Assistant. Elige otro.",
+      "https_changed_elsewhere": "Este ajuste se cambió en otro sitio mientras este formulario estaba abierto. Ahora muestra el valor actual: revísalo y vuelve a enviarlo."
     },
     "abort": {
       "https_unavailable": "HTTPS no está disponible en este Home Assistant."

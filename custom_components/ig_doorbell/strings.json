@@ -95,7 +95,8 @@
       "cloud_authorize_failed": "The doorbell could not register this pairing",
       "too_many": "Too many entities - pick {max} at most",
       "port_in_use": "Port {port} is already used by another program. Choose another port.",
-      "port_is_ha": "That is Home Assistant's own port. Choose another one."
+      "port_is_ha": "That is Home Assistant's own port. Choose another one.",
+      "https_changed_elsewhere": "This setting was changed elsewhere while this form was open. It now shows the current value: check it and submit again."
     },
     "abort": {
       "https_unavailable": "HTTPS is not available in this Home Assistant."
