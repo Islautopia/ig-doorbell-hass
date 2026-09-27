@@ -13,6 +13,30 @@ One install from HACS gives you:
 
 ---
 
+## Before you start: two-way audio needs HTTPS
+
+Browsers only let a web page use the microphone when the page is served securely (HTTPS). This
+affects one thing only: talking back through the card. Video, sound, the door, recordings and
+automations all work regardless.
+
+- **Already reach Home Assistant over HTTPS** — Home Assistant Cloud (Nabu Casa), or your own
+  domain behind a reverse proxy? **Nothing to do.** The card already gets the microphone on that
+  address.
+- **Open Home Assistant as `http://…`, at home or on a wall tablet?** Turn on this integration's
+  own **Secure local connection (HTTPS)** (Configure → Secure local connection (HTTPS)). It is
+  **not** remote access and does not replace Home Assistant Cloud or a reverse proxy — it only
+  adds a secure address on your home network. It offers two ways in: a **public name** that needs
+  no install on any device but requires an IG Doorbell paired here as administrator and
+  registered with the Islautopia cloud to vouch for it, and a **local address** from the
+  integration's own certificate authority that needs its root installed once per device but works
+  with no doorbell and no internet at all.
+
+Step-by-step instructions with screenshots for iPhone/iPad, Android, Windows, macOS and wall
+tablets: **[docs/two-way-audio.md](docs/two-way-audio.md)**. Full reference (what our cloud sees,
+routers, troubleshooting): **[docs/https.md](docs/https.md)**.
+
+---
+
 ## What it does, and what it does not do
 
 **It does:**

@@ -24,7 +24,14 @@ browsers let the doorbell card use the **microphone**.
 Browsers only give a web page the microphone when the page is a *secure context*: served over
 HTTPS (or from the same machine, `localhost`). A Home Assistant opened as
 `http://192.168.1.10:8123` is not one. On that page the browser has no microphone to offer at
-all, so the card can show the doorbell and play its sound, but you cannot talk back.
+all, so the card can show the doorbell and play its sound, but you cannot talk back — the card
+says so instead of silently failing:
+
+![The card's own notice when the microphone needs a secure connection](images/https-notice.png)
+
+**Step-by-step instructions with screenshots for iPhone/iPad, Android, Windows, macOS and wall
+tablets: [docs/two-way-audio.md](two-way-audio.md).** The rest of this page is the full
+reference.
 
 If you reach Home Assistant through Home Assistant Cloud or through your own domain with HTTPS,
 you already have a secure context **on that address**. This option is for everyone else, and for
@@ -65,7 +72,10 @@ is picked by the name the device asks for.
 
 `https://<id>.ha.doorbell.islautopia.com:8443`
 
-A certificate from Let's Encrypt, trusted by every phone, tablet and computer out of the box.
+A certificate from Let's Encrypt, trusted by every phone, tablet and computer out of the box —
+this is what the install page shows when it is available:
+
+![The install page's "nothing to install" box, with a public name every device already trusts](images/https-install-public-name.png)
 
 **It needs an IG Doorbell in your installation.** Specifically, a doorbell paired with this Home
 Assistant **as administrator** and **registered with the Islautopia cloud** (every doorbell that
@@ -131,6 +141,14 @@ below.) The page:
 - keeps the root's fingerprint as a detail, for those who want to compare it.
 
 The page only answers to devices on your home network.
+
+**Screenshots and full step-by-step per device (iPhone/iPad, Android, Windows, macOS, wall
+tablets): [docs/two-way-audio.md](two-way-audio.md).** For reference, this is what the page shows
+on a computer for Windows and for macOS:
+
+![Install steps for Windows: download the certificate, Install Certificate..., Trusted Root Certification Authorities](images/https-install-windows.png)
+
+![Install steps for macOS: Keychain Access, double-click the root, set it to Always Trust](images/https-install-macos.png)
 
 **The card leads users there.** If someone taps the microphone on a page that is not secure, the
 card no longer fails silently: it explains why and links to the install page (with a QR code on
