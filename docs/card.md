@@ -31,8 +31,10 @@ revalidate for anything outside `/static`, `/frontend_*`, `/api`) serves the car
 and it never failed. Ctrl+F5 bypasses the service worker; a plain F5 does not (4/6 bad).
 
 **Frequency, before -> after** (goto of the dashboard, fresh browser context each run, Waveshare
-pinned): https 1.1.1: 5/6, 7/8, 5/8 bad; http 1.1.1: 0/3; https with the 1.1.2 file served through
-the same service worker: 0/8 and see the release note for the final run.
+pinned, error card still up 6 s after navigation): https 1.1.1: 13/15 (goto), 11/15 (F5); http
+1.1.1: 0/3. https 1.1.2, same service-worker path: 1/15, 0/15, 0/20, 0/20, 0/20 - one bad load in
+90, not caught again with the console recorded (open question: probably a slow cold load over the
+internet, which HA's own `whenDefined` rebuild recovers; the 1.1.1 failure never recovered).
 
 **Fix.** Registration is idempotent per registry (`igRegisterElements`) and runs again when the
 registry is swapped: on the native `whenDefined('home-assistant')` (HA defines its root right
