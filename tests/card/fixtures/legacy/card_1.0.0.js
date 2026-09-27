@@ -6,8 +6,8 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.1.1';
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
+const CARD_VERSION = '1.0.0';
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-26-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -594,7 +594,7 @@ function qualityModeMeta(wire) {
   return QUALITY_MODES.find((m) => m.wire === wire) || null;
 }
 
-// Mode chips (2026-07-10) - same
+// Mode chips (2026-07-10, see COORDINATION.md Q22-bis in ig_hassio_addons) - same
 // icon per mode as the real Figma mockup (the tint/border of each active mode lives in
 // injectStyles(), rules `.chip.active.mode-<key>` - this table only maps each option's LABEL
 // to a known icon). The `select.*` entity configured in `mode_entity` is the source
@@ -678,7 +678,7 @@ class IgDoorbellView extends HTMLElement {
     this._rescueTimers = [];
 
     // Legacy go2rtc/gateway mode COMPLETELY REMOVED (2026-07-10, explicit decision by the
-    // user): the project speaks native WebRTC
+    // user - see COORDINATION.md in ig_hassio_addons): the project speaks native WebRTC
     // directly with the device/relay, never go2rtc - keeping that dead branch around only added
     // confusion. The only mode supported now: native (the doorbell's own protocol,
     // ICE-Lite+DTLS-SRTP+RTP, via the ig_doorbell integration).
@@ -3643,10 +3643,6 @@ class IgDoorbellView extends HTMLElement {
   //     SIDE_COL_W column hugs the image's right edge with EVERYTHING else: doorbell picker, mode
   //     chip, REC, bell; sound, mic, door; Recordings, Quick replies. Never below SIDE_MIN_H: under
   //     that the column can't hold its targets (phone in landscape pushed the mic off-screen).
-  //   - SPLIT (`ig-split`, integration 1.1.1): where OVERLAY would cover the picture but the card has
-  //     room beside it, the call buttons go to a column on the picture's right (and on a phone in
-  //     landscape the header to a column on its left, so the picture gets the full height). See
-  //     ACT_COL_W and _planSplit().
   // Exactly one is active at a time (`_layout`). Two at once is what produced the 1.9.8 bug of the
   // mic straddling the video's bottom edge (rail + stack). The side rail of §1.9 still exists, but
   // only in FULLSCREEN (see _layoutRotation): outside fullscreen its job is done by the side column.
@@ -3680,25 +3676,6 @@ class IgDoorbellView extends HTMLElement {
   static get OVERLAY_PENALTY() { return 0.85; }
   // Hysteresis: the current layout's score gets +5 %.
   static get LAYOUT_STICKY() { return 1.05; }
-  // ---- SPLIT (integration 1.1.1): the call buttons BESIDE the picture instead of over it. ----
-  // Iñaki, 2026-09-27, iPhone 15 Pro in landscape in the HA app with Ermita 10's portrait stream:
-  // overlay put sound/mic/door over the lower half of a picture that used a quarter of the width -
-  // over the visitor's face - with more than a third of the width empty on EACH side. Rule: while
-  // the card has room beside the picture for a column of buttons, the buttons go there; OVERLAY
-  // only survives when there is genuinely no lateral room. SPLIT only ever REPLACES overlay (see
-  // _planLayout): stack and side, which Iñaki approved in 1.11.0, are never displaced by it.
-  // Width of the button column (sound / mic / door, labels ellipsized). 88 = the 64 px mic plus
-  // room for a short label; the bench's L13 uses the same number + the 10 px gap as "room beside".
-  static get ACT_COL_W() { return 88; }
-  // Shortest picture that can carry the column: three targets >= 44 px without labels (mic 56,
-  // sound 48, door 48, two 8 px gaps = 168) - and the header column of the variant with the header
-  // beside the picture (picker 44 + mode/REC/bell 44 + Recordings/Quick replies 44 + gaps = ~148).
-  static get SPLIT_MIN_H() { return 180; }
-  // From this height the column shows the labels and the bigger buttons (mic 64, others 52:
-  // 168 + 3 labels x 22 + 2 x 10 gaps = ~254 px).
-  static get SPLIT_LBL_H() { return 270; }
-  // Narrower than this the picture isn't worth a layout of its own.
-  static get SPLIT_MIN_IMG_W() { return 100; }
 
   _viewHost() {
     // The Lovelace view's container (hui-panel-view, hui-masonry-view...), also walking up
@@ -3796,13 +3773,15 @@ class IgDoorbellView extends HTMLElement {
     const delta = avail - real;
     if (real > 0 && Math.abs(delta) > 0.5) {
       let feedH = plan.feedH + delta;
-      // side / split: the picture's width is limited by what the column(s) leave (plan.imgMaxW).
-      const maxW = plan.imgMaxW || width;
-      feedH = Math.min(feedH, maxW / aspect, this._feedCap());
-      feedH = Math.round(Math.max(Math.min(plan.minH || IgDoorbellView.MIN_FEED_H, maxW / aspect), feedH));
+      if (plan.layout === 'side') {
+        feedH = Math.min(feedH, (width - IgDoorbellView.SIDE_COL_W - gap) / aspect);
+      } else {
+        feedH = Math.min(feedH, width / aspect, this._feedCap());
+      }
+      feedH = Math.round(Math.max(Math.min(plan.minH || IgDoorbellView.MIN_FEED_H, width / aspect), feedH));
       if (Math.abs(feedH - plan.feedH) >= 1) {
         plan.feedH = feedH;
-        if (plan.layout === 'side' || plan.layout === 'split') plan.imgW = IgDoorbellView._imgWidth(plan, aspect);
+        if (plan.layout === 'side') plan.imgW = Math.round(feedH * aspect);
         this._applyLayout(plan);
       }
     }
@@ -3840,72 +3819,20 @@ class IgDoorbellView extends HTMLElement {
     // SIDE COLUMN: the image at full height and the column hugging it. The column is as tall as the
     // image, so the IMAGE must be at least SIDE_MIN_H tall (a wide stream in a narrow card isn't).
     {
-      const imgMaxW = width - K.SIDE_COL_W - gap;
-      const imgH = Math.min(avail - padY, imgMaxW / aspect, cap);
+      const imgH = Math.min(avail - padY, (width - K.SIDE_COL_W - gap) / aspect, cap);
       const imgW = imgH * aspect;
-      if (imgH >= K.SIDE_MIN_H && imgW >= K.SIDE_MIN_IMG_W) cands.push({ layout: 'side', short: false, feedH: imgH, imgW, imgMaxW, score: imgW * imgH });
+      if (imgH >= K.SIDE_MIN_H && imgW >= K.SIDE_MIN_IMG_W) cands.push({ layout: 'side', short: false, feedH: imgH, imgW, score: imgW * imgH });
     }
     for (const p of cands) if (p.layout === this._layout) p.score *= K.LAYOUT_STICKY;
     cands.sort((a, b) => b.score - a.score);
     // Nothing fits (a card squeezed into a tiny slot): OVERLAY at the minimum height is the one that
     // still keeps every button on screen, over the picture.
-    let best = cands[0] || { layout: 'overlay', short: hasBottom, imgW: null, fallback: true,
+    const best = cands[0] || { layout: 'overlay', short: hasBottom, imgW: null, fallback: true,
       feedH: avail - padY - topH - gap, minH: Math.min(K.MIN_FALLBACK_FEED_H, natural) };
-    // The fallback is an overlay too: scored like one (its picture at 85 %), so SPLIT only replaces
-    // it when that is worth it. Measured: a 492 px column on a phone in landscape with a landscape
-    // stream has no room beside the picture, and an unconditional split shrank it from 420x236 to 322x181.
-    if (best.fallback) best.score = area(Math.max(best.minH, Math.min(best.feedH, natural, cap)), width) * K.OVERLAY_PENALTY;
-    // SPLIT (1.1.1, see ACT_COL_W): it only ever REPLACES overlay - when overlay won, the buttons
-    // were about to cover the picture - and it takes over when its UNCOVERED picture is at least
-    // worth overlay's (overlay is already scored at 85 % for the covering). A split picture 15 %
-    // smaller than overlay's still wins: at that point the lateral room exists and the rule is
-    // "never over the image when the space beside it can hold the buttons". Overlay stays only
-    // when the picture fills the width (no room for a 44 px column) or the height is under
-    // SPLIT_MIN_H.
-    const split = this._planSplit({ width, aspect, avail, padY, gap, topH, bottomH, hasBottom, cap });
-    // ⚠️ Mutant M12 of the layout bench removes this line: L13 must go red.
-    if (split && best.layout === 'overlay' && split.score >= best.score) best = split;
     if (!best.minH) best.minH = minH;
     best.feedH = Math.round(Math.max(best.minH, Math.min(best.feedH, natural, cap)));
-    if (best.layout === 'side' || best.layout === 'split') best.imgW = IgDoorbellView._imgWidth(best, aspect);
+    if (best.layout === 'side') best.imgW = Math.round(best.feedH * aspect);
     return best;
-  }
-
-  // The two SPLIT variants, best one (or null). Both put sound / mic / door in a column (ACT_COL_W)
-  // hugging the picture's right edge, in the lateral space an overlay would leave empty:
-  //   - header BESIDE ('side', class ig-split-head): picker / mode / REC / bell / Recordings / Quick
-  //     replies in a compact column on the picture's left. The picture gets the FULL height - the
-  //     reported iPhone case (844x390, portrait stream: 146x260 covered -> ~177x314 free).
-  //   - header ON TOP ('top'): the header keeps its row (Recordings inside it when short, as in
-  //     overlay-short); for cards with room for the button column but not for two columns.
-  // The picture's width is capped by what the column(s) leave (imgMaxW), its height by the space.
-  _planSplit({ width, aspect, avail, padY, gap, topH, bottomH, hasBottom, cap }) {
-    const K = IgDoorbellView;
-    const out = [];
-    const add = (head, short, hMax, imgMaxW) => {
-      const feedH = Math.min(hMax, imgMaxW / aspect, cap);
-      const imgW = feedH * aspect;
-      if (feedH >= K.SPLIT_MIN_H && imgW >= K.SPLIT_MIN_IMG_W) {
-        const score = imgW * feedH * (this._layout === 'split' && this._splitHead === head ? K.LAYOUT_STICKY : 1);
-        out.push({ layout: 'split', head, short, feedH, imgW, imgMaxW, minH: K.SPLIT_MIN_H, score });
-      }
-    };
-    const short = hasBottom && avail < K.SHORT_H;
-    // The frame's own border (1 px each side) sits outside the inline width: without it a row that
-    // is exactly full wraps the button column to a second line (measured: 405 + 2 + 10 + 88 > 503).
-    const fb = this.feedWrap ? Math.max(0, this.feedWrap.offsetWidth - this.feedWrap.clientWidth) : 0;
-    add('top', short, avail - padY - topH - gap - (bottomH && !short ? bottomH + gap : 0), width - K.ACT_COL_W - gap - fb);
-    add('side', false, avail - padY, width - K.SIDE_COL_W - K.ACT_COL_W - 2 * gap - fb);
-    out.sort((a, b) => b.score - a.score);
-    return out[0] || null;
-  }
-
-  // The frame's width for side / split, never past what the column(s) leave: a frame rounded UP by
-  // half a pixel in a row that is exactly full wraps the button column to a second line (measured:
-  // 144 + 10 + 220 + 10 + 88 = 472 = the column's inner width, and the card grew by a whole row).
-  static _imgWidth(plan, aspect) {
-    const w = Math.round(plan.feedH * aspect);
-    return plan.imgMaxW ? Math.min(w, Math.floor(plan.imgMaxW)) : w;
   }
 
   _coarsePointer() {
@@ -3917,38 +3844,25 @@ class IgDoorbellView extends HTMLElement {
     const L = plan.layout;
     const c = this.content;
     this._layout = L;
-    const head = L === 'split' ? (plan.head || 'top') : null;
-    this._splitHead = head;
     c.classList.toggle('ig-stack', L === 'stack');
     c.classList.toggle('ig-side', L === 'side');
     c.classList.toggle('ig-short', L === 'overlay' && !!plan.short);
     c.classList.toggle('ig-side-compact', L === 'side' && plan.feedH < IgDoorbellView.SIDE_FULL_H);
-    // (1.1.1) SPLIT: ig-split, plus ig-split-head when the header is in the left column, plus
-    // ig-split-lbl when the picture is tall enough for labelled buttons (mutant M13 forces it on).
-    c.classList.toggle('ig-split', L === 'split');
-    c.classList.toggle('ig-split-head', head === 'side');
-    c.classList.toggle('ig-split-lbl', L === 'split' && plan.feedH >= IgDoorbellView.SPLIT_LBL_H);
-    this._placeControls(L, !!plan.short, head);
+    this._placeControls(L, !!plan.short);
     const fw = this.feedWrap;
     if (plan.feedH === null) {
       // Fullscreen: the .ig-fs sheet sizes the frame. No inline width may survive from the column
       // (the .ig-fs width:100% has no !important and an inline width would beat it).
       if (fw.style.width) fw.style.width = '';
       if (this.sideCol && this.sideCol.style.height) this.sideCol.style.height = '';
-      if (this.stackControls && this.stackControls.style.height) this.stackControls.style.height = '';
       return;
     }
     if (Math.abs((parseFloat(fw.style.height) || 0) - plan.feedH) > 0.5) fw.style.height = `${plan.feedH}px`;
-    // Side and split: the frame is exactly the picture (no black bars), the columns hug it.
-    const w = (L === 'side' || L === 'split') ? `${plan.imgW}px` : '';
+    const w = L === 'side' ? `${plan.imgW}px` : '';
     if (fw.style.width !== w) fw.style.width = w;
     if (this.sideCol) {
-      const h = (L === 'side' || head === 'side') ? `${plan.feedH}px` : '';
+      const h = L === 'side' ? `${plan.feedH}px` : '';
       if (this.sideCol.style.height !== h) this.sideCol.style.height = h;
-    }
-    if (this.stackControls) {
-      const h = L === 'split' ? `${plan.feedH}px` : '';
-      if (this.stackControls.style.height !== h) this.stackControls.style.height = h;
     }
     if (fw.style.aspectRatio !== 'auto') fw.style.aspectRatio = 'auto';
     if (fw.style.maxHeight) fw.style.maxHeight = '';
@@ -3956,9 +3870,7 @@ class IgDoorbellView extends HTMLElement {
 
   // Moves the three groups (header, buttons, Recordings row) to where the layout wants them.
   // MOVING, never cloning: every listener and every reference (this.micButton...) stays valid.
-  // (1.1.1) SPLIT reuses the two existing boxes: #stack-controls becomes the button column on the
-  // picture's right, #side-col the header column on its left (head 'side'); CSS orders them.
-  _placeControls(layout, short, head) {
+  _placeControls(layout, short) {
     const c = this.content;
     const top = this.topRow; const act = this.actionsRow; const rec = this.recordingsAction;
     if (!c || !top || !act || !rec || !this.stackControls || !this.feedWrap) return;
@@ -3967,14 +3879,8 @@ class IgDoorbellView extends HTMLElement {
       if (k[0] !== top || k[1] !== act || k[2] !== rec) this.sideCol.append(top, act, rec);
       return;
     }
-    if (layout === 'split' && head === 'side' && this.sideCol) {
-      const k = this.sideCol.children;
-      if (k[0] !== top || k[1] !== rec || k.length !== 2) this.sideCol.append(top, rec);
-      if (act.parentElement !== this.stackControls) this.stackControls.appendChild(act);
-      return;
-    }
     if (top.parentElement !== c || top.nextElementSibling !== this.feedWrap) c.insertBefore(top, this.feedWrap);
-    const dest = (layout === 'stack' || layout === 'split') ? this.stackControls : this.feedWrap;
+    const dest = layout === 'stack' ? this.stackControls : this.feedWrap;
     if (act.parentElement !== dest) dest.appendChild(act);
     const topRight = top.querySelector('.top-right');
     if (short && topRight) {
@@ -4462,7 +4368,7 @@ class IgDoorbellView extends HTMLElement {
   render() {
     if (!this.content) {
       // Visual language aligned with the real Figma mockup (android_app/ios_app, 2026-07-10 -
-      // the apps share it): exact palette, rounded video
+      // see COORDINATION.md Q22-bis in ig_hassio_addons): exact palette, rounded video
       // frame with the HUD overlaid INSIDE the video itself (LIVE + time, "Audio active",
       // "Motion detected"), asymmetric action buttons (mic as the star/door as
       // secondary), status line under the video, and mode chips. The mockup elements
@@ -4901,7 +4807,7 @@ class IgDoorbellView extends HTMLElement {
   // Speaks the doorbell's own protocol (ICE-Lite + DTLS-SRTP + RTP), direct or via relay.
   // Credentials/host served by the ig_doorbell integration
   // over HA's internal WebSocket API (never pasted by hand in YAML). See
-  // API_CONTRACT.md §1.4/§3.2/§3.3 of the IG_Doorbell firmware repository.
+  // API_CONTRACT.md §1.4/§3.2/§3.3 (IG_Doorbell) and ARCHITECTURE.md §5 (ig_hassio_addons).
   // ==============================================================================
 
   // Real instrumentation with timestamps (added 2026-07-10, see COORDINATION.md - real user
@@ -5646,73 +5552,7 @@ class IgDoorbellView extends HTMLElement {
       await this._stopTalk();
       return;
     }
-    // (1.1.0) A page opened over plain HTTP is not a secure context, and there the browser has NO
-    // microphone at all (`navigator.mediaDevices` is undefined). Until 1.0.x the tap requested
-    // the turn, getUserMedia threw, and the button just went back to off: a control that does
-    // nothing and says nothing. Now it explains why and leads to the fix, and the turn is not
-    // even requested (holding it without a microphone would silence the other clients).
-    if (!igMicPossible()) {
-      this._showMicNeedsHttps();
-      return;
-    }
     this._requestTalkTurn();
-  }
-
-  // The notice for a blocked microphone. Asks the integration whether its secure local
-  // connection is on (ig_doorbell/https_status) and points to the install page - or, if it is
-  // off, to the integration's option. Same overlay as the quick replies (.ev-panel).
-  async _showMicNeedsHttps() {
-    if (!this.content) return;
-    let st = null;
-    try {
-      st = await this._hass.connection.sendMessagePromise({ type: `${IG_DOMAIN}/https_status` });
-    } catch (err) {
-      console.warn('[ig-doorbell-card] https_status', err);
-    }
-    const T = (k) => igHttpsText(this._hass, k);
-    const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-    let panel = this.content.querySelector('.ig-https-panel');
-    if (!panel) {
-      panel = document.createElement('div');
-      panel.className = 'ev-panel ig-https-panel';
-      panel.style.cssText = 'overflow:auto;';
-      this.content.appendChild(panel);
-    }
-    const desktop = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') &&
-      !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || '')) &&
-      window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-    const btn = 'display:block;text-align:center;padding:12px 14px;border-radius:12px;font-weight:700;text-decoration:none;margin:4px 0;';
-    let body = `<p style="margin:0;color:var(--ig-muted);font-size:14px;line-height:1.45">${esc(T('why'))}</p>`;
-    if (st && st.running) {
-      const page = st.install_path || '/ig_doorbell/https';
-      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('setup'))}</p>` +
-        `<a href="${esc(page)}" target="_blank" rel="noopener" style="${btn}color:#fff;background:linear-gradient(135deg,var(--ig-blue),var(--ig-cyan))">${esc(T('open_page'))}</a>`;
-      if (desktop) {
-        body += `<div style="display:flex;gap:12px;align-items:center;margin-top:4px">` +
-          `<img src="${esc(page)}/qr.svg" alt="QR" style="width:120px;height:120px;background:#fff;border-radius:10px;padding:4px;flex:none">` +
-          `<span style="font-size:13px;color:var(--ig-muted)">${esc(T('qr'))}</span></div>`;
-      }
-      if (st.public_url) {
-        body += `<p style="margin:8px 0 0;color:var(--ig-muted);font-size:13px">${esc(T('public'))}</p>` +
-          `<a href="${esc(st.public_url)}" style="font-family:monospace;font-size:13px;color:var(--ig-cyan);word-break:break-all">${esc(st.public_url)}</a>`;
-      }
-    } else if (st && st.enabled) {
-      body += `<p style="margin:6px 0 0;color:var(--ig-amber);font-size:14px">${esc(T('down'))}</p>`;
-    } else {
-      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('off'))}</p>` +
-        `<a href="/config/integrations/integration/${IG_DOMAIN}" style="${btn}color:var(--ig-text);background:var(--ig-surf3)">${esc(T('open_integration'))}</a>`;
-    }
-    panel.innerHTML = `
-      <div class="ev-head">
-        <button type="button" class="ev-back ig-https-close" title="${esc(T('close'))}"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
-        <div class="ev-title">${esc(T('title'))}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;padding:4px 6px">${body}</div>`;
-    panel.querySelector('.ig-https-close').addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      panel.style.display = 'none';
-    });
-    panel.style.display = 'flex';
   }
 
   async _startTalk() {
@@ -5776,8 +5616,6 @@ class IgDoorbellView extends HTMLElement {
         this._updateMotionPill(); // rule: never visible with the mic active
       } catch (err) {
         console.warn('[ig-doorbell-card] could not activate the microphone', err);
-        // Any other path that reaches here without a secure context gets the same explanation.
-        if (!igMicPossible()) this._showMicNeedsHttps();
         this.talkActive = false;
         this.videoEl.muted = true;
         // Releasing the turn the device had just granted us: holding on to the reserved voice
@@ -5945,8 +5783,8 @@ class IgDoorbellView extends HTMLElement {
     style.textContent = `
       ${CARD_TAG}, ${VIEW_TAG} { display: block; width: 100%; box-sizing: border-box; }
 
-      /* Exact palette from the Figma mockup, shared with the mobile apps.
-         Custom properties scoped to .ig-container (not :root - this
+      /* Exact palette from the Figma mockup (android_app/ios_app) - see COORDINATION.md Q22-bis
+         in ig_hassio_addons. Custom properties scoped to .ig-container (not :root - this
          card does not use Shadow DOM, so :root would leak into HA's whole document). */
       .ig-container {
         /* EXACT values confirmed against the real source code of android_app/ios_app
@@ -6651,7 +6489,7 @@ class IgDoorbellView extends HTMLElement {
       /* ==========================================================================
          1.11.0 ADAPTIVE LAYOUT. Which layout is active is decided ONLY in JS (_planLayout /
          _applyLayout, measuring the card's real space); this sheet only draws each one. Exactly
-         one of .ig-stack / .ig-side / .ig-split (1.1.1) / (none = overlay) is ever set.
+         one of .ig-stack / .ig-side / (neither = overlay) is ever set.
          ========================================================================== */
 
       /* Touch targets: 44 px on touch devices (Apple HIG / WCAG 2.5.5). Measured in 1.10.0: mode chip
@@ -6676,11 +6514,7 @@ class IgDoorbellView extends HTMLElement {
       .ig-vh-lbl, .ig-container.ig-side-compact .side-col .action .lbl,
       .ig-container.ig-side-compact .side-col .rec-pill-label,
       .ig-container.ig-side-compact .side-col .quick-btn-label,
-      .ig-container.ig-short .top-right .quick-btn-label,
-      .ig-container.ig-split .top-right .quick-btn-label,
-      .ig-container.ig-split-head .side-col .rec-pill-label,
-      .ig-container.ig-split-head .side-col .quick-btn-label,
-      .ig-container.ig-split:not(.ig-split-lbl) .stack-controls .action .lbl {
+      .ig-container.ig-short .top-right .quick-btn-label {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
       }
 
@@ -6748,78 +6582,18 @@ class IgDoorbellView extends HTMLElement {
          where nothing else fits) can't hold picker + mode + four round buttons on one line: measured,
          the picker was squeezed to 26 px. The header wraps to a second line instead; the height
          correction in _fitToSpace() takes that line from the video. */
-      .ig-container.ig-short .top-row, .ig-container.ig-split > .top-row { flex-wrap: wrap; row-gap: 8px; }
-      .ig-container.ig-short .top-left, .ig-container.ig-split > .top-row .top-left { flex: 1 1 auto; }
+      .ig-container.ig-short .top-row { flex-wrap: wrap; row-gap: 8px; }
+      .ig-container.ig-short .top-left { flex: 1 1 auto; }
       /* In a short frame there is no room ABOVE the buttons for the HUD cluster (the narrow-card rule
          lifts it 148 px, measured: the fullscreen button ended outside a 158 px frame). It goes to
          the top-right corner instead, across from the live tag. */
       .ig-container.ig-short .hud-bottom { top: 12px; bottom: auto; left: auto; }
-      .ig-container.ig-short .top-right .bottom-row, .ig-container.ig-split .top-right .bottom-row { gap: 8px; }
-      .ig-container.ig-short .top-right .quick-btn.half, .ig-container.ig-split .top-right .quick-btn.half {
+      .ig-container.ig-short .top-right .bottom-row { gap: 8px; }
+      .ig-container.ig-short .top-right .quick-btn.half {
         flex: none; width: var(--ig-tap); height: var(--ig-tap); min-height: 0; padding: 0;
         justify-content: center; border-radius: 999px; gap: 0;
       }
-      .ig-container.ig-short .top-right .quick-btn-icon, .ig-container.ig-split .top-right .quick-btn-icon { width: auto; height: auto; background: none; }
-
-      /* ---- SPLIT (.ig-split, integration 1.1.1): sound / mic / door in a column hugging the
-         picture's RIGHT edge (#stack-controls), never over the picture. With .ig-split-head the
-         header and Recordings / Quick replies go to a compact column on its LEFT (#side-col) and
-         the picture takes the full height (phone in landscape); without it the header keeps its
-         row on top. JS sizes the frame to the picture and both columns to its height; the group
-         is centred. Chosen only where overlay would have covered the picture (see _planLayout). */
-      .ig-container.ig-split { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; column-gap: 10px; }
-      /* With the header beside the picture every child is on one line; never let it wrap. */
-      .ig-container.ig-split-head { flex-wrap: nowrap; }
-      .ig-container.ig-split > .top-row { flex: 0 0 100%; order: 0; }
-      .ig-container.ig-split > .side-col { order: 1; }
-      .ig-container.ig-split .feed-wrap { flex: none; order: 2; }
-      .ig-container.ig-split .stack-controls { order: 3; }
-      .ig-container.ig-split > .bottom-row { flex: 0 0 100%; order: 4; }
-      .ig-container.ig-split .stack-controls {
-        display: flex; flex-direction: column; justify-content: center;
-        width: var(--ig-act-w, 88px); flex: none; box-sizing: border-box; min-height: 0;
-      }
-      .ig-container.ig-split .stack-controls .actions-row {
-        position: static; transform: none; width: auto; left: auto; right: auto; top: auto; bottom: auto;
-        flex-direction: column; justify-content: center; align-items: center; gap: 8px;
-        pointer-events: auto; min-height: 0; padding: 0;
-      }
-      .ig-container.ig-split .stack-controls .action { max-width: 100%; gap: 4px; }
-      .ig-container.ig-split .action .btn.mic { width: 56px; height: 56px; }
-      .ig-container.ig-split .action .btn.mic ha-icon { --mdc-icon-size: 24px; }
-      .ig-container.ig-split .action .btn.door, .ig-container.ig-split .action .btn.snd { width: 48px; height: 48px; }
-      .ig-container.ig-split .action .btn.door ha-icon, .ig-container.ig-split .action .btn.snd ha-icon { --mdc-icon-size: 20px; }
-      .ig-container.ig-split-lbl .stack-controls .actions-row { gap: 10px; }
-      .ig-container.ig-split-lbl .action .btn.mic { width: 64px; height: 64px; }
-      .ig-container.ig-split-lbl .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
-      .ig-container.ig-split-lbl .action .btn.door, .ig-container.ig-split-lbl .action .btn.snd { width: 52px; height: 52px; }
-      .ig-container.ig-split .action .btn { background: linear-gradient(135deg, var(--ig-surf2), var(--ig-surf3)); backdrop-filter: none; box-shadow: none; }
-      /* Low specificity ON PURPOSE (as .ig-side .lbl): the state colours must win. */
-      .ig-split .lbl { color: var(--ig-muted); text-shadow: none; text-align: center; font-size: 11px; max-width: var(--ig-act-w, 88px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      /* Header column (.ig-split-head): the compact side column's arrangement - picker, then mode /
-         REC / bell as three 44 px icons, then Recordings / Quick replies as two icons. */
-      .ig-container.ig-split-head .side-col {
-        display: flex; flex-direction: column; justify-content: center; gap: 8px;
-        width: var(--ig-side-w, 144px); flex: none; box-sizing: border-box; min-height: 0;
-      }
-      .ig-container.ig-split-head .side-col .top-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
-      .ig-container.ig-split-head .side-col .top-left, .ig-container.ig-split-head .side-col .top-right { display: contents; }
-      .ig-container.ig-split-head .side-col .db-picker { grid-column: 1 / -1; min-width: 0; }
-      .ig-container.ig-split-head .side-col .mode-row { min-width: 0; }
-      .ig-container.ig-split-head .side-col .db-pill { width: 100%; min-height: var(--ig-tap); }
-      .ig-container.ig-split-head .side-col .mode-pill { width: 100%; min-height: var(--ig-tap); justify-content: center; box-sizing: border-box; min-width: 0; padding: 0; }
-      .ig-container.ig-split-head .side-col .mode-pill-label, .ig-container.ig-split-head .side-col .mode-pill-caret { display: none; }
-      .ig-container.ig-split-head .side-col .mode-pill ha-icon { --mdc-icon-size: 18px; }
-      .ig-container.ig-split-head .side-col .rec-action-wrap { min-width: 0; }
-      .ig-container.ig-split-head .side-col .rec-pill { width: 100%; height: var(--ig-tap); justify-content: center; box-sizing: border-box; padding: 0; }
-      .ig-container.ig-split-head .side-col .bell-btn { width: 100%; height: var(--ig-tap); border-radius: 999px; }
-      .ig-container.ig-split-head .side-col .bottom-row { flex-direction: row; gap: 6px; }
-      .ig-container.ig-split-head .side-col .quick-btn.half { flex: 1 1 0; min-height: 44px; justify-content: center; padding: 6px 0; }
-      /* Nothing floats over the picture's bottom: no veil; status line and HUD as in side / stack. */
-      .ig-container.ig-split .feed-wrap::after { display: none; }
-      .ig-container.ig-split .hud-bottom { bottom: 12px; }
-      .ig-container.ig-split .hud-top { top: 36px; }
-      .ig-container.ig-split .status-line { bottom: 58px; left: 12px; right: 12px; }
+      .ig-container.ig-short .top-right .quick-btn-icon { width: auto; height: auto; background: none; }
 
     `;
     this.appendChild(style);
@@ -7079,131 +6853,4 @@ if (!customElements.get(CARD_TAG)) {
   }
 } else {
   console.warn('[ig-doorbell-card] ig-doorbell-card was already registered (there are probably two resources of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate');
-}
-
-// ==============================================================================
-// (1.1.0) Microphone and secure context. Browsers expose `navigator.mediaDevices` only to a
-// secure context (HTTPS, or localhost): on `http://<ip>:8123` there is no microphone to ask for.
-// The integration can serve Home Assistant over HTTPS on the home network (its "Secure local
-// connection" option); this notice is how a user who hits the wall finds it.
-// ==============================================================================
-function igMicPossible() {
-  return !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-}
-
-const IG_HTTPS_TEXT = {
-  en: {
-    title: 'Microphone needs a secure connection',
-    why: 'Browsers only let a page use the microphone over a secure (HTTPS) connection. This page was opened over plain HTTP, so the microphone is blocked.',
-    setup: 'Set up this device once:',
-    open_page: 'Open the setup page',
-    qr: 'Or scan this with your phone to set it up there.',
-    public: 'Or open Home Assistant here, nothing to install:',
-    off: 'The secure local connection is turned off. An administrator can turn it on in Settings › Devices & services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS).',
-    open_integration: 'Open the integration',
-    down: 'The secure local connection is on but not running. See Settings › System › Repairs.',
-    close: 'Close',
-  },
-  es: {
-    title: 'El micrófono necesita una conexión segura',
-    why: 'Los navegadores solo dejan usar el micrófono con una conexión segura (HTTPS). Esta página se abrió por HTTP normal, así que el micrófono está bloqueado.',
-    setup: 'Configura este dispositivo una sola vez:',
-    open_page: 'Abrir la página de configuración',
-    qr: 'O escanea esto con tu teléfono para configurarlo allí.',
-    public: 'O abre Home Assistant aquí, sin instalar nada:',
-    off: 'La conexión local segura está desactivada. Un administrador puede activarla en Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS).',
-    open_integration: 'Abrir la integración',
-    down: 'La conexión local segura está activada pero no funciona. Mira Ajustes › Sistema › Reparaciones.',
-    close: 'Cerrar',
-  },
-  pt: {
-    title: 'O microfone precisa de uma ligação segura',
-    why: 'Os navegadores só deixam usar o microfone numa ligação segura (HTTPS). Esta página foi aberta por HTTP simples, por isso o microfone está bloqueado.',
-    setup: 'Configure este dispositivo uma única vez:',
-    open_page: 'Abrir a página de configuração',
-    qr: 'Ou leia isto com o telemóvel para o configurar lá.',
-    public: 'Ou abra o Home Assistant aqui, sem instalar nada:',
-    off: 'A ligação local segura está desligada. Um administrador pode ligá-la em Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS).',
-    open_integration: 'Abrir a integração',
-    down: 'A ligação local segura está ligada mas não está a funcionar. Veja Definições › Sistema › Reparações.',
-    close: 'Fechar',
-  },
-  de: {
-    title: 'Das Mikrofon braucht eine sichere Verbindung',
-    why: 'Browser erlauben das Mikrofon nur über eine sichere Verbindung (HTTPS). Diese Seite wurde über einfaches HTTP geöffnet, daher ist das Mikrofon gesperrt.',
-    setup: 'Richte dieses Gerät einmalig ein:',
-    open_page: 'Einrichtungsseite öffnen',
-    qr: 'Oder scanne das mit deinem Telefon, um es dort einzurichten.',
-    public: 'Oder öffne Home Assistant hier, ohne etwas zu installieren:',
-    off: 'Die sichere lokale Verbindung ist ausgeschaltet. Ein Administrator kann sie einschalten unter Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS).',
-    open_integration: 'Integration öffnen',
-    down: 'Die sichere lokale Verbindung ist eingeschaltet, läuft aber nicht. Siehe Einstellungen › System › Reparaturen.',
-    close: 'Schließen',
-  },
-  fr: {
-    title: 'Le micro a besoin d’une connexion sécurisée',
-    why: 'Les navigateurs n’autorisent le micro que sur une connexion sécurisée (HTTPS). Cette page a été ouverte en HTTP simple : le micro est donc bloqué.',
-    setup: 'Configurez cet appareil une seule fois :',
-    open_page: 'Ouvrir la page de configuration',
-    qr: 'Ou scannez ceci avec votre téléphone pour le configurer.',
-    public: 'Ou ouvrez Home Assistant ici, sans rien installer :',
-    off: 'La connexion locale sécurisée est désactivée. Un administrateur peut l’activer dans Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS).',
-    open_integration: 'Ouvrir l’intégration',
-    down: 'La connexion locale sécurisée est activée mais ne fonctionne pas. Voir Paramètres › Système › Réparations.',
-    close: 'Fermer',
-  },
-  ru: {
-    title: 'Микрофону нужно защищённое подключение',
-    why: 'Браузеры разрешают микрофон только по защищённому подключению (HTTPS). Эта страница открыта по обычному HTTP, поэтому микрофон заблокирован.',
-    setup: 'Настройте это устройство один раз:',
-    open_page: 'Открыть страницу настройки',
-    qr: 'Или отсканируйте это телефоном, чтобы настроить его.',
-    public: 'Или откройте Home Assistant здесь, ничего не устанавливая:',
-    off: 'Защищённое локальное подключение выключено. Администратор может включить его: Настройки › Устройства и службы › Islautopia Garage Doorbell › Настроить › Защищённое локальное подключение (HTTPS).',
-    open_integration: 'Открыть интеграцию',
-    down: 'Защищённое локальное подключение включено, но не работает. См. Настройки › Система › Исправления.',
-    close: 'Закрыть',
-  },
-  zh: {
-    title: '麦克风需要安全连接',
-    why: '浏览器只允许在安全连接（HTTPS）下使用麦克风。此页面是通过普通 HTTP 打开的，因此麦克风被阻止。',
-    setup: '只需在此设备上设置一次：',
-    open_page: '打开设置页面',
-    qr: '或用手机扫描此码，在手机上设置。',
-    public: '或在此打开 Home Assistant，无需安装：',
-    off: '本地安全连接已关闭。管理员可在 设置 › 设备与服务 › Islautopia Garage Doorbell › 配置 › 本地安全连接（HTTPS） 中开启。',
-    open_integration: '打开集成',
-    down: '本地安全连接已开启但未运行。请查看 设置 › 系统 › 修复。',
-    close: '关闭',
-  },
-  hi: {
-    title: 'माइक्रोफ़ोन को सुरक्षित कनेक्शन चाहिए',
-    why: 'ब्राउज़र माइक्रोफ़ोन केवल सुरक्षित (HTTPS) कनेक्शन पर देते हैं। यह पेज सामान्य HTTP से खुला है, इसलिए माइक्रोफ़ोन अवरुद्ध है।',
-    setup: 'इस डिवाइस को एक बार सेट करें:',
-    open_page: 'सेटअप पेज खोलें',
-    qr: 'या इसे वहाँ सेट करने के लिए अपने फ़ोन से स्कैन करें।',
-    public: 'या Home Assistant यहाँ खोलें, कुछ इंस्टॉल किए बिना:',
-    off: 'सुरक्षित लोकल कनेक्शन बंद है। एडमिनिस्ट्रेटर इसे सेटिंग्स › डिवाइस और सेवाएँ › Islautopia Garage Doorbell › कॉन्फ़िगर करें › सुरक्षित लोकल कनेक्शन (HTTPS) में चालू कर सकता है।',
-    open_integration: 'इंटीग्रेशन खोलें',
-    down: 'सुरक्षित लोकल कनेक्शन चालू है लेकिन चल नहीं रहा। सेटिंग्स › सिस्टम › मरम्मत देखें।',
-    close: 'बंद करें',
-  },
-  ar: {
-    title: 'يحتاج الميكروفون إلى اتصال آمن',
-    why: 'لا تسمح المتصفحات بالميكروفون إلا عبر اتصال آمن (HTTPS). فُتحت هذه الصفحة عبر HTTP عادي، لذا الميكروفون محظور.',
-    setup: 'جهّز هذا الجهاز مرة واحدة:',
-    open_page: 'افتح صفحة الإعداد',
-    qr: 'أو امسح هذا بهاتفك لإعداده عليه.',
-    public: 'أو افتح Home Assistant هنا دون تثبيت أي شيء:',
-    off: 'الاتصال المحلي الآمن متوقف. يمكن للمسؤول تفعيله من الإعدادات › الأجهزة والخدمات › Islautopia Garage Doorbell › تهيئة › اتصال محلي آمن (HTTPS).',
-    open_integration: 'افتح التكامل',
-    down: 'الاتصال المحلي الآمن مفعّل لكنه لا يعمل. راجع الإعدادات › النظام › الإصلاحات.',
-    close: 'إغلاق',
-  },
-};
-
-function igHttpsText(hass, key) {
-  const lang = (hass && hass.language) ? hass.language.substring(0, 2) : 'en';
-  const table = IG_HTTPS_TEXT[lang] || IG_HTTPS_TEXT.en;
-  return table[key] !== undefined ? table[key] : IG_HTTPS_TEXT.en[key];
 }

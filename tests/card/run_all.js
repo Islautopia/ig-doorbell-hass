@@ -17,6 +17,9 @@
 //   - ui_v1_11_0 and ui_v1_10_0 carry built-in mutants of the card (they fail themselves if a
 //     mutant survives).
 //   - ui_v1_9_7 run against the 1.9.6 build, ui_v1_9_8 against the 1.9.7 build (fixtures/legacy).
+//   - ui_v1_11_0 against the 1.0.0 card (fixtures/legacy/card_1.0.0.js, a plain copy: no renames
+//     needed) must go red on L13 - the call buttons over a portrait picture on a phone in landscape
+//     with room beside it (fixed in 1.1.1).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
 //     fixtures/legacy/card_3983f68.js) plus its own mutants.
 const http = require('http');
@@ -57,7 +60,7 @@ function run(job, port) {
 
 const LEGACY = (f) => path.join(__dirname, 'fixtures', 'legacy', f);
 const JOBS = [
-  { name: 'ui_v1_11_0 (+ mutants M1-M11)', bench: 'ui_v1_11_0', args: ['ui_v1_11_0/driver.js'], expect: 0 },
+  { name: 'ui_v1_11_0 (+ mutants M1-M14)', bench: 'ui_v1_11_0', args: ['ui_v1_11_0/driver.js'], expect: 0 },
   { name: 'ui_v1_10_0 (+ mutants)', bench: 'ui_v1_10_0', args: ['ui_v1_10_0/driver.js'], expect: 0 },
   { name: 'ui_v1_9_8', bench: 'ui_v1_9_8', args: ['ui_v1_9_8/driver.js'], expect: 0 },
   { name: 'ui_v1_9_7', bench: 'ui_v1_9_7', args: ['ui_v1_9_7/driver.js'], expect: 0 },
@@ -73,6 +76,8 @@ const JOBS = [
     args: ['ui_v1_9_7/driver.js'], env: { CARD_FILE: LEGACY('card_1.9.6.js') }, expect: 1, failText: /^ {2}FAIL /m, },
   { name: 'CONTROL ui_v1_9_8 vs 1.9.7 build (must fail)', bench: 'ui_v1_9_8', control: true,
     args: ['ui_v1_9_8/driver.js'], env: { CARD_FILE: LEGACY('card_1.9.7.js') }, expect: 1, failText: /^ {2}FAIL /m, },
+  { name: 'CONTROL ui_v1_11_0 vs 1.0.0 card (must fail L13)', bench: 'ui_v1_11_0', control: true,
+    args: ['ui_v1_11_0/driver.js'], env: { CARD_FILE: LEGACY('card_1.0.0.js'), SKIP_MUTANTS: '1' }, expect: 1, failText: /^FAIL \[L13\]/m, },
 ];
 
 (async () => {
