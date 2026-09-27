@@ -517,3 +517,40 @@ async def test_two_doorbells_start_together_and_both_load(hass, order):
         for e in entries.values():
             await hass.config_entries.async_unload(e.entry_id)
         await hass.async_block_till_done()
+
+
+async def test_a_refused_picture_is_not_announced_in_the_ring(hass):
+    """call_snap=0 answered at the ring itself (403): the notice goes out without an image, instead
+    of pointing the phone at an empty frame."""
+    snap = AsyncMock(side_effect=api.SnapshotDisabledError("call_snapshot_disabled"))
+    _, _, calls, patches = await _setup(hass, lambda ids: {CONF_NOTIFY_PHONES: [ids["Iphone Test"]]},
+                                        snapshot=snap)
+    await _post(hass, _envelope("ring"))
+    assert "image" not in _msgs(calls, "Iphone Test")[0]["data"]
+    for p in patches:
+        p.stop()
+
+
+async def test_the_missed_call_notice_keeps_the_picture_of_that_call(hass):
+    """Measured on an iPhone: the 'missed call' that replaced the ring without the picture left the
+    owner with no picture at all (the ring's own notice had it)."""
+    _, _, calls, patches = await _setup(hass, lambda ids: {CONF_NOTIFY_PHONES: [ids["Iphone Test"]]})
+    await _post(hass, _envelope("ring"))
+    await _post(hass, _envelope("call_missed"))
+    missed = _msgs(calls, "Iphone Test")[-1]
+    assert missed["message"].startswith("Missed call") and missed["data"]["image"].startswith("/api/image_proxy/")
+    for p in patches:
+        p.stop()
+
+
+async def test_after_a_newer_ring_the_older_missed_call_shows_no_picture(hass):
+    """The picture held now belongs to the newer ring: showing it on the older call's notice would
+    put somebody else's face on it."""
+    _, _, calls, patches = await _setup(hass, lambda ids: {CONF_NOTIFY_PHONES: [ids["Iphone Test"]]})
+    await _post(hass, _envelope("ring"))
+    await _post(hass, _envelope("ring", call_id="newer"))
+    await _post(hass, _envelope("call_missed"))
+    missed = [m for m in _msgs(calls, "Iphone Test") if m["message"].startswith("Missed call")][0]
+    assert "image" not in missed["data"]
+    for p in patches:
+        p.stop()

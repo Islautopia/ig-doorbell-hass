@@ -66,6 +66,9 @@ class VisitorImage(DoorbellEntity, ImageEntity):
         self._jpeg: bytes | None = None
         self._fetch: asyncio.Task | None = None
         self._ring_at: float | None = None
+        # The call the current picture belongs to: a notice about call A must never show the
+        # visitor of a later call B.
+        self.call_id: str | None = None
         # Set by __init__.py: whether the built-in ring notifier is on for this doorbell.
         self._wanted_at_ring = lambda: False
 
@@ -94,6 +97,7 @@ class VisitorImage(DoorbellEntity, ImageEntity):
         # The previous visitor is never this ring's: dropped at once.
         self._jpeg = None
         self._ring_at = time.monotonic()
+        self.call_id = envelope.get("call_id")
         # ⚠️ FETCHED AT THE RING ONLY WHEN SOMEONE WILL LOOK AT IT (the built-in notifier is on).
         # Otherwise it is fetched the first time it is asked for (a dashboard, an automation's
         # notification) within LAZY_WINDOW_S of the ring. A doorbell whose owner uses none of this
@@ -132,6 +136,25 @@ class VisitorImage(DoorbellEntity, ImageEntity):
             except (asyncio.TimeoutError, asyncio.CancelledError):
                 pass
         return self._jpeg
+
+    async def async_wait_picture(self, timeout: float) -> bool:
+        """Wait (bounded) for this ring's picture. True if there is one to point at.
+
+        Used by the ring notifier: iOS downloads a notification's attachment ONCE, when it
+        arrives, so the push is sent once the picture is there - but never later than `timeout`
+        (§3.5: the ring must not wait for a picture). Measured on the bench doorbell: ~0.8 s.
+        """
+        fetch = self._fetch
+        if fetch is not None and not fetch.done():
+            try:
+                await asyncio.wait_for(asyncio.shield(fetch), timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                return True     # still coming: the image URL waits for it (async_image)
+        return self._jpeg is not None
+
+    def picture_of(self, call_id: str) -> bool:
+        """Whether the picture held now is the one taken for `call_id`."""
+        return self._jpeg is not None and call_id is not None and self.call_id == call_id
 
     @property
     def has_picture(self) -> bool:

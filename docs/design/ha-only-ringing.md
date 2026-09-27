@@ -191,6 +191,17 @@ internet (local push / persistent connection). Phones: see above.
   retried). The registration now runs under a lock, and a failure there can no longer take the entry
   down. Covered by a startup test with both entries in both orders. Control: without both defences,
   that test fails with the exact error seen on the installation.
+- **iPhone, real HA, silent mode, Critical Alerts allowed** (single test pushes, then real rings):
+  the critical alert sounds in silent mode, both `push.sound.critical` alone and our full ring
+  payload. **With an Apple Watch worn, iOS delivers to the Watch and the iPhone stays silent** —
+  Apple's routing, not our payload (same pushes, Watch off: the phone sounds). The picture works in
+  every form that points at our picture: HA-relative `image` and `attachment`, and absolute
+  URLs with a token over the public HTTPS name and over the LAN. (A third-party internet image did
+  not show; not ours, not chased.) **The picture "never arrived" on a real missed ring because the
+  "Missed call" replacement (same tag) had no picture and replaced the notice that had one.** Fixed:
+  the replacement carries the picture of that same call, and none if a newer ring came in between.
+  The ring now also waits, at most 1.5 s, for its picture (measured ready 0.8 s after the ring),
+  because iOS downloads the attachment only once.
 - **Fixed on the way**: the missed-call time now uses the doorbell's `tz_name`, not HA's zone (the
   Docker HA was on UTC and showed the wrong hour).
 

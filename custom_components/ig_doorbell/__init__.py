@@ -218,6 +218,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, entry, coordinator,
         has_picture=lambda: (img := data.get("visitor_image")) is not None and img.has_picture,
         image_entity_id=lambda: (img := data.get("visitor_image")) and img.entity_id,
+        image=lambda: data.get("visitor_image"),
     )
     data["ring_notifier"] = notifier
     if (img := data.get("visitor_image")) is not None:

@@ -35,6 +35,8 @@ older firmware they still ring, but they are not cleared. Panels go back to thei
 **iPhone / iPad (companion app)**
 - Allow notifications, and in *iOS Settings → Notifications → Home Assistant* turn on **Critical
   Alerts**. Without that, a critical alert can't get past silent mode.
+- **If you wear an Apple Watch**, iOS sends the notification to the Watch while the iPhone is
+  locked, and the iPhone stays silent. The Watch rings instead; that is how iOS handles it.
 - An iPad can't be woken into a page remotely; that is an iOS limit. As a wall panel, leave the
   call page open (`/ig-doorbell?device=<id>`, or just `/ig-doorbell` with one doorbell) in
   **Guided Access**. The page reacts to the ring by itself. The iPad also gets the notification.

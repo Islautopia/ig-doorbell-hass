@@ -51,7 +51,12 @@ from .const import (
     OPEN_DOOR_WINDOW_S,
     RING_SAFETY_S,
     SIGNAL_EVENT,
+    SNAPSHOT_TIMEOUT_S,
 )
+
+# How long the ring may wait for its picture (see async_ring). Never more: the ring comes first.
+RING_PICTURE_WAIT_S = 1.5
+assert RING_PICTURE_WAIT_S < SNAPSHOT_TIMEOUT_S
 from .coordinator import DoorbellCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -135,6 +140,7 @@ class Call:
     started: float
     targets: list[Target]
     outcome: str | None = None
+    picture: bool = False
     cancel_safety: Callable[[], None] | None = None
     panels_home: bool = False
     extra: dict = field(default_factory=dict)
@@ -176,12 +182,14 @@ class RingNotifier:
     """Rings the picked phones and panels for one doorbell, and cleans up after the call."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, coordinator: DoorbellCoordinator,
-                 has_picture: Callable[[], bool], image_entity_id: Callable[[], str | None]) -> None:
+                 has_picture: Callable[[], bool], image_entity_id: Callable[[], str | None],
+                 image: Callable[[], Any] | None = None) -> None:
         self.hass = hass
         self.entry = entry
         self.coordinator = coordinator
         self._has_picture = has_picture
         self._image_entity_id = image_entity_id
+        self._image = image or (lambda: None)
         self.calls: dict[str, Call] = {}
 
     # -- wiring -----------------------------------------------------------------------------------
@@ -266,6 +274,13 @@ class RingNotifier:
         self.calls[call_id] = call
         self._forget_old()
         call.cancel_safety = async_call_later(self.hass, RING_SAFETY_S, self._safety(call_id))
+        # ⚠️ iOS downloads the attachment ONCE, when the notification arrives, and a picture not
+        # there yet is simply missing. So wait for it - BOUNDED (§3.5: never delay the ring for a
+        # picture; measured ~0.8 s on the bench doorbell). A doorbell that refused it (call_snap=0,
+        # a 503) gets a notice without the picture instead of an empty frame.
+        call.picture = False
+        if self._has_picture() and (img := self._image()) is not None:
+            call.picture = await img.async_wait_picture(RING_PICTURE_WAIT_S)
         await self._each(self._ring_one(call, t) for t in targets)
 
     def _ring_data(self, call: Call, target: Target) -> dict:
@@ -274,7 +289,7 @@ class RingNotifier:
         url = call_page_url(self.coordinator.device_id)
         data: dict[str, Any] = {"tag": call.tag, "group": f"igd_{self.coordinator.device_id}"}
         image = self._image_entity_id()
-        if image and self._has_picture():
+        if image and call.picture:
             data["image"] = f"/api/image_proxy/{image}"
         actions = [{"action": "URI", "title": text(call.lang, "open_call"), "uri": url}]
         if (target.role == "phone" and o.get(CONF_NOTIFY_OPEN_DOOR, False)
@@ -346,6 +361,13 @@ class RingNotifier:
 
     async def _replace_quiet(self, call: Call, target: Target, message: str) -> None:
         data: dict[str, Any] = {"tag": call.tag, "group": f"igd_{self.coordinator.device_id}"}
+        # The replacement keeps the visitor's picture - measured on an iPhone: a "missed call" that
+        # replaced the ring WITHOUT it left the owner with no picture at all. Only if the picture
+        # held now is still THIS call's: after a later ring it would be somebody else's face.
+        img = self._image()
+        image_id = self._image_entity_id()
+        if img is not None and image_id and img.picture_of(call.call_id):
+            data["image"] = f"/api/image_proxy/{image_id}"
         url = call_page_url(self.coordinator.device_id)
         if target.platform == "ios":
             data["url"] = url
