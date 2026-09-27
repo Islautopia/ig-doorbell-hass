@@ -149,14 +149,36 @@ ring).
   sounded. Android channel sounds and iOS notification sounds cannot be set from Home Assistant;
   the docs say how to set them by hand.
 
-### 6. PENDING DESIGN: who gets calls through Home Assistant, phone by phone (Iñaki, 2026-09-27)
+### 6. PENDING: who gets calls through Home Assistant, phone by phone (Iñaki, 2026-09-27)
 
 *"It is not black or white: each user must be able to decide whether they receive calls via HA."*
-The admin-picked phone list above is **provisional**: it works and is used for testing, and its UX
-is not to be polished further. Ideas on the table for the design: a per-phone choice that each user
-makes on their own phone (for example an entity per `mobile_app` device); levels (full call / quiet
-notice with the picture / nothing); a quiet notice by default when the IG Doorbell app is paired on
-that phone; context such as home or away.
+
+**Target (Iñaki's decision):** each doorbell user decides, in the IG Doorbell app's *My account*,
+whether they receive call notices through the Home Assistant companion app. **The default is no.**
+Users who only have the companion app (no IG Doorbell app) have no such control, and they DO receive
+calls as long as the companion's notifications are on. The admin-picked phone list in 1.2.0 is
+**provisional**: it works and is used for testing, and its UX is not to be polished further.
+
+**Proposed mapping** (not implemented; needs the firmware, the apps and the integration):
+
+1. **The integration publishes the house's companion phones to the doorbell**, the same way it
+   already publishes the entity allowlist (`POST /api/hass`, LAN only, never forwarded to the VPS):
+   `phones: [{"id": <HA device id>, "name": "Galaxy M23", "os": "android", "ha_user": "Iñaki"}]`.
+   `ha_user` is the Home Assistant user who registered that companion (the `mobile_app` entry's
+   `user_id`), there to help people recognise their phone. It is not used to match anything.
+2. **In the app, *My account* → "Calls through Home Assistant"**: the user ticks the phone or
+   phones that are theirs, and a switch says whether those phones get calls (default off). The
+   doorbell stores this per pairing user, next to their role. It is an **explicit link**, because
+   matching Home Assistant users to doorbell users by name would guess wrong.
+3. **The doorbell answers with the resolved policy** in `GET /api/hass`, which the integration
+   already reads: `phones_policy: {<id>: "ring" | "none"}`. A phone linked to an app user gets that
+   user's choice. A phone nobody linked gets `ring`: that is the companion-only user.
+4. **The notifier uses that policy** instead of the admin list, which stays only for wall panels.
+   A doorbell that does not send `phones_policy` (older firmware) keeps today's admin list.
+
+To settle in the design: the levels (full call / quiet notice with the picture / nothing, where
+"nothing" is today's "none"), context such as home or away, and whether "quiet notice" should be
+the default for a phone that has the IG Doorbell app paired.
 
 ## What the platform does NOT allow, said plainly
 
