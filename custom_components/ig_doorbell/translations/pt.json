@@ -3,6 +3,7 @@
     "step": {
       "init": {
         "menu_options": {
+          "notifications": "Avisos de campainha (telemóveis e painéis)",
           "entities": "Entidades que a campainha pode acionar",
           "https": "Ligação local segura (HTTPS)"
         }
@@ -24,6 +25,24 @@
         "data_description": {
           "enabled": "Abre a porta HTTPS e mantém os seus certificados atualizados.",
           "port": "Predefinição 8443. Tem de estar livre na máquina do Home Assistant."
+        }
+      },
+      "notifications": {
+        "title": "Avisos de campainha",
+        "description": "O Home Assistant faz tocar os telemóveis e painéis de parede escolhidos aqui quando alguém toca, com a foto do visitante, e remove-os de todos assim que a chamada é atendida. Nada para escrever: nenhuma automação. Deixe as duas listas vazias para desativar (se já tem a sua própria automação para a campainha, desative uma das duas ou cada toque chegará duas vezes). Abrir a página da chamada ou a foto fora de casa requer acesso remoto ao Home Assistant; para falar é preciso uma página segura (HTTPS).",
+        "data": {
+          "notify_phones": "Telemóveis",
+          "notify_panels": "Painéis de parede",
+          "notify_critical": "Tocar mesmo em modo silencioso",
+          "notify_open_door": "Botão «Abrir a porta» nos telemóveis",
+          "panel_return_path": "Painel: página para onde voltar após a chamada"
+        },
+        "data_description": {
+          "notify_phones": "Telemóveis com a app Home Assistant. Recebem um aviso com a foto; ao tocar abre-se a página da chamada.",
+          "notify_panels": "Tablets de parede com a app Home Assistant. Android: o ecrã acende-se e mostra a página da chamada (a app precisa da permissão «Mostrar sobre outras apps»; sem ela mostra um aviso normal sem dizer nada). iPad: um aviso; para um verdadeiro painel deixe a página da chamada aberta com Acesso guiado.",
+          "notify_critical": "iPhone: alerta crítico (permita Alertas críticos à app Home Assistant). Android: canal de alarme.",
+          "notify_open_door": "Adiciona um botão «Abrir a porta» ao aviso, válido apenas enquanto toca. O iPhone pede Face ID antes. No Android ainda não se sabe se obriga a desbloquear o telemóvel: deixe desligado se isso importa.",
+          "panel_return_path": "Por exemplo /lovelace/0. Vazio: a página inicial da app Home Assistant."
         }
       }
     },
@@ -59,7 +78,34 @@
     },
     "event": {
       "events": {
-        "name": "Eventos"
+        "name": "Eventos",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Toque",
+              "visitor": "Visitante",
+              "package": "Encomenda",
+              "person_with_package": "Pessoa com encomenda",
+              "package_gone": "Encomenda desapareceu",
+              "visitor_message": "Mensagem do visitante",
+              "door_opened": "Porta aberta",
+              "storage_problem": "Problema de armazenamento",
+              "unexpected_reboot": "Reinício inesperado",
+              "client_paired": "App emparelhada",
+              "user_added": "Utilizador adicionado",
+              "user_revoked": "Utilizador revogado",
+              "login_failed": "Falha de início de sessão",
+              "mode_changed": "Modo alterado",
+              "ring_suppressed": "Toque silenciado",
+              "viewer_joined": "Espectador ligado",
+              "key_denied": "Código recusado",
+              "key_locked": "Teclado bloqueado",
+              "call_answered": "Chamada atendida",
+              "call_declined": "Chamada recusada",
+              "call_missed": "Chamada perdida"
+            }
+          }
+        }
       }
     },
     "number": {
@@ -92,6 +138,11 @@
     "switch": {
       "rec": {
         "name": "Gravação manual"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Visitante"
       }
     }
   },

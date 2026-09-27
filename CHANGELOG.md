@@ -6,6 +6,32 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] — unreleased
+
+### Added
+
+- **Ring notifications without any automation.** In the integration's options, *Ring
+  notifications*: pick the phones and wall panels that have the Home Assistant app, and they ring
+  when someone presses the bell - with the visitor's picture, a button to open the call, and
+  optionally one to open the door. When the call is answered, declined or missed they are cleared
+  everywhere, a missed call is left as a quiet "Missed call at 16:13", and Android wall panels wake
+  up showing the doorbell and go back to their dashboard afterwards. Off until you pick a device.
+  Guide: docs/ring-notifications.md. Needs doorbell firmware 0.101.3 to clear the notifications
+  when the call is answered; with older firmware they ring but are not cleared.
+- **Call page** at `/ig-doorbell?device=<id>`: the doorbell full-screen, what the notifications
+  open. Not in the sidebar; no dashboard to build.
+- **Visitor picture** entity (`image`): the picture of the last ring, kept in memory only and
+  respecting the doorbell's "photo in call notices" setting.
+- The events entity also reports **call answered / declined / missed** (firmware 0.101.3), with who
+  answered when known.
+
+### Fixed
+
+- **A doorbell that is off when Home Assistant starts no longer breaks the integration.** Its
+  requests timed out with an error nobody caught, the integration ended in "failed to set up" and
+  stayed that way until reloaded by hand - so no ring would have reached Home Assistant.
+- The event names are now translated in French, German and Portuguese too.
+
 ## [1.1.2] — 2026-09-27
 
 ### Fixed

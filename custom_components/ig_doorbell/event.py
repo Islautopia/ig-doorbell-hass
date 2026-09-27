@@ -40,6 +40,10 @@ KNOWN_EVENT_TYPES = [
     "client_paired", "user_added", "user_revoked", "login_failed",
     "mode_changed", "ring_suppressed", "viewer_joined",
     "key_denied", "key_locked",
+    # The call's resolution (firmware 0.101.3, API_CONTRACT §3.6.7): what lets an automation - and
+    # the built-in ring notifier - clear a notice or send a panel home. `call_id`, `by` (who, when
+    # known) and `reason` ("quick_reply") travel as attributes.
+    "call_answered", "call_declined", "call_missed",
 ]
 
 

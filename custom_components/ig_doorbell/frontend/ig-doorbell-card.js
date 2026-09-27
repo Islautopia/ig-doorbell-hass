@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.1.2';
+const CARD_VERSION = '1.2.0';
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
@@ -6873,7 +6873,16 @@ class IgDoorbellCard extends HTMLElement {
     });
   }
 
+  // The call page (ig-doorbell-panel.js, 1.2.0) says WHICH doorbell rang: a ring notification opens
+  // the page for that doorbell, and with two doorbells the remembered selection could be the other
+  // one. For this element only and NEVER saved: the dashboard card keeps the owner's own choice.
+  set forcedDoorbell(id) {
+    this._forced = id ? String(id) : null;
+    this._sync();
+  }
+
   _defaultDoorbell(list) {
+    if (this._forced && list.some((d) => d.id === this._forced)) return this._forced;
     let savedValue = null;
     try { savedValue = localStorage.getItem(SELECTION_KEY); } catch (err) { /* no storage */ }
     if (savedValue && list.some((d) => d.id === savedValue)) return savedValue;

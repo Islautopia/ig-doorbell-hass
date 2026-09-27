@@ -14,7 +14,7 @@ Two households, neither with our app installed:
    wakes, shows the doorbell full-screen, chimes, and **goes back to its dashboard** when the call
    is over.
 
-Iñaki, 2026-09-27: *"IG Doorbell will be the first video doorbell that gives them a really good
+The product goal (2026-09-27): *"IG Doorbell will be the first video doorbell that gives them a really good
 video-doorbell experience in HA."* And the product rule: *configure in one place*.
 
 ## Decision: the integration sends the notifications itself (no automation, no blueprint)
@@ -26,11 +26,11 @@ pick phones, pick panels, two switches. Nothing else to write.
 |---|---|---|
 | **Built into the integration** (options flow) | **chosen** | One place to configure (product rule). Fixes to payloads ship with the integration — iOS/Android companion keys change and a copied YAML never learns. The call lifecycle (per-call tag, which devices were notified, clear on resolution, panel returns home, a safety timeout, "open door" valid only during the ring) is **state**, which is trivial in Python and fragile in YAML. The integration already holds the doorbell credential, so "Open door" needs no second automation. |
 | Blueprint shipped by the integration | rejected | A copied blueprint is the user's file: it does not update with the integration, and overwriting it on update would destroy their edits. Clearing everywhere needs a second automation keyed on `call_id`, the notification-action handler a third. Three YAML pieces to keep in sync with a firmware that evolves — the "stale on its own" failure this project keeps hunting. |
-| Documentation only (write your own automation) | kept **as well**, not instead | HA convention: power users compose. So everything the built-in notifier uses is **also exposed as entities**: the `event` entity (ring + the new call resolutions) and the new `image` entity. Anyone can ignore the built-in notifier (it is off until devices are picked) and write their own — e.g. Iñaki's existing "Llaman al timbre". |
+| Documentation only (write your own automation) | kept **as well**, not instead | HA convention: power users compose. So everything the built-in notifier uses is **also exposed as entities**: the `event` entity (ring + the new call resolutions) and the new `image` entity. Anyone can ignore the built-in notifier (it is off until devices are picked) and write their own — e.g. an existing "when the bell rings" automation. |
 
 Off by default: with no phone and no panel picked, nothing changes for anyone upgrading. This
-matters for Iñaki's own HA, which already has a working automation to the salon panel — enabling
-the built-in path there is his decision, and would double the chime until the old automation is
+matters for installations that already have a working bell automation to a panel — enabling
+the built-in path there is the owner's decision, and would double the chime until the old automation is
 disabled (the options step says so).
 
 ## What the doorbell must tell Home Assistant: the call's resolution (firmware 0.101.3)
@@ -109,7 +109,7 @@ English fallback — what the family reads, so it is translated (CLAUDE.md langu
   phones ("Could not open the door"), never swallowed (§1.8).
 - The action carries `authenticationRequired: true`: iOS asks for Face ID first. **Whether the
   Android companion honours it from the lock screen is not measured** — if it does not, anyone
-  holding a locked phone could open the door. Measured first on the M23; until then the option is
+  holding a locked phone could open the door. To be measured on an Android phone; until then the option is
   **off by default** and its description says why.
 
 Quick replies from the notification: **not in 1.2.0**. Android allows three actions, and a quick
@@ -136,9 +136,9 @@ ring).
   and the user must allow *Critical Alerts* for the companion app. iOS custom sounds must be
   imported into the companion app first; the default critical sound is used otherwise.
 - **iOS `clear_notification` is a silent push** that iOS may throttle when the app has not been used
-  recently: clearing is best-effort there. *To be measured on Iñaki's iPhone.*
+  recently: clearing is best-effort there. *To be measured on an iPhone.*
 - **Android `command_webview`** needs "Display over other apps" for the companion; without it the
-  command silently falls back to a plain notification (lived on the salon panel). The setup guide
+  command silently falls back to a plain notification (seen on a real wall panel). The setup guide
   and the options step both say it.
 - **iPad cannot be woken into a page remotely**; see the table above.
 
@@ -153,9 +153,31 @@ internet (local push / persistent connection). Phones: see above.
   `tools/mutants.py` for each rule (tag mismatch, no clear, stale action accepted, critical dropped,
   403 ignored).
 - Docker HA: a fake doorbell posting envelopes to the real webhook; mobile_app registrations faked.
-- Waveshare (COM10): 0.101.3 posts `call_answered/declined/missed` to HA; control 0.101.2 posts none.
-- Devices (need Iñaki): M23 (Android phone), iPhone, salon Galaxy Tab (Android panel), iPad (iOS
+- Bench doorbell: 0.101.3 posts `call_answered/declined/missed` to HA; control 0.101.2 posts none.
+- Devices: an Android phone, an iPhone, an Android wall tablet, an iPad (iOS
   panel). Exact steps are in the hand-off to the coordinator.
+
+## Measured (2026-09-27)
+
+- **Firmware 0.101.3 on the bench doorbell, against a real HA 2026.9.3** (its event entity's
+  history, read-only): control 0.101.2 → the `ring` arrives and no resolution (the doorbell's own
+  history had the `call_missed`); 0.101.3 → `call_missed`, and `call_answered` with `by` = the
+  answering session's label, each with the ring's `call_id`.
+- **Docker HA 2026.9.3 with real `mobile_app` registrations** (push_url pointed at a local
+  recorder, so the payload is what the real mobile_app notify sends): per-OS payloads as designed,
+  per-call tag, `clear_notification` to all four after `call_answered`, the missed-call replacement,
+  the Android panel's `command_screen_on` / `command_webview` and its return path. The options
+  flow works through the real UI API. The call page loads for the doorbell given in the URL even
+  when the browser's saved card selection is another doorbell, and it leaves that saved choice alone.
+  It is not in the sidebar and does not require admin. One run lost one recorded push; the recorder
+  was writing without a lock. After adding the lock, 5 more ring/answer cycles recorded every push.
+  *Believed*: the recorder was at fault, not HA.
+- **Found on the way, fixed in 1.2.0**: with the doorbell switched off when HA starts, requests time
+  out, and the timeout was not caught, so the entry ended in `setup_error`. HA does not retry that,
+  so nothing would ever have rung until a manual reload. Every request in `api.py` now turns a
+  timeout into a doorbell error.
+- **Fixed on the way**: the missed-call time now uses the doorbell's `tz_name`, not HA's zone (the
+  Docker HA was on UTC and showed the wrong hour).
 
 ## Not in scope
 Quick-reply actions; custom sound upload; a CallKit-grade call screen (needs our app).

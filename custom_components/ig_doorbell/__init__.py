@@ -62,6 +62,8 @@ from .card import async_register_card
 from .https_manager import async_setup_manager, get_manager
 from .https_views import async_register_https_views
 from .coordinator import DoorbellCoordinator
+from .notify_ring import RingNotifier
+from .panel import async_register_call_page
 from .recordings_view import async_register_recordings_view
 from .services import async_register_services
 from .signal_proxy import async_register_signal_proxy
@@ -69,7 +71,9 @@ from .websocket_api import async_register_websocket_commands
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["binary_sensor", "button", "event", "number", "select", "sensor", "switch"]
+PLATFORMS: list[str] = [
+    "binary_sensor", "button", "event", "image", "number", "select", "sensor", "switch",
+]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -206,6 +210,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _watch_entities(hass, entry, coordinator)
     _watch_name(hass, entry, coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Ring notifications sent by the integration itself (1.2.0, docs/design/ha-only-ringing.md).
+    # Always wired, but it does nothing until phones or panels are picked in the options.
+    data = hass.data[DOMAIN][entry.entry_id]
+    notifier = RingNotifier(
+        hass, entry, coordinator,
+        has_picture=lambda: (img := data.get("visitor_image")) is not None and img.has_picture,
+        image_entity_id=lambda: (img := data.get("visitor_image")) and img.entity_id,
+    )
+    data["ring_notifier"] = notifier
+    entry.async_on_unload(notifier.async_start())
+    await async_register_call_page(hass)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     if (mgr := get_manager(hass)) is not None:

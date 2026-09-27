@@ -44,6 +44,7 @@
       "init": {
         "title": "IG Doorbell",
         "menu_options": {
+          "notifications": "Avisos de timbre (móviles y paneles)",
           "entities": "Entidades que puede accionar el videoportero",
           "address": "Dirección del videoportero",
           "https": "Conexión local segura (HTTPS)",
@@ -82,6 +83,24 @@
         "data_description": {
           "enabled": "Abre el puerto HTTPS y mantiene sus certificados al día.",
           "port": "Por defecto 8443. Tiene que estar libre en la máquina de Home Assistant."
+        }
+      },
+      "notifications": {
+        "title": "Avisos de timbre",
+        "description": "Home Assistant hace sonar los móviles y paneles de pared que elijas aquí cuando alguien llama, con la foto de quien está en la puerta, y los quita de todos en cuanto se atiende la llamada. No hay que escribir nada: ninguna automatización. Deja las dos listas vacías para desactivarlo (si ya tienes tu propia automatización para el timbre, desactiva una de las dos o cada timbrazo llegará dos veces). Abrir la página de la llamada o la foto desde fuera de casa necesita acceso remoto a Home Assistant; para hablar hace falta una página segura (HTTPS).",
+        "data": {
+          "notify_phones": "Móviles",
+          "notify_panels": "Paneles de pared",
+          "notify_critical": "Sonar aunque esté en silencio",
+          "notify_open_door": "Botón «Abrir puerta» en los móviles",
+          "panel_return_path": "Panel: página a la que volver tras la llamada"
+        },
+        "data_description": {
+          "notify_phones": "Móviles con la app de Home Assistant. Reciben un aviso con la foto; al tocarlo se abre la página de la llamada.",
+          "notify_panels": "Tabletas de pared con la app de Home Assistant. Android: la pantalla se enciende y muestra la página de la llamada (la app necesita el permiso «Mostrar sobre otras apps»; sin él muestra un aviso normal sin decir nada). iPad: un aviso; para un panel de verdad deja la página de la llamada abierta con Acceso Guiado.",
+          "notify_critical": "iPhone: alerta crítica (permite las Alertas críticas a la app de Home Assistant). Android: canal de alarma.",
+          "notify_open_door": "Añade un botón «Abrir puerta» al aviso, válido solo mientras suena. El iPhone pide Face ID antes. En Android aún no se sabe si obliga a desbloquear el móvil: déjalo apagado si eso te importa.",
+          "panel_return_path": "Por ejemplo /lovelace/0. Vacío: la página de inicio de la app de Home Assistant."
         }
       }
     },
@@ -145,7 +164,10 @@
               "ring_suppressed": "Timbre silenciado",
               "viewer_joined": "Espectador conectado",
               "key_denied": "Llave denegada",
-              "key_locked": "Llave bloqueada"
+              "key_locked": "Llave bloqueada",
+              "call_answered": "Llamada atendida",
+              "call_declined": "Llamada rechazada",
+              "call_missed": "Llamada perdida"
             }
           }
         }
@@ -181,6 +203,11 @@
     "switch": {
       "rec": {
         "name": "Grabación manual"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Visitante"
       }
     }
   },
