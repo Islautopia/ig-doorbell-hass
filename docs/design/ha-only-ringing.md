@@ -149,6 +149,15 @@ ring).
   sounded. Android channel sounds and iOS notification sounds cannot be set from Home Assistant;
   the docs say how to set them by hand.
 
+### 6. PENDING DESIGN: who gets calls through Home Assistant, phone by phone (Iñaki, 2026-09-27)
+
+*"It is not black or white: each user must be able to decide whether they receive calls via HA."*
+The admin-picked phone list above is **provisional**: it works and is used for testing, and its UX
+is not to be polished further. Ideas on the table for the design: a per-phone choice that each user
+makes on their own phone (for example an entity per `mobile_app` device); levels (full call / quiet
+notice with the picture / nothing); a quiet notice by default when the IG Doorbell app is paired on
+that phone; context such as home or away.
+
 ## What the platform does NOT allow, said plainly
 
 - **Push to a phone needs internet** (Apple/Google) — *except* when the companion's **local push**
