@@ -163,3 +163,6 @@ OPEN_DOOR_WINDOW_S = 180
 # How long the snapshot for a ring may take. The notification never waits for it (it is sent at
 # once and the phone fetches the picture a moment later); this bounds that fetch.
 SNAPSHOT_TIMEOUT_S = 4
+# Speakers that announce the call (media_player entities) and whether they also say it. Empty = off.
+CONF_ANNOUNCE_PLAYERS = "announce_players"
+CONF_ANNOUNCE_VOICE = "announce_voice"

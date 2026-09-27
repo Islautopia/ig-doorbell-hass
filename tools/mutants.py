@@ -178,6 +178,13 @@ MUTANTS = [
      "        return self._jpeg is not None"),
     ("the ring announces a picture the doorbell refused", PKG + "notify_ring.py",
      "        if image and call.picture:", "        if image and self._has_picture():"),
+    ("speakers alone do not enable the ring handling", PKG + "notify_ring.py",
+     "                    or o.get(CONF_ANNOUNCE_PLAYERS))", "                    )"),
+    ("the chime is not served to the speakers", PKG + "announce.py",
+     "        [StaticPathConfig(SOUND_URL, str(SOUND_PATH), True)]", "        [StaticPathConfig(SOUND_URL, str(SOUND_PATH), True)] if False else []"),
+    ("Alexa gets our mp3 URL, which an Echo cannot play", PKG + "announce.py",
+     "        if entry is not None and entry.platform == ALEXA_PLATFORM and entry.device_id:",
+     "        if False:"),
     ("the event entity forgets the call resolutions", PKG + "event.py",
      '    "call_answered", "call_declined", "call_missed",\n]', "]"),
 ]

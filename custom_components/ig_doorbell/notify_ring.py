@@ -41,8 +41,11 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from . import api
+from .announce import async_announce
 from .const import (
     CALL_PAGE_PATH,
+    CONF_ANNOUNCE_PLAYERS,
+    CONF_ANNOUNCE_VOICE,
     CONF_NOTIFY_CRITICAL,
     CONF_NOTIFY_OPEN_DOOR,
     CONF_NOTIFY_PANELS,
@@ -82,22 +85,22 @@ ANDROID_NOW = {"priority": "high", "ttl": 0}
 # What the family reads, in the doorbell owner's language (the envelope's `lang`), English fallback.
 # Six languages: the product's set (CLAUDE.md language rule - what the owner reads is translated).
 TEXTS: dict[str, dict[str, str]] = {
-    "en": {"door_expired": "This call is over: open the door from the doorbell page", "ring": "Someone is at the door", "open_call": "Open", "open_door": "Open door",
+    "en": {"voice": "{dname}: someone is at the door", "door_expired": "This call is over: open the door from the doorbell page", "ring": "Someone is at the door", "open_call": "Open", "open_door": "Open door",
            "missed": "Missed call at {time}", "door_opened": "Door opened",
            "door_failed": "Could not open the door: {why}"},
-    "es": {"door_expired": "Esta llamada ya terminó: abre la puerta desde la página del portero", "ring": "Están llamando a la puerta", "open_call": "Abrir", "open_door": "Abrir puerta",
+    "es": {"voice": "{dname}: están llamando a la puerta", "door_expired": "Esta llamada ya terminó: abre la puerta desde la página del portero", "ring": "Están llamando a la puerta", "open_call": "Abrir", "open_door": "Abrir puerta",
            "missed": "Llamada perdida a las {time}", "door_opened": "Puerta abierta",
            "door_failed": "No se pudo abrir la puerta: {why}"},
-    "fr": {"door_expired": "Cet appel est terminé : ouvrez la porte depuis la page de la sonnette", "ring": "Quelqu'un sonne à la porte", "open_call": "Ouvrir", "open_door": "Ouvrir la porte",
+    "fr": {"voice": "{dname} : quelqu'un sonne à la porte", "door_expired": "Cet appel est terminé : ouvrez la porte depuis la page de la sonnette", "ring": "Quelqu'un sonne à la porte", "open_call": "Ouvrir", "open_door": "Ouvrir la porte",
            "missed": "Appel manqué à {time}", "door_opened": "Porte ouverte",
            "door_failed": "Impossible d'ouvrir la porte : {why}"},
-    "it": {"door_expired": "Questa chiamata è terminata: apri la porta dalla pagina del videocitofono", "ring": "Qualcuno suona alla porta", "open_call": "Apri", "open_door": "Apri la porta",
+    "it": {"voice": "{dname}: qualcuno suona alla porta", "door_expired": "Questa chiamata è terminata: apri la porta dalla pagina del videocitofono", "ring": "Qualcuno suona alla porta", "open_call": "Apri", "open_door": "Apri la porta",
            "missed": "Chiamata persa alle {time}", "door_opened": "Porta aperta",
            "door_failed": "Impossibile aprire la porta: {why}"},
-    "de": {"door_expired": "Dieser Anruf ist vorbei: Öffne die Tür über die Seite der Türklingel", "ring": "Es klingelt an der Tür", "open_call": "Öffnen", "open_door": "Tür öffnen",
+    "de": {"voice": "{dname}: Es klingelt an der Tür", "door_expired": "Dieser Anruf ist vorbei: Öffne die Tür über die Seite der Türklingel", "ring": "Es klingelt an der Tür", "open_call": "Öffnen", "open_door": "Tür öffnen",
            "missed": "Verpasster Anruf um {time}", "door_opened": "Tür geöffnet",
            "door_failed": "Die Tür konnte nicht geöffnet werden: {why}"},
-    "pt": {"door_expired": "Esta chamada já terminou: abra a porta na página da campainha", "ring": "Estão a tocar à porta", "open_call": "Abrir", "open_door": "Abrir a porta",
+    "pt": {"voice": "{dname}: estão a tocar à porta", "door_expired": "Esta chamada já terminou: abra a porta na página da campainha", "ring": "Estão a tocar à porta", "open_call": "Abrir", "open_door": "Abrir a porta",
            "missed": "Chamada perdida às {time}", "door_opened": "Porta aberta",
            "door_failed": "Não foi possível abrir a porta: {why}"},
 }
@@ -216,7 +219,8 @@ class RingNotifier:
     @property
     def enabled(self) -> bool:
         o = self.entry.options
-        return bool(o.get(CONF_NOTIFY_PHONES) or o.get(CONF_NOTIFY_PANELS))
+        return bool(o.get(CONF_NOTIFY_PHONES) or o.get(CONF_NOTIFY_PANELS)
+                    or o.get(CONF_ANNOUNCE_PLAYERS))
 
     def targets(self) -> list[Target]:
         o = self.entry.options
@@ -265,8 +269,19 @@ class RingNotifier:
         call_id = str(envelope.get("call_id") or f"t{envelope.get('ts') or int(time.time())}")
         if call_id in self.calls:
             return      # the same ring delivered twice (a webhook retry): ring once
+        dname = envelope.get("dname") or self.coordinator.doorbell_name
+        players = self.entry.options.get(CONF_ANNOUNCE_PLAYERS) or []
+        if players:
+            # The speakers do not wait for anything - not the picture, not the phones.
+            self.hass.async_create_task(
+                async_announce(self.hass, players, bool(self.entry.options.get(CONF_ANNOUNCE_VOICE)),
+                               text(envelope.get("lang"), "voice", dname=dname)),
+                eager_start=False)
         targets = self.targets()
         if not targets:
+            self.calls[call_id] = Call(call_id=call_id, tag=_tag(device_id, call_id),
+                                       lang=envelope.get("lang"), dname=dname,
+                                       started=time.monotonic(), targets=[])
             return
         call = Call(call_id=call_id, tag=_tag(device_id, call_id), lang=envelope.get("lang"),
                     dname=envelope.get("dname") or self.coordinator.doorbell_name,

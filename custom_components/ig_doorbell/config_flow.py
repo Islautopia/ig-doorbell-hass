@@ -42,6 +42,8 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_ENTITIES,
     CONF_HOST_HINT,
+    CONF_ANNOUNCE_PLAYERS,
+    CONF_ANNOUNCE_VOICE,
     CONF_LABEL,
     CONF_NOTIFY_CRITICAL,
     CONF_NOTIFY_OPEN_DOOR,
@@ -354,6 +356,8 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
             options[CONF_NOTIFY_CRITICAL] = bool(user_input.get(CONF_NOTIFY_CRITICAL, True))
             options[CONF_NOTIFY_OPEN_DOOR] = bool(user_input.get(CONF_NOTIFY_OPEN_DOOR, False))
             options[CONF_PANEL_RETURN_PATH] = (user_input.get(CONF_PANEL_RETURN_PATH) or "").strip()
+            options[CONF_ANNOUNCE_PLAYERS] = list(user_input.get(CONF_ANNOUNCE_PLAYERS) or [])
+            options[CONF_ANNOUNCE_VOICE] = bool(user_input.get(CONF_ANNOUNCE_VOICE, False))
             return self.async_create_entry(title="", data=options)
 
         o = self._entry.options
@@ -367,6 +371,10 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_NOTIFY_PANELS, default=list(o.get(CONF_NOTIFY_PANELS) or [])): companion,
                 vol.Optional(CONF_NOTIFY_CRITICAL, default=o.get(CONF_NOTIFY_CRITICAL, True)): bool,
                 vol.Optional(CONF_NOTIFY_OPEN_DOOR, default=o.get(CONF_NOTIFY_OPEN_DOOR, False)): bool,
+                vol.Optional(CONF_ANNOUNCE_PLAYERS,
+                             default=list(o.get(CONF_ANNOUNCE_PLAYERS) or [])): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="media_player", multiple=True)),
+                vol.Optional(CONF_ANNOUNCE_VOICE, default=o.get(CONF_ANNOUNCE_VOICE, False)): bool,
                 vol.Optional(
                     CONF_PANEL_RETURN_PATH,
                     description={"suggested_value": o.get(CONF_PANEL_RETURN_PATH, "")},

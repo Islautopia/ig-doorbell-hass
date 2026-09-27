@@ -35,14 +35,18 @@
           "notify_panels": "Wand-Panels",
           "notify_critical": "Auch im Lautlos-Modus klingeln",
           "notify_open_door": "Schaltfläche „Tür öffnen“ auf den Telefonen",
-          "panel_return_path": "Panel: Seite, zu der nach dem Anruf zurückgekehrt wird"
+          "panel_return_path": "Panel: Seite, zu der nach dem Anruf zurückgekehrt wird",
+          "announce_players": "Lautsprecher, die den Anruf ansagen",
+          "announce_voice": "Auch sagen, welche Türklingel klingelt"
         },
         "data_description": {
           "notify_phones": "Telefone mit der Home-Assistant-App. Sie erhalten eine Benachrichtigung mit Foto; Antippen öffnet die Anrufseite.",
           "notify_panels": "Wand-Tablets mit der Home-Assistant-App. Android: Der Bildschirm geht an und zeigt die Anrufseite (die App braucht die Berechtigung „Über anderen Apps einblenden“, sonst zeigt sie stillschweigend nur eine normale Benachrichtigung). iPad: eine Benachrichtigung; für ein echtes Panel die Anrufseite im geführten Zugriff offen lassen.",
           "notify_critical": "iPhone: kritischer Hinweis (kritische Hinweise für die Home-Assistant-App erlauben). Android: Wecker-Kanal.",
           "notify_open_door": "Fügt der Benachrichtigung eine Schaltfläche „Tür öffnen“ hinzu, nur während des Klingelns gültig. Das iPhone fragt vorher nach Face ID. Bei Android ist noch nicht bekannt, ob das Telefon entsperrt sein muss – ausgeschaltet lassen, wenn das wichtig ist.",
-          "panel_return_path": "Zum Beispiel /lovelace/0. Leer: die Startseite der Home-Assistant-App."
+          "panel_return_path": "Zum Beispiel /lovelace/0. Leer: die Startseite der Home-Assistant-App.",
+          "announce_players": "Sie spielen einen Gong, wenn jemand klingelt: Alexa (Echo) ihren eigenen Türklingel-Gong, alle anderen Lautsprecher den IG-Doorbell-Gong. Wenn du die Klingel auf diesen Lautsprechern schon per Automatisierung ansagst, brauchst du das nicht – sonst sagen sie zweimal an.",
+          "announce_voice": "Alexa: eine Durchsage; andere Lautsprecher: benötigt eine Sprachausgabe (TTS) in Home Assistant."
         }
       }
     },

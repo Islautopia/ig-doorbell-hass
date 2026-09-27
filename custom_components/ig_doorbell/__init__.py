@@ -62,6 +62,7 @@ from .card import async_register_card
 from .https_manager import async_setup_manager, get_manager
 from .https_views import async_register_https_views
 from .coordinator import DoorbellCoordinator
+from .announce import async_serve_sound
 from .notify_ring import RingNotifier
 from .panel import async_register_call_page
 from .recordings_view import async_register_recordings_view
@@ -224,6 +225,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if (img := data.get("visitor_image")) is not None:
         img._wanted_at_ring = lambda: notifier.enabled  # noqa: SLF001 - wired here on purpose
     entry.async_on_unload(notifier.async_start())
+    await async_serve_sound(hass)
     try:
         await async_register_call_page(hass)
     except Exception:  # noqa: BLE001 - the call page is a convenience; the doorbell is not

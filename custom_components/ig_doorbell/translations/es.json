@@ -93,14 +93,18 @@
           "notify_panels": "Paneles de pared",
           "notify_critical": "Sonar aunque esté en silencio",
           "notify_open_door": "Botón «Abrir puerta» en los móviles",
-          "panel_return_path": "Panel: página a la que volver tras la llamada"
+          "panel_return_path": "Panel: página a la que volver tras la llamada",
+          "announce_players": "Altavoces que anuncian la llamada",
+          "announce_voice": "Decir también qué portero llama"
         },
         "data_description": {
           "notify_phones": "Móviles con la app de Home Assistant. Reciben un aviso con la foto; al tocarlo se abre la página de la llamada.",
           "notify_panels": "Tabletas de pared con la app de Home Assistant. Android: la pantalla se enciende y muestra la página de la llamada (la app necesita el permiso «Mostrar sobre otras apps»; sin él muestra un aviso normal sin decir nada). iPad: un aviso; para un panel de verdad deja la página de la llamada abierta con Acceso Guiado.",
           "notify_critical": "iPhone: alerta crítica (permite las Alertas críticas a la app de Home Assistant). Android: canal de alarma.",
           "notify_open_door": "Añade un botón «Abrir puerta» al aviso, válido solo mientras suena. El iPhone pide Face ID antes. En Android aún no se sabe si obliga a desbloquear el móvil: déjalo apagado si eso te importa.",
-          "panel_return_path": "Por ejemplo /lovelace/0. Vacío: la página de inicio de la app de Home Assistant."
+          "panel_return_path": "Por ejemplo /lovelace/0. Vacío: la página de inicio de la app de Home Assistant.",
+          "announce_players": "Suenan con un carillón cuando alguien llama: Alexa (Echo) con su propio carillón de timbre, el resto de altavoces con el de IG Doorbell. Si ya anuncias el timbre en estos altavoces con una automatización, no necesitas esto, o sonarán dos veces.",
+          "announce_voice": "Alexa: un anuncio; otros altavoces: necesita un motor de texto a voz en Home Assistant."
         }
       }
     },

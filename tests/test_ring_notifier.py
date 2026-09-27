@@ -554,3 +554,73 @@ async def test_after_a_newer_ring_the_older_missed_call_shows_no_picture(hass):
     assert "image" not in missed["data"]
     for p in patches:
         p.stop()
+
+
+# ---- speakers that announce the call (announce.py) -------------------------------------------
+
+async def _speakers(hass):
+    from homeassistant.helpers import entity_registry as er
+
+    reg, dreg = er.async_get(hass), dr.async_get(hass)
+    alexa_entry = MockConfigEntry(domain="alexa_devices"); alexa_entry.add_to_hass(hass)
+    echo = dreg.async_get_or_create(config_entry_id=alexa_entry.entry_id, identifiers={("alexa_devices", "echo1")})
+    reg.async_get_or_create("media_player", "alexa_devices", "echo1_mp", device_id=echo.id,
+                            config_entry=alexa_entry, suggested_object_id="echo_despacho")
+    reg.async_get_or_create("notify", "alexa_devices", "echo1-announce", device_id=echo.id,
+                            config_entry=alexa_entry, suggested_object_id="despacho_anunciar",
+                            translation_key="announce")
+    reg.async_get_or_create("notify", "alexa_devices", "echo1-speak", device_id=echo.id,
+                            config_entry=alexa_entry, suggested_object_id="despacho_hablar",
+                            translation_key="speak")
+    hass.states.async_set("media_player.cast_salon", "idle")
+    hass.states.async_set("tts.google_translate_en_com", "unknown")
+    await hass.config.async_update(internal_url="http://192.168.1.2:8123")
+    return {
+        "sound": async_mock_service(hass, "alexa_devices", "send_sound"),
+        "notify": async_mock_service(hass, "notify", "send_message"),
+        "play": async_mock_service(hass, "media_player", "play_media"),
+        "tts": async_mock_service(hass, "tts", "speak"),
+    }, echo.id
+
+
+async def test_speakers_announce_the_ring_alexa_with_its_chime_others_with_ours(hass):
+    await async_setup_component(hass, "http", {})
+    mocks, echo_id = await _speakers(hass)
+    _, _, calls, patches = await _setup(hass, lambda ids: {
+        "announce_players": ["media_player.echo_despacho", "media_player.cast_salon"],
+        "announce_voice": True})
+    await _post(hass, _envelope("ring", lang="es"))
+    await hass.async_block_till_done()
+    assert [c.data for c in mocks["sound"]] == [{"device_id": echo_id, "sound": "amzn_sfx_doorbell_chime_01"}]
+    assert [c.data for c in mocks["notify"]] == [{"entity_id": "notify.despacho_anunciar",
+                                                  "message": "Front door: están llamando a la puerta"}]
+    (play,) = [c.data for c in mocks["play"]]
+    assert play["entity_id"] == "media_player.cast_salon" and play["announce"] is True
+    assert play["media_content_id"] == "http://192.168.1.2:8123/ig_doorbell/sounds/ig-doorbell-chime.mp3"
+    assert [c.data["media_player_entity_id"] for c in mocks["tts"]] == ["media_player.cast_salon"]
+    # No phone or panel was picked: the speakers alone are enough to announce.
+    assert all(not c for c in calls.values())
+    for p in patches:
+        p.stop()
+
+
+async def test_speakers_without_voice_only_chime(hass):
+    await async_setup_component(hass, "http", {})
+    mocks, _ = await _speakers(hass)
+    _, _, _, patches = await _setup(hass, lambda ids: {"announce_players": ["media_player.echo_despacho"]})
+    await _post(hass, _envelope("ring"))
+    await hass.async_block_till_done()
+    assert len(mocks["sound"]) == 1 and not mocks["notify"] and not mocks["tts"]
+    for p in patches:
+        p.stop()
+
+
+async def test_the_chime_is_served_without_authentication(hass, hass_client_no_auth):
+    _, _, _, patches = await _setup(hass)
+    client = await hass_client_no_auth()
+    resp = await client.get("/ig_doorbell/sounds/ig-doorbell-chime.mp3")
+    assert resp.status == 200
+    body = await resp.read()
+    assert body[:3] == b"ID3" or body[:2] == b"\xff\xfb"
+    for p in patches:
+        p.stop()

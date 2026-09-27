@@ -93,14 +93,18 @@
           "notify_panels": "Pannelli a parete",
           "notify_critical": "Suona anche in modalità silenziosa",
           "notify_open_door": "Pulsante «Apri la porta» sui telefoni",
-          "panel_return_path": "Pannello: pagina a cui tornare dopo la chiamata"
+          "panel_return_path": "Pannello: pagina a cui tornare dopo la chiamata",
+          "announce_players": "Altoparlanti che annunciano la chiamata",
+          "announce_voice": "Dire anche quale videocitofono suona"
         },
         "data_description": {
           "notify_phones": "Telefoni con l'app Home Assistant. Ricevono una notifica con la foto; toccandola si apre la pagina della chiamata.",
           "notify_panels": "Tablet a parete con l'app Home Assistant. Android: lo schermo si accende e mostra la pagina della chiamata (l'app richiede il permesso «Mostra sopra altre app», altrimenti mostra una semplice notifica senza avvisare). iPad: una notifica; per un vero pannello lascia aperta la pagina della chiamata con Accesso guidato.",
           "notify_critical": "iPhone: avviso critico (consenti gli avvisi critici all'app Home Assistant). Android: flusso sveglia.",
           "notify_open_door": "Aggiunge un pulsante «Apri la porta» alla notifica, valido solo mentre suona. L'iPhone chiede prima il Face ID. Su Android non si sa ancora se il telefono deve essere sbloccato: lascialo disattivato se ti importa.",
-          "panel_return_path": "Per esempio /lovelace/0. Vuoto: la pagina iniziale dell'app Home Assistant."
+          "panel_return_path": "Per esempio /lovelace/0. Vuoto: la pagina iniziale dell'app Home Assistant.",
+          "announce_players": "Suonano un carillon quando qualcuno suona: Alexa (Echo) il proprio carillon del campanello, gli altri altoparlanti quello di IG Doorbell. Se annunci già il campanello su questi altoparlanti con un'automazione, non ti serve, altrimenti annunceranno due volte.",
+          "announce_voice": "Alexa: un annuncio; altri altoparlanti: serve un motore di sintesi vocale in Home Assistant."
         }
       }
     },
