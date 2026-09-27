@@ -162,6 +162,8 @@ MUTANTS = [
     ("missed-call time ignores the doorbell's zone", PKG + "notify_ring.py",
      "        tz = dt_util.get_time_zone(tz_name) if isinstance(tz_name, str) and tz_name else None",
      "        tz = None"),
+    ("Android clear / missed-call replacement back to normal priority (held by Doze)", PKG + "notify_ring.py",
+     'ANDROID_NOW = {"priority": "high", "ttl": 0}', "ANDROID_NOW = {}"),
     ("the event entity forgets the call resolutions", PKG + "event.py",
      '    "call_answered", "call_declined", "call_missed",\n]', "]"),
 ]

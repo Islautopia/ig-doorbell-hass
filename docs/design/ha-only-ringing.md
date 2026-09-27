@@ -176,6 +176,12 @@ internet (local push / persistent connection). Phones: see above.
   out, and the timeout was not caught, so the entry ended in `setup_error`. HA does not retry that,
   so nothing would ever have rung until a manual reload. Every request in `api.py` now turns a
   timeout into a doorbell error.
+- **Real Android 14 phone, real HA** (bench doorbell ringing): the ring arrived at once on
+  `alarm_stream` with the picture (480x544, fetched by the companion through `image_proxy`), the
+  per-call tag and the title/text as designed. **The clear and the missed-call replacement did NOT
+  arrive for over a minute**: the phone, lying still, was in Doze (`deviceidle` mState=IDLE), and those
+  two went as normal-priority pushes, which Firebase holds for a maintenance window. Fixed: every
+  Android message goes `priority: high`, `ttl: 0` (`ANDROID_NOW`, with its reason next to it).
 - **Fixed on the way**: the missed-call time now uses the doorbell's `tz_name`, not HA's zone (the
   Docker HA was on UTC and showed the wrong hour).
 

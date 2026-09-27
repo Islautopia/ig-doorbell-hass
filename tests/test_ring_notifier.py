@@ -186,6 +186,9 @@ async def test_answered_clears_everywhere_by_the_same_tag_and_panels_go_home(has
     for name in COMPANIONS:
         clears = [m for m in _msgs(calls, name) if m["message"] == "clear_notification"]
         assert clears and clears[0]["data"]["tag"] == TAG, name
+    # Android: the clear must be a high-priority push, or a phone in Doze holds it for minutes.
+    (clear_android,) = [m for m in _msgs(calls, "M23 Test") if m["message"] == "clear_notification"]
+    assert clear_android["data"]["priority"] == "high" and clear_android["data"]["ttl"] == 0
     home = [m for m in _msgs(calls, "Tab Test") if m["message"] == "command_webview"]
     assert home and home[0]["data"]["command"] == "/lovelace/home"
     assert not [m for m in _msgs(calls, "Ipad Test") if m["message"] == "command_webview"]
@@ -202,6 +205,7 @@ async def test_missed_replaces_the_ring_quietly_on_phones(hass, rung):
     (android,) = _msgs(calls, "M23 Test")
     assert android["data"]["tag"] == TAG and android["data"]["importance"] == "low"
     assert android["data"]["channel"] != "alarm_stream"
+    assert android["data"]["priority"] == "high" and android["data"]["ttl"] == 0
     assert [m["message"] for m in _msgs(calls, "Tab Test")] == ["clear_notification", "command_webview"]
 
 

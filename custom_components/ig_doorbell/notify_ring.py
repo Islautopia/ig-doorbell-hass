@@ -66,6 +66,14 @@ CH_ALARM = "alarm_stream"                 # the companion's special channel: rin
 CH_RING = "IG Doorbell"                   # high importance, normal ringer stream
 CH_QUIET = "IG Doorbell - missed calls"   # low importance: a replacement that must not ring again
 
+# ⚠️ EVERY message to an Android phone goes as a HIGH-priority push, including the ones that only
+# CLEAR or quietly REPLACE the ring - not just the ring itself. Measured on a real Android 14 phone
+# (2026-09-27): lying still, the phone was in Doze (`deviceidle` mState=IDLE); the high-priority ring
+# arrived at once, and the normal-priority clear and "missed call" replacement did not arrive for
+# minutes - two stale ring notifications still up a minute after the call was answered. Firebase
+# holds normal-priority messages for a Doze maintenance window. `ttl: 0` = deliver now or drop.
+ANDROID_NOW = {"priority": "high", "ttl": 0}
+
 # What the family reads, in the doorbell owner's language (the envelope's `lang`), English fallback.
 # Six languages: the product's set (CLAUDE.md language rule - what the owner reads is translated).
 TEXTS: dict[str, dict[str, str]] = {
@@ -331,7 +339,10 @@ class RingNotifier:
         await self._panels_home(call)
 
     async def _clear(self, call: Call, target: Target) -> None:
-        await self._send(target, "clear_notification", {"tag": call.tag})
+        data: dict[str, Any] = {"tag": call.tag}
+        if target.platform == "android":
+            data.update(ANDROID_NOW)
+        await self._send(target, "clear_notification", data)
 
     async def _replace_quiet(self, call: Call, target: Target, message: str) -> None:
         data: dict[str, Any] = {"tag": call.tag, "group": f"igd_{self.coordinator.device_id}"}
@@ -341,7 +352,7 @@ class RingNotifier:
             data["push"] = {"interruption-level": "passive", "sound": "none"}
         else:
             data.update({"clickAction": url, "channel": CH_QUIET, "importance": "low",
-                         "alert_once": True})
+                         "alert_once": True, **ANDROID_NOW})
         await self._send(target, message, data, title=call.dname)
 
     async def _missed(self, call: Call, target: Target, ts: Any, tz_name: Any = None) -> None:
