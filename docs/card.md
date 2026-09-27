@@ -105,6 +105,18 @@ case."* Cause: under 350 px of height the side column is not allowed, so 1.11.0 
   844x390: portrait 12 -> 17 %, near-square 18 -> 27 %, landscape 36 -> 53 % of the screen, none
   covered. `table.md` has the 90 rows. Screenshots gitignored (real camera).
 
+**"2 viewers for a few seconds on opening the card" (measured 2026-09-27, Waveshare + real HA).**
+Leaving the dashboard and coming back within the 15 s pause grace, Home Assistant builds a NEW card
+element instead of re-inserting the old one. The old view, off the page, kept its paused session
+until its grace ran out: `/api/debug/cores` showed viewers=2 for ~12 s, then 1. Every mount opened
+exactly one EventSource and closed it with `bye` - no leak, just a grace kept for an element nobody
+would put back. Fix: a view starting a session hangs up (with `bye`, before its own SSE) any view
+of the same doorbell that is off the page and still in its grace (`VIEWS_WITH_SESSION`,
+`_hangUpDetachedTwins`). Re-insertion of the same element still resumes with `live_resume`.
+Re-measured with the fix: viewers never above 1. Bench: `tests/card/mount_sessions` (sessions per
+mount, with mutants X1-X3). Switching views inside the same dashboard re-inserts the same element
+(no second session), and a plain reload sends `bye` from `pagehide` - both measured clean.
+
 **v1.11.0 (2026-09-26) — adaptive layout.** (Iñaki approved the proposals of the 1.10.0 layout
 analysis.)
 
