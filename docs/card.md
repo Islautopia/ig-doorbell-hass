@@ -10,6 +10,19 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## The microphone on a page that is not secure (1.1.0)
+
+On `http://<ip>:8123` the page is not a secure context and the browser has **no**
+`navigator.mediaDevices`: until 1.0.x a tap on the mic requested the talk turn, `getUserMedia`
+threw, and the button silently went back to off. Now `toggleTalk()` checks `igMicPossible()`
+first and, if it fails, opens `.ig-https-panel` (same overlay as the quick replies) instead of
+requesting the turn. The panel asks the integration `ig_doorbell/https_status` and links to the
+install page `/ig_doorbell/https` (QR on a fine pointer), or to the integration when HTTPS is off.
+Texts: `IG_HTTPS_TEXT` at the end of the file (9 languages). Bench: `tests/card/mic_https_1_1_0`
+opens the card as `http://insecure.test` (mapped to 127.0.0.1: NOT secure) and as `127.0.0.1`
+(secure, the control), with a mutant that removes the guard. `sim_multicliente` now declares its
+fake page a secure context, which it always implicitly was.
+
 ## How the card reaches the browser (1.0.0)
 
 - `card.py` serves the file at `/ig_doorbell/ig-doorbell-card.js` and registers it with
@@ -470,8 +483,7 @@ migrating from the `button` domain to `light`/`switch` (a firmware_cloud decisio
 affect this card at all, since `unlock_entity` is always an entity manually chosen by the user
 (never auto-linked to the firmware's) and the code already treats `switch`/`light` identically.
 
-**Three real bugs reported by the user, all three FIXED (2026-07-10) — see
-`COORDINATION.md` Q22 in `ig_hassio_addons` for the full analysis:**
+**Three real bugs reported by the user, all three FIXED (2026-07-10):**
 
 1. **The video didn't scale when resizing the card's width.** This card doesn't use Shadow DOM
    (direct `this.innerHTML` on the element itself) and the custom element
@@ -514,7 +526,7 @@ visual/on-hardware confirmation by the lead/user; the exact checklist of what to
 case is in `COORDINATION.md` Q22.
 
 **Visual redesign aligned with the Figma mockup + complete removal of the legacy `go2rtc` mode
-(2026-07-10) — see `COORDINATION.md` Q22-bis in `ig_hassio_addons` for the full detail.**
+(2026-07-10).**
 
 1. **Visual language from the Figma mockup** (same as `android_app`/`ios_app`, an explicit user
    decision): exact palette (`--ig-lime #78C800`, `--ig-cyan #00C4D4`, `--ig-blue #1976D2`,

@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.1.0: microphone in a non-secure context</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // What the integration answers to ig_doorbell/https_status; the driver sets it per case.
+    window.__httpsStatus = null;
+    window.__httpsAsked = 0;
+    const origSend = window.__hass.connection.sendMessagePromise;
+    window.__hass.connection.sendMessagePromise = async (msg) => {
+      if (msg.type === 'ig_doorbell/https_status') {
+        window.__httpsAsked += 1;
+        if (!window.__httpsStatus) throw new Error('unknown command');
+        return window.__httpsStatus;
+      }
+      return origSend(msg);
+    };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

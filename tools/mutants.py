@@ -70,6 +70,40 @@ MUTANTS = [
      "StaticPathConfig(CARD_URL, str(CARD_PATH), False)", "StaticPathConfig(CARD_URL, str(CARD_PATH), True)"),
     ("setup no longer registers the card", PKG + "__init__.py",
      "    await async_register_card(hass)\n", ""),
+    # --- 1.1.0: secure local connection (HTTPS) ------------------------------------------------
+    ("the local root loses its name constraints", PKG + "https_certs.py",
+     "            .add_extension(constraints, critical=True)\n", ""),
+    ("the leaf carries names outside the constraints", PKG + "https_certs.py",
+     "        if self.is_constrained():\n            dns_names, ips = constrained_names(dns_names, ips)\n", ""),
+    ("SNI always serves the local certificate", PKG + "https_certs.py",
+     "        if name and self.public is not None and name.lower() == self.public_name:",
+     "        if False:"),
+    ("HTTPS starts even when it is off", PKG + "https_manager.py",
+     "            if not self.enabled or not self._has_entries():", "            if not self._has_entries():"),
+    ("the private key travels with the CSR", PKG + "https_certs.py",
+     '    return csr.public_bytes(serialization.Encoding.PEM).decode("ascii")\n',
+     '    return csr.public_bytes(serialization.Encoding.PEM).decode("ascii") + _key_pem(key).decode()\n'),
+    ("a certificate for another key is accepted from the cloud", PKG + "https_manager.py",
+     "                    if not https_certs.public_cert_usable(chain, key, hostname):\n"
+     "                        return False\n", ""),
+    ("the ha_cert voucher is asked through the shared session", PKG + "https_manager.py",
+     '                    doorbell["session"], doorbell["device_id"], doorbell["credential"],\n'
+     '                    "ha_cert", ha_key,',
+     '                    vps, doorbell["device_id"], doorbell["credential"],\n'
+     '                    "ha_cert", ha_key,'),
+    ("permanent public-name errors are retried every hour", PKG + "https_manager.py",
+     '        if code in https_cloud.PERMANENT or code == "no_doorbell":\n'
+     "            self._public_permanent = code\n",
+     "        if False:\n            self._public_permanent = code\n"),
+    ("a taken port crashes instead of raising a repair", PKG + "https_manager.py",
+     '                self.error = "port_in_use"\n', "                raise\n"),
+    ("the options flow skips the port check", PKG + "config_flow.py",
+     "                errors = await _check_port(self.hass, mgr, port)\n", "                errors = {}\n"),
+    ("the install page answers outside the LAN", PKG + "https_views.py",
+     "def _from_lan(request: web.Request) -> bool:\n    try:",
+     "def _from_lan(request: web.Request) -> bool:\n    return True\n    try:"),
+    ("the card is not told where the install page is", PKG + "websocket_api.py",
+     '            "install_path": INSTALL_PATH,\n', ""),
 ]
 
 
@@ -87,7 +121,7 @@ def main() -> int:
     for name, file_, anchor, change in MUTANTS:
         with tempfile.TemporaryDirectory() as tmp:
             copy_dir = pathlib.Path(tmp) / "repo"
-            shutil.copytree(ROOT, copy_dir, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+            shutil.copytree(ROOT, copy_dir, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules"))
             target_path = copy_dir / file_
             text_ = target_path.read_text(encoding="utf-8")
             n = text_.count(anchor)

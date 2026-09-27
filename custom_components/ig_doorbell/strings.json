@@ -46,6 +46,7 @@
         "menu_options": {
           "entities": "Entities the doorbell can act on",
           "address": "Doorbell address",
+          "https": "Secure local connection (HTTPS)",
           "repair": "Re-pair"
         }
       },
@@ -70,6 +71,18 @@
           "email": "Administrator email",
           "password": "Password"
         }
+      },
+      "https": {
+        "title": "Secure local connection (HTTPS)",
+        "description": "Serves this Home Assistant over HTTPS on your home network, on a port of its own, so browsers let the doorbell card use the microphone (two-way audio). Off by default. Home Assistant's own port and settings are not touched.\n\n**This is not remote access.** It does not replace Home Assistant Cloud or your own domain with a reverse proxy.\n\nIt gives two addresses:\n- **Public name** – nothing to install on your devices. A publicly trusted certificate for a name like `<id>.ha.doorbell.islautopia.com`. Needs an IG Doorbell paired here as administrator and registered with the Islautopia cloud: the doorbell vouches for this Home Assistant. Only for this is the cloud contacted, and it never receives the certificate's private key. Needs internet to look up the name.\n- **Local address** (IP or homeassistant.local) – works without internet and without a doorbell. The certificate comes from this integration's own local certificate authority: install its root certificate once on each device.\n\nSet up your devices: [install page]({install_url}) · [How it works]({docs_url})",
+        "data": {
+          "enabled": "Enable HTTPS",
+          "port": "Port"
+        },
+        "data_description": {
+          "enabled": "Opens the HTTPS port and keeps its certificates up to date.",
+          "port": "Default 8443. It must be free on the Home Assistant machine."
+        }
       }
     },
     "error": {
@@ -80,7 +93,12 @@
       "invalid_auth": "Wrong administrator email or password",
       "device_not_paired": "The doorbell itself isn't registered yet",
       "cloud_authorize_failed": "The doorbell could not register this pairing",
-      "too_many": "Too many entities - pick {max} at most"
+      "too_many": "Too many entities - pick {max} at most",
+      "port_in_use": "Port {port} is already used by another program. Choose another port.",
+      "port_is_ha": "That is Home Assistant's own port. Choose another one."
+    },
+    "abort": {
+      "https_unavailable": "HTTPS is not available in this Home Assistant."
     }
   },
   "entity": {
@@ -193,6 +211,39 @@
           "description": "Quick-reply slot, 1-10."
         }
       }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Secure local connection: port {port} is taken",
+      "description": "Another program already uses port {port}, so the secure local connection (HTTPS) could not start. Choose another port in Settings › Devices & services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS). Nothing else is affected."
+    },
+    "https_unsupported": {
+      "title": "Secure local connection not supported",
+      "description": "This version of Home Assistant does not let the integration serve HTTPS the way it needs. The secure local connection is off; everything else works. Update Home Assistant or the integration."
+    },
+    "https_public_name_admin_required": {
+      "title": "Public name unavailable: guest pairing",
+      "description": "The doorbell only vouches for a Home Assistant paired as administrator, and this one is paired as a guest (user). The secure local address works as usual: install its root certificate on your devices from the install page. To get the public name, re-pair with an administrator account (Configure › Re-pair)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Public name unavailable: doorbell not registered",
+      "description": "The doorbell is not registered with the Islautopia cloud, so it cannot vouch for this Home Assistant. The secure local address works as usual: install its root certificate on your devices from the install page."
+    },
+    "https_public_name_taken": {
+      "title": "The doorbell's public name belongs to another Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Move the public name here?",
+            "description": "Each doorbell has one public name for Home Assistant, and {hostname} is currently used by another Home Assistant. If this one should have it (for example after reinstalling), move it here. The other one keeps working until its certificate expires and then only has its local address.\n\nThe public name will point to this Home Assistant and its certificate will be issued for it. The other Home Assistant will not be able to renew its certificate."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Public name unavailable",
+      "description": "The public name for Home Assistant could not be obtained ({code}). The secure local address is not affected. The integration's documentation explains each code."
     }
   }
 }

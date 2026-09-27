@@ -1,23 +1,59 @@
 # IG Doorbell for Home Assistant
 
 The Home Assistant integration **and** dashboard card for the **Islautopia Garage Doorbell**
-(IG Doorbell) — a video doorbell that keeps your video and audio on your own hardware.
+(IG Doorbell), a video doorbell that keeps your video and audio on your own hardware.
 
-One install from HACS gives you both: the doorbell as a real Home Assistant device, and a live
-view card with two-way audio and door control. The card needs no resource, no YAML and no options.
+One install from HACS gives you:
+
+- the doorbell as a **Home Assistant device**, with entities and events for your automations;
+- a **live view card** with two-way audio, door control, recordings and the doorbell's notices,
+  which needs no resource, no YAML and no options;
+- optionally, a **secure local connection (HTTPS)** for your Home Assistant, so browsers on your
+  home network let the card use the microphone.
+
+---
+
+## What it does, and what it does not do
+
+**It does:**
+
+- Talk to the doorbell **only over your home network**, at its local address.
+- Turn what the doorbell reports (a ring, a visitor, a parcel, the door opened, a key refused…)
+  into Home Assistant events and entities, the moment it happens.
+- Let you change the doorbell's mode, open the door, start a recording and play a message at the
+  street from Home Assistant.
+- Show the doorbell live in a card, with two-way audio, and play its recordings.
+
+**It does not:**
+
+- **Give you access from outside your home.** The card works wherever the browser can reach your
+  Home Assistant and the doorbell on your network. For access away from home you still need a
+  remote-access method for Home Assistant (Home Assistant Cloud, or your own domain with a
+  reverse proxy). The optional HTTPS below does **not** replace that: it is local.
+- **Store any image or sound anywhere but on the doorbell.** Recordings stay on the doorbell's
+  memory card. Home Assistant plays them from there; it does not copy them.
+- **Use the internet or our cloud to reach the doorbell.** Not as a fallback either. The single
+  exception is optional and off by default: the *public name* of the secure connection (below)
+  asks our cloud for a name and a certificate — never for anything about the doorbell's video,
+  audio or events.
+- **Need an MQTT broker, YAML, or a separate card install.**
 
 ---
 
 ## Two principles this is built on
 
-**Local first.** Everything here works inside your home network with no internet at all. Home
-Assistant talks to the doorbell at its local address — no cloud relay, no TURN, not even a DNS
-lookup of the doorbell's cloud name. If your line or our servers go down, the live view, two-way
-audio, the door, the recordings and your automations keep working.
+**Local first.** Everything here works inside your home network with no internet at all. If your
+line or our servers go down, the live view, two-way audio, the door, the recordings and your
+automations keep working.
 
 **Privacy first.** Not a frame of video or a second of audio is stored anywhere but on the
-doorbell's own memory card. The live stream goes straight from the doorbell to your browser. The
-pairing credential stays on your Home Assistant server and never reaches a browser.
+doorbell's own memory card. The live stream goes straight from the doorbell to your browser; it
+does not pass through Home Assistant. The pairing credential stays on your Home Assistant server
+and never reaches a browser.
+
+What Home Assistant itself keeps is what it keeps for any device: the **history of the entities**
+(for example "Events: ring at 10:02", "Mode: Away") in its own database, like every other entity
+you have. No pictures, no audio.
 
 ---
 
@@ -30,127 +66,148 @@ pairing credential stays on your Home Assistant server and never reaches a brows
 3. Find **Islautopia Garage Doorbell** in the list and download it.
 4. Restart Home Assistant.
 
-That is the whole install: the card comes with the integration. You do **not** add a dashboard
-resource, and there is no separate card repository to install.
+The card comes with the integration. You do **not** add a dashboard resource.
 
 ### By hand
 
-Copy the `custom_components/ig_doorbell/` folder (it includes `frontend/`) into your Home Assistant
-`custom_components` folder, then restart.
+Copy the `custom_components/ig_doorbell/` folder into your Home Assistant `custom_components`
+folder, then restart.
 
 ### Before you start
 
-1. **An IG Doorbell that is already set up** — on your network, with an administrator account.
-   If it is brand new, set it up from the mobile app or its own web page first.
+1. **An IG Doorbell that is already set up**, on your network, with an administrator account. If
+   it is brand new, set it up from the mobile app or its own web page first.
 2. **Home Assistant 2024.7 or newer.**
-3. **Home Assistant reachable from the doorbell on your own network.** The doorbell writes to it
-   directly, so Home Assistant needs a *local* address (Settings → System → Network → *Home
-   Assistant URL*). Sending the doorbell out to the internet to reach a machine next door would
-   mean this stops working the day your line goes down.
+3. **Home Assistant reachable from the doorbell on your own network.** The doorbell writes to Home
+   Assistant directly, so Home Assistant needs a *local* address (Settings → System → Network →
+   *Home Assistant URL*).
 
 ---
 
-## Setting it up
+## Pairing a doorbell
 
 **Settings → Devices & services → Add integration → Islautopia Garage Doorbell.** If the doorbell
 is on the same network, Home Assistant may already offer it under *Discovered*. Otherwise type its
-address — the reliable route when the doorbell and Home Assistant sit on different VLANs, where
-discovery cannot reach.
+IP address — the reliable route when the doorbell and Home Assistant sit on different VLANs.
 
-Then enter the doorbell's administrator email and password. They are used **once**, to ask the
-doorbell for a dedicated pairing credential, and are never stored. Repeat for each doorbell you
-have.
+Then enter the doorbell's **administrator email and password**. They are used **once**, to ask the
+doorbell for a dedicated pairing credential for this Home Assistant, and are never stored. Setup
+checks that the doorbell answers on your network with a valid certificate; if anything fails, it
+says so and configures nothing (a half-made pairing is undone on the doorbell).
 
-Then add the card to a dashboard: **Edit dashboard → Add card → IG Doorbell**. Or in YAML:
+Repeat for each doorbell. Each pairing appears in the doorbell's list of clients, where it can be
+revoked; if that happens, **Configure → Re-pair** asks for the password again.
 
-```yaml
-type: custom:ig-doorbell-card
-```
-
-That is the whole card configuration.
+**Administrator or guest.** A pairing made with an administrator account can change the mode,
+record, see recordings and vouch for the public HTTPS name; with a guest account, what the pairing
+may do is what the doorbell allows its guests. The card follows **the pairing's**
+role, not the role of whoever is looking at the dashboard.
 
 ---
 
 ## The card
 
-- **Every doorbell, one card.** A switcher in the header lists every doorbell of the integration
-  by its own name and switches live. Switching hangs up the old session completely and builds a
-  fresh view for the new doorbell — nothing of one doorbell leaks into the other.
-- **Live video in about a second**, two-way audio without renegotiating, and a single talk turn
-  shared with the mobile apps (if someone else is talking, you are told, not cut in).
-- **Door with confirmation**: the first press arms, the second opens, and the card only says
-  *Open* once the doorbell confirms it. No door button when the doorbell has no lock.
-- **Watching is not listening**: the speaker starts muted, and turns on when you tap it or when
+Add it to a dashboard: **Edit dashboard → Add card → IG Doorbell**, or in YAML:
+
+```yaml
+type: custom:ig-doorbell-card
+```
+
+That is the whole configuration: it shows every doorbell of the integration.
+
+- **Every doorbell, one card.** A switcher in the header lists your doorbells by name. Switching
+  hangs up the old session and starts a fresh one.
+- **Live video in about a second** and **two-way audio**, with one talk turn shared with the
+  mobile apps: if someone else is talking, you are told instead of being cut in.
+- **The microphone needs a secure page.** Browsers only allow it over HTTPS. If you open Home
+  Assistant as `http://…` and tap the microphone, the card explains this and takes you to the
+  setup page of the [secure local connection](#secure-local-connection-https), with a QR code to do
+  it from your phone.
+- **Door with confirmation**: the first press arms, the second opens, and the card says *Open*
+  only when the doorbell confirms it. No door button when the doorbell has no lock.
+- **Watching is not listening**: the speaker starts muted and turns on when you tap it or when
   someone rings.
-- **Mode**, **REC** (administrators), **Recordings** (Home Assistant's own media browser, played
-  through Home Assistant so the credential stays on the server), **Quick replies** played at the
-  street, and a **bell** with the doorbell's recent notices.
-- **Adaptive layout**: stacked, overlaid or side column, chosen from the space the dashboard
-  gives it; 44 px touch targets on touch screens; fullscreen that works in the companion app too;
-  pinch to zoom.
-- **Leaves the doorbell alone when nobody is looking**: leaving the view pauses the stream at once
-  and frees the doorbell after a grace period (unless you are in a call); the *Live view timeout*
+- **Mode**, **REC** and **Recordings** (administrator pairings), **Quick replies** played at the
+  street, and a **bell** with the doorbell's recent notices — rings, visitors, parcels, the door,
+  security and device health — read from the Events entity's history in Home Assistant.
+- **Leaves the doorbell alone when nobody is looking**: leaving the view pauses the stream and,
+  after a grace period, frees the doorbell (unless you are in a call). The *Live view timeout*
   entity pauses it when nobody touches the card.
+- **Adapts to the space** it is given (stacked, overlaid or side column), fullscreen, pinch to
+  zoom, touch-sized buttons on touch screens.
 - Translated to English, Spanish, Portuguese, German, French, Russian, Chinese, Hindi and Arabic.
 
 ### Updating
 
 HACS updates the integration and the card together. After the update, **restart Home Assistant**
-(HACS asks for it) and **reload the browser page**. The card's address carries a fingerprint of the
-file, so browsers fetch the new card instead of reusing a cached one — no cache clearing needed.
+and **reload the browser page**. No cache clearing is needed.
 
 ---
 
-## The integration
-
-### Entities, with nothing to configure
+## Entities and events
 
 | | |
 |---|---|
-| **Events** | everything the doorbell has to say — a ring, a visitor, a parcel, the door opened, a key refused. Use it directly as an automation trigger |
-| **Visitor** / **Parcel in the doorway** | the ones you want as a state rather than an instant |
-| **Mode** | Normal, Away, Do Not Disturb, Custom — *"Do Not Disturb at 23:00"* is a two-line automation |
-| **Open door** | a button, when your doorbell has a lock configured |
-| **Manual recording** | a switch (administrators) |
+| **Events** | everything the doorbell reports: a ring, a visitor, a parcel, the door opened, a failed login, a key refused, a problem with the memory card, an unexpected restart… Use it directly as an automation trigger |
+| **Visitor** / **Package at the door** | the ones you want as a state rather than an instant |
+| **Mode** | Normal, Away, Do not disturb, Custom — *"Do not disturb at 23:00"* is a two-line automation |
+| **Open door** | a button, when the doorbell has a lock |
+| **Manual recording** | a switch (administrator pairings) |
 | **Viewers** | how many people are watching right now |
 | **Live view timeout** | seconds without anyone touching the card before it pauses the live view (default 120, `0` = never) |
-| Firmware, street panel, fingerprint reader | diagnostics |
+| Firmware version, street panel, fingerprint reader | diagnostics |
 
-Changing the mode or recording needs the pairing to be an **administrator** of that doorbell; the
-card shows REC and Recordings by the same rule, whatever Home Assistant account is looking.
-
-### The doorbell's open button can drive your Home Assistant devices
-
-On the doorbell, set the door type to **Home Assistant** and pick the entity to control. Which
-entities the doorbell may touch is a short allow-list you choose in **Settings → Devices &
-services → Islautopia Garage Doorbell → Configure** (up to 5):
-
-| You point the doorbell at… | Open does | Then, on its own |
-|---|---|---|
-| `lock.front_door` | `lock.unlock` | `lock.lock` |
-| `cover.garage` | `cover.open_cover` | `cover.close_cover` |
-| `light.porch` / `switch.gate` / `input_boolean.…` | `turn_on` | `turn_off` |
-| `button.…` | `button.press` | — |
-| `script.…` / `scene.…` | runs it | — |
-
-The close is sent after the open duration you set on the doorbell, so a lock re-locks and a light
-turns itself off.
+Urgent things (a ring) arrive **pushed** by the doorbell over a local webhook the moment they
+happen; the rest is refreshed every 30 seconds. If the doorbell cannot be reached, its entities
+become *unavailable* — which is what that means — and the card keeps working for the others.
 
 ### Actions
 
 `ig_doorbell.play_sequence` and `ig_doorbell.play_audio` play one of the doorbell's sequences or
 quick replies at the street — the same messages the apps send.
 
-### What it does *not* do
+### The doorbell can switch your Home Assistant devices
 
-- **It never reaches the doorbell through the internet**, and the live view therefore works
-  wherever the browser can reach the doorbell on your network, not from outside. Home Assistant
-  must be on the same network as the doorbell (or a routed VLAN); if it cannot reach it, setup
-  says so and configures nothing.
-- **Your live video and audio never pass through Home Assistant.** Recordings you open do, so the
-  credential stays on the server.
-- **No MQTT broker, no session kept open.** The doorbell pushes what is urgent over a local
-  webhook the moment it happens; the integration asks how things are every 30 seconds.
+In **Configure → Entities the doorbell can act on**, choose up to 5 entities that turn on and off
+(lock, light, switch, input boolean, fan, siren). The doorbell can then use them as its door, or
+in a step of one of its sequences, and the apps offer them by name. The doorbell cannot touch
+anything that is not on that list.
+
+| You point the doorbell at… | Open does | Then, after the open time set on the doorbell |
+|---|---|---|
+| `lock.front_door` | `lock.unlock` | `lock.lock` |
+| `light.porch`, `switch.gate`, `input_boolean.…`, `fan.…`, `siren.…` | `turn_on` | `turn_off` |
+
+---
+
+## Secure local connection (HTTPS)
+
+**Off by default.** Turn it on in **Configure → Secure local connection (HTTPS)**. It serves your
+Home Assistant over HTTPS on your home network, on a port of its own (8443), so browsers let the
+card use the microphone. It does not touch Home Assistant's own port or settings, and it works
+alongside Home Assistant Cloud or your own reverse proxy.
+
+**It is not remote access**, and it does not remove the need for one if you want Home Assistant
+away from home.
+
+It gives two addresses:
+
+- **A public name** such as `https://<id>.ha.doorbell.islautopia.com:8443` — a certificate every
+  device already trusts, **nothing to install**. It needs **an IG Doorbell paired here as
+  administrator** and registered with the Islautopia cloud: the doorbell vouches for your Home
+  Assistant. The certificate's private key is created in your Home Assistant and never leaves it.
+  The name is visible in public certificate logs and points to your Home Assistant's *private*
+  address; some routers block such names (DNS rebinding protection) — then use the local address.
+- **Your local address** (`https://<ip>:8443` or `https://homeassistant.local:8443`) — works
+  **without internet and without a doorbell**. Its certificate comes from the integration's own
+  local certificate authority; you install that authority's root certificate once on each device,
+  guided by a setup page with a *Check* button. The root can only vouch for private addresses and
+  local names, never for other websites.
+
+Setup page: `http://<your-home-assistant-ip>:8123/ig_doorbell/https` (linked from the option and
+from the card). Everything about it — what our cloud sees, where the keys live and what that
+means, routers, installation types, troubleshooting, and what is tested — is in
+**[docs/https.md](docs/https.md)**.
 
 ---
 
@@ -159,15 +216,19 @@ quick replies at the street — the same messages the apps send.
 **The card says "Custom element doesn't exist: ig-doorbell-card".** Home Assistant was not
 restarted after installing, or the page was not reloaded after the restart.
 
-**Nothing happens when the door is opened.** Check that the doorbell's door type is *Home
-Assistant* and that the entity is in the allow-list under *Configure*.
+**I can see and hear, but the microphone does not work.** The page is not secure (`http://`). Tap
+the microphone: the card shows why and where to go. See [docs/https.md](docs/https.md).
 
-**The entities are all unavailable.** The integration cannot reach the doorbell. If it says the
-doorbell no longer recognises it, the pairing is gone — re-pair from *Configure*.
+**Nothing happens when the door is opened.** Check that the doorbell's door type is *Home
+Assistant* and that the entity is in *Configure → Entities the doorbell can act on*.
+
+**The entities are all unavailable.** The integration cannot reach the doorbell. If the doorbell
+moved to another IP, set it in *Configure → Doorbell address*. If it says the doorbell no longer
+recognises it, re-pair from *Configure*.
 
 **Nothing arrives the moment it happens, but the entities are fine.** The doorbell does not know
 where to write: Home Assistant has no local address configured (see *Before you start*), or the
-pairing is not an administrator of that doorbell. The log says which.
+pairing is not an administrator. The log says which.
 
 More detail in the log:
 
@@ -182,8 +243,8 @@ logger:
 ## For developers
 
 - Integration tests: `python -m pytest tests -q` in a container with
-  `pytest-homeassistant-custom-component`; `python tools/mutants.py` re-breaks each rule and checks
-  the suite goes red.
+  `pytest-homeassistant-custom-component` and `segno`; `python tools/mutants.py` re-breaks each rule
+  and checks the suite goes red.
 - Card benches: `cd tests/card && npm install && node run_all.js` (Playwright + simulations, with
   their own positive and negative controls). What the card has learned so far is in
   [docs/card.md](docs/card.md).

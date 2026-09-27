@@ -21,6 +21,7 @@ only the resulting 64-hex pair_app credential is persisted (in the config entry'
 from __future__ import annotations
 
 import asyncio
+import errno
 import logging
 import socket
 from typing import Any
@@ -49,8 +50,45 @@ from .const import (
     MAX_ENTITIES,
     generic_name,
 )
+from .https_manager import DEFAULT_PORT, INSTALL_PATH, get_manager
 
 _LOGGER = logging.getLogger(__name__)
+
+HTTPS_DOCS_URL = "https://github.com/Islautopia/ig-doorbell-hass/blob/main/docs/https.md"
+
+
+async def _check_port(hass: HomeAssistant, mgr, port: int) -> dict[str, str]:
+    """A clear error in the form itself when the port cannot be used, instead of a silent
+    listener that never came up. Our own running listener on that port is not a conflict."""
+    if port == getattr(hass.http, "server_port", None):
+        return {"port": "port_is_ha"}
+    if mgr.port_is_ours(port):
+        return {}
+
+    def _try_bind() -> bool:
+        for family, addr in ((socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")):
+            try:
+                sock = socket.socket(family, socket.SOCK_STREAM)
+            except OSError:
+                continue
+            try:
+                # SO_REUSEADDR like asyncio's own listener: a port in TIME_WAIT is not "taken",
+                # a port with a LISTENING socket still is.
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                if family == socket.AF_INET6:
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                sock.bind((addr, port))
+            except OSError as err:
+                if family == socket.AF_INET6 and err.errno == errno.EADDRNOTAVAIL:
+                    continue
+                return False
+            finally:
+                sock.close()
+        return True
+
+    if not await hass.async_add_executor_job(_try_bind):
+        return {"port": "port_in_use"}
+    return {}
 
 
 async def _address_for(host: str) -> str | None:
@@ -290,7 +328,7 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return self.async_show_menu(
-            step_id="init", menu_options=["entities", "address", "repair"]
+            step_id="init", menu_options=["entities", "address", "https", "repair"]
         )
 
     async def async_step_entities(
@@ -372,6 +410,53 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
             data_schema=vol.Schema({vol.Required(CONF_HOST, default=requested_address): str}),
             errors=errors,
             description_placeholders={"host": requested_address},
+        )
+
+    async def async_step_https(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Secure local connection (HTTPS) for this Home Assistant (https_manager.py).
+
+        ⚠️ One setting for the whole Home Assistant, not per doorbell: it is one port. It is
+        stored by the manager, not in this entry's options, and applied at once - no reload of
+        the entry. The doorbell of THIS entry is the one asked to vouch for the public name.
+        """
+        mgr = get_manager(self.hass)
+        if mgr is None:
+            return self.async_abort(reason="https_unavailable")
+        errors: dict[str, str] = {}
+        enabled, port = mgr.enabled, mgr.port
+        if user_input is not None:
+            enabled = bool(user_input.get("enabled"))
+            port = int(user_input.get("port") or DEFAULT_PORT)
+            if enabled:
+                errors = await _check_port(self.hass, mgr, port)
+            if not errors:
+                await mgr.async_configure(
+                    enabled=enabled, port=port, device_id=self._entry.data[CONF_DEVICE_ID]
+                )
+                # Same dict back: an options flow REPLACES the whole options (see entities).
+                return self.async_create_entry(title="", data=dict(self._entry.options))
+
+        status = mgr.status()
+        return self.async_show_form(
+            step_id="https",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("enabled", default=enabled): selector.BooleanSelector(),
+                    vol.Required("port", default=port): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1024, max=65535, step=1, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "port": str(port),
+                "install_url": status.get("install_url") or INSTALL_PATH,
+                "docs_url": HTTPS_DOCS_URL,
+            },
         )
 
     async def async_step_repair(

@@ -46,6 +46,7 @@
         "menu_options": {
           "entities": "Entidades que puede accionar el videoportero",
           "address": "Dirección del videoportero",
+          "https": "Conexión local segura (HTTPS)",
           "repair": "Volver a emparejar"
         }
       },
@@ -70,6 +71,18 @@
           "email": "Correo del administrador",
           "password": "Contraseña"
         }
+      },
+      "https": {
+        "title": "Conexión local segura (HTTPS)",
+        "description": "Sirve este Home Assistant por HTTPS en tu red de casa, en un puerto propio, para que los navegadores dejen a la tarjeta del portero usar el micrófono (audio bidireccional). Desactivada por defecto. No toca ni el puerto ni los ajustes propios de Home Assistant.\n\n**No es acceso remoto.** No sustituye a Home Assistant Cloud ni a tu propio dominio con proxy inverso.\n\nDa dos direcciones:\n- **Nombre público**: no hay que instalar nada en los dispositivos. Un certificado de confianza pública para un nombre como `<id>.ha.doorbell.islautopia.com`. Necesita un IG Doorbell emparejado aquí como administrador y registrado en la nube de Islautopia: el portero avala a este Home Assistant. Solo para esto se contacta con la nube, que nunca recibe la clave privada del certificado. Necesita internet para buscar el nombre.\n- **Dirección local** (IP u homeassistant.local): funciona sin internet y sin portero. El certificado lo emite la autoridad de certificación local de esta integración: instala su certificado raíz una vez en cada dispositivo.\n\nConfigura tus dispositivos: [página de instalación]({install_url}) · [Cómo funciona]({docs_url})",
+        "data": {
+          "enabled": "Activar HTTPS",
+          "port": "Puerto"
+        },
+        "data_description": {
+          "enabled": "Abre el puerto HTTPS y mantiene sus certificados al día.",
+          "port": "Por defecto 8443. Tiene que estar libre en la máquina de Home Assistant."
+        }
       }
     },
     "error": {
@@ -80,7 +93,12 @@
       "pair_verify_failed": "El emparejamiento funcionó, pero la credencial nueva fue rechazada por la red local. Se deshizo el emparejamiento en el videoportero.",
       "device_not_paired": "El propio videoportero aún no está registrado",
       "cloud_authorize_failed": "El videoportero no pudo registrar este emparejamiento",
-      "too_many": "Demasiadas entidades: elige {max} como máximo"
+      "too_many": "Demasiadas entidades: elige {max} como máximo",
+      "port_in_use": "El puerto {port} ya lo usa otro programa. Elige otro.",
+      "port_is_ha": "Ese es el puerto de Home Assistant. Elige otro."
+    },
+    "abort": {
+      "https_unavailable": "HTTPS no está disponible en este Home Assistant."
     }
   },
   "entity": {
@@ -193,6 +211,39 @@
           "description": "Ranura de respuesta rápida, 1-10."
         }
       }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Conexión local segura: el puerto {port} está ocupado",
+      "description": "Otro programa ya usa el puerto {port}, así que la conexión local segura (HTTPS) no ha podido arrancar. Elige otro puerto en Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS). Nada más se ve afectado."
+    },
+    "https_unsupported": {
+      "title": "Conexión local segura no compatible",
+      "description": "Esta versión de Home Assistant no permite a la integración servir HTTPS como lo necesita. La conexión local segura está apagada; todo lo demás funciona. Actualiza Home Assistant o la integración."
+    },
+    "https_public_name_admin_required": {
+      "title": "Nombre público no disponible: emparejamiento de invitado",
+      "description": "El portero solo avala a un Home Assistant emparejado como administrador, y este está emparejado como invitado (user). La dirección local segura funciona igual: instala su certificado raíz en tus dispositivos desde la página de instalación. Para tener el nombre público, vuelve a emparejar con una cuenta de administrador (Configurar › Volver a emparejar)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Nombre público no disponible: portero no registrado",
+      "description": "El portero no está registrado en la nube de Islautopia, así que no puede avalar a este Home Assistant. La dirección local segura funciona igual: instala su certificado raíz en tus dispositivos desde la página de instalación."
+    },
+    "https_public_name_taken": {
+      "title": "El nombre público del portero es de otro Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "¿Traer aquí el nombre público?",
+            "description": "Cada portero tiene un único nombre público para Home Assistant, y {hostname} lo está usando otro Home Assistant. Si le corresponde a este (por ejemplo, tras reinstalar), tráelo aquí. El otro seguirá funcionando hasta que caduque su certificado y después solo tendrá su dirección local.\n\nEl nombre público apuntará a este Home Assistant y su certificado se emitirá para él. El otro Home Assistant no podrá renovar el suyo."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Nombre público no disponible",
+      "description": "No se ha podido obtener el nombre público para Home Assistant ({code}). La dirección local segura no se ve afectada. La documentación de la integración explica cada código."
     }
   }
 }
