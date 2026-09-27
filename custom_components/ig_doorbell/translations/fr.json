@@ -30,7 +30,8 @@
     "error": {
       "too_many": "Trop d'entités : choisissez-en {max} au maximum",
       "port_in_use": "Le port {port} est déjà utilisé par un autre programme. Choisissez-en un autre.",
-      "port_is_ha": "C’est le port de Home Assistant lui-même. Choisissez-en un autre."
+      "port_is_ha": "C’est le port de Home Assistant lui-même. Choisissez-en un autre.",
+      "https_changed_elsewhere": "Ce réglage a été modifié ailleurs pendant que ce formulaire était ouvert. Il affiche maintenant la valeur actuelle : vérifiez-la et envoyez de nouveau."
     },
     "abort": {
       "https_unavailable": "HTTPS n’est pas disponible dans ce Home Assistant."
