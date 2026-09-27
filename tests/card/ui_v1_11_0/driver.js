@@ -1,4 +1,5 @@
-// Real-browser check of v1.11.0: the adaptive layout (stack / overlay / side column).
+// Real-browser check of v1.11.0: the adaptive layout (stack / overlay / side column), extended in
+// integration 1.1.1 with the fourth layout, SPLIT (call buttons beside the picture, not over it).
 // Loads the REAL dist/ file; ../ui_v1_10_0/harness.js only doubles the network and hass.
 //
 // RUN (from the repo root):
@@ -24,6 +25,13 @@
 //   L10 fullscreen: no layout class or inline width leaks in; the rail only with height >= 350.
 //   L11 the side column's content fits its box (no internal overflow).
 //   L12 the doorbell picker is never squeezed below 90 px (crowded short header).
+//   L13 (1.1.1) no call button (sound / mic / door) over the PICTURE while the card has room beside
+//      it for a column of buttons (>= SPLIT_ROOM px of free width next to the image). Overlay is
+//      only allowed when there is genuinely no lateral room. This is the iPhone-landscape case:
+//      a portrait stream using 25 % of the width with the buttons over the visitor's face.
+//   (L6 and L11 also cover the split columns: frame = image, columns next to it, content fits.)
+//
+// CARD_FILE=<path> serves another build instead of the repo's (the 1.0.0 card must fail L13).
 //
 // POSITIVE CONTROLS ARE BUILT IN: after the real run, the same checks run against MUTANTS of dist/
 // (served through page.route), each re-introducing one failure. The run passes only if the real
@@ -35,6 +43,9 @@ const { chromium } = require('playwright-core');
 const EXE = process.env.PLAYWRIGHT_CHROMIUM_PATH
   || 'C:/Users/inaki/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe';
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:8797/tests/card/ui_v1_11_0/index.html';
+const CARD_FILE = process.env.CARD_FILE || null;
+// Free width beside the image that can hold the button column: 88 px column + 10 px gap.
+const SPLIT_ROOM = 98;
 const DIST = path.join(__dirname, '..', '..', '..', 'custom_components', 'ig_doorbell', 'frontend', 'ig-doorbell-card.js');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,7 +61,7 @@ const MUTANTS = {
   // L11 (+L4): compact column never used, full column squeezed into a short one
   M5: { target: 'L11', a: "c.classList.toggle('ig-side-compact', L === 'side' && plan.feedH < IgDoorbellView.SIDE_FULL_H);", b: "c.classList.toggle('ig-side-compact', false);" },
   // L6: frame not sized to the image
-  M6: { target: 'L6', a: "const w = L === 'side' ? `${plan.imgW}px` : '';", b: "const w = '';" },
+  M6: { target: 'L6', a: "const w = (L === 'side' || L === 'split') ? `${plan.imgW}px` : '';", b: "const w = '';" },
   // L8: no re-layout on resize
   M7: { target: 'L8', a: '  _scheduleFit() {\n    if (this._fitRaf) return;', b: '  _scheduleFit() {\n    return;' },
   // L9: the old constant card size
@@ -60,10 +71,16 @@ const MUTANTS = {
   // L7: ha-card's overflow-x clip normally makes horizontal scroll impossible by construction, so the
   // instrument's positive control needs TWO changes: no clip + a frame that ignores the image width.
   M10: { target: 'L7', a: 'overflow: hidden auto; border-radius: var(--ha-card-border-radius, 12px);', b: 'overflow: visible; border-radius: var(--ha-card-border-radius, 12px);',
-    a2: "const w = L === 'side' ? `${plan.imgW}px` : '';", b2: "const w = L === 'side' ? `${plan.imgW + 900}px` : '';" },
+    a2: "const w = (L === 'side' || L === 'split') ? `${plan.imgW}px` : '';", b2: "const w = (L === 'side' || L === 'split') ? `${plan.imgW + 900}px` : '';" },
   // L12 in a narrow short header (372 px column, phone in landscape): the 1.11.0 wrap + picker minimum both gone
-  M11: { target: 'L12', a: '.ig-container.ig-short .top-row { flex-wrap: wrap; row-gap: 8px; }', b: '',
+  M11: { target: 'L12', a: '.ig-container.ig-short .top-row, .ig-container.ig-split > .top-row { flex-wrap: wrap; row-gap: 8px; }', b: '',
     a2: '.db-picker { min-width: min(100%, 96px); }', b2: '' },
+  // L13 (1.1.1): the split layout never replaces overlay -> call buttons back over the picture
+  M12: { target: 'L13', a: "if (split && best.layout === 'overlay' && split.score >= best.score) best = split;", b: '' },
+  // L11 (1.1.1): the labelled (bigger) button column at any height -> buttons pile up in a short column
+  M13: { target: 'L11', a: "c.classList.toggle('ig-split-lbl', L === 'split' && plan.feedH >= IgDoorbellView.SPLIT_LBL_H);", b: "c.classList.toggle('ig-split-lbl', L === 'split');" },
+  // L6 (1.1.1): split frame not sized to the image (black bars back, the columns drift away from it)
+  M14: { target: 'L6', a: "const w = (L === 'side' || L === 'split') ? `${plan.imgW}px` : '';", b: "const w = L === 'side' ? `${plan.imgW}px` : '';" },
 };
 
 function mutate(src, name) {
@@ -82,14 +99,16 @@ function mutate(src, name) {
 
 const SIZES = {
   phone_port: { w: 390, h: 844, touch: true },
-  phone_land: { w: 844, h: 390, touch: true },
+  phone_land: { w: 844, h: 390, touch: true },       // iPhone 15 Pro-like in landscape (HA companion)
+  phone_land_932: { w: 932, h: 430, touch: true },   // iPhone 15 Pro Max-like in landscape
   tablet_port: { w: 800, h: 1280, touch: true },
   tablet_land: { w: 1280, h: 800, touch: true },
   strip: { w: 1280, h: 520, touch: true },       // a wallpanel strip: compact column
   pc: { w: 1920, h: 1080, touch: false },
 };
 const KINDS = ['panel', 'column', 'wide', 'narrow'];  // narrow = a 372 px sidebar column
-const ORIENTS = { portrait: { w: 720, h: 1280 }, landscape: { w: 1280, h: 720 } };
+// Ermita 10's real stream is 1080x1200 (near-square portrait); 1080x1920 is a full portrait sensor.
+const ORIENTS = { portrait: { w: 1080, h: 1920 }, near_square: { w: 1080, h: 1200 }, landscape: { w: 1280, h: 720 } };
 
 // ---- in-page helpers --------------------------------------------------------------------------
 function pageMount({ kind, sim }) {
@@ -136,12 +155,20 @@ function pageMeasure() {
     const on = cx >= 0 && cy >= 0 && cx <= innerWidth && cy <= innerHeight;
     let hit = false;
     if (on) { for (let n = deepAt(cx, cy); n; n = n.parentNode || n.host) if (n === el) { hit = true; break; } }
-    controls.push({ id, w: r.w, h: r.h, x: r.x, y: r.y, r: r.r, b: r.b, inCol: !!(v.sideCol && v.sideCol.contains(el)), reachable: hit });
+    controls.push({ id, w: r.w, h: r.h, x: r.x, y: r.y, r: r.r, b: r.b, inCol: !!(v.sideCol && v.sideCol.contains(el)),
+      inAct: !!(v.stackControls && v.stackControls.contains(el)), reachable: hit });
   }
   const side = v.sideCol ? R(v.sideCol) : null;
   const act = v.actionsRow.parentElement;
+  // The picture's real rectangle (object-fit: contain centres it in the frame).
+  const imgR = { x: fw.x + (fw.w - img.w) / 2, y: fw.y + (fw.h - img.h) / 2 };
+  imgR.r = imgR.x + img.w; imgR.b = imgR.y + img.h;
+  const ccs = getComputedStyle(c);
+  const inner = c.clientWidth - (parseFloat(ccs.paddingLeft) || 0) - (parseFloat(ccs.paddingRight) || 0);
   return {
     cls: c.className, stack: c.classList.contains('ig-stack'), side: c.classList.contains('ig-side'),
+    split: c.classList.contains('ig-split'), splitHead: c.classList.contains('ig-split-head'),
+    topInCol: !!(v.sideCol && v.sideCol.contains(v.topRow)), imgR, inner, actCol: R(v.stackControls),
     short: c.classList.contains('ig-short'), rail: c.classList.contains('ig-rail'), fs: c.classList.contains('ig-fs'),
     actParent: act === v.stackControls ? 'stack' : act === v.sideCol ? 'side' : act === v.feedWrap ? 'feed' : 'other',
     feed: fw, img, sideCol: side, sideScroll: v.sideCol ? [v.sideCol.scrollHeight, v.sideCol.clientHeight] : null,
@@ -155,10 +182,11 @@ function pageMeasure() {
 
 // ---- the checks on one measurement --------------------------------------------------------------
 function judge(m, label, check, opts = {}) {
-  const layouts = (m.stack ? 1 : 0) + (m.side ? 1 : 0);
-  const want = m.stack ? 'stack' : m.side ? 'side' : 'feed';
+  const layouts = (m.stack ? 1 : 0) + (m.side ? 1 : 0) + (m.split ? 1 : 0);
+  const want = (m.stack || m.split) ? 'stack' : m.side ? 'side' : 'feed';
   check('L1', `${label}: one layout, buttons where it says (${m.cls.replace('ig-container', '').trim() || 'overlay'}, row in ${m.actParent})`,
-    layouts <= 1 && !(m.short && layouts) && (!m.rail || m.fs) && (m.fs || m.actParent === want));
+    layouts <= 1 && !(m.short && layouts) && (!m.rail || m.fs) && (m.fs || m.actParent === want)
+    && (!m.splitHead || m.split) && (m.fs || m.topInCol === (m.side || m.splitHead)));
   if (m.side) check('L2', `${label}: side column >= 350 px (${Math.round(m.feed.h)})`, m.feed.h >= 350 - 0.5);
   if (!opts.noOverflow) {
     check('L3', `${label}: no overflow (card bottom ${Math.round(m.card.b)} / doc ${m.docH} vs ${m.vh})`, m.card.b <= m.vh + 0.5 && m.docH <= m.vh);
@@ -184,6 +212,37 @@ function judge(m, label, check, opts = {}) {
     check('L11', `${label}: column content fits (${inCol.length} controls${outside.length ? ', outside: ' + outside.join(',') : ''}${overlaps.length ? ', overlapping: ' + overlaps.join(',') : ''})`,
       inCol.length >= 8 && !outside.length && !overlaps.length);
   }
+  if (m.split) {
+    // L6 for the split layout: frame = image, the button column right of it, the header column
+    // (when the header is beside the picture) left of it, both touching it.
+    const gapR = m.actCol.x - m.feed.r;
+    const gapL = m.splitHead ? m.feed.x - m.sideCol.r : 0;
+    check('L6', `${label}: split hugs the image (frame ${Math.round(m.feed.w)} / img ${Math.round(m.img.w)}, gaps ${Math.round(gapL)}/${Math.round(gapR)})`,
+      Math.abs(m.feed.w - m.img.w) <= 2 && gapR >= 0 && gapR <= 12 && gapL >= 0 && gapL <= 12);
+    // L11 for the split columns: each control inside its column's box, none overlapping another.
+    const boxes = [];
+    for (const x of m.controls) {
+      const box = x.inAct ? m.actCol : x.inCol ? m.sideCol : null;
+      if (box) boxes.push({ x, box });
+    }
+    const outside = boxes.filter(({ x, box }) => x.x < box.x - 1 || x.r > box.r + 1 || x.y < box.y - 1 || x.b > box.b + 1).map(({ x }) => x.id);
+    const overlaps = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].x; const b = boxes[j].x;
+      if (a.x < b.r - 1 && b.x < a.r - 1 && a.y < b.b - 1 && b.y < a.b - 1) overlaps.push(`${a.id}/${b.id}`);
+    }
+    const nAct = boxes.filter(({ x }) => x.inAct).length;
+    check('L11', `${label}: split columns fit (${boxes.length} controls${outside.length ? ', outside: ' + outside.join(',') : ''}${overlaps.length ? ', overlapping: ' + overlaps.join(',') : ''})`,
+      nAct === 3 && (!m.splitHead || boxes.length >= 8) && !outside.length && !overlaps.length);
+  }
+  // L13 (1.1.1): no call button over the picture while there is room beside it for the column.
+  if (!m.fs) {
+    const calls = m.controls.filter((x) => ['snd-btn', 'mic-button', 'unlock-button'].includes(x.id));
+    const over = calls.filter((x) => x.x < m.imgR.r - 1 && m.imgR.x < x.r - 1 && x.y < m.imgR.b - 1 && m.imgR.y < x.b - 1).map((x) => x.id);
+    const room = m.inner - m.img.w;
+    check('L13', `${label}: buttons over the picture only without lateral room (${over.length ? 'over: ' + over.join(',') : 'none over'}; free ${Math.round(room)} px)`,
+      !over.length || room < SPLIT_ROOM);
+  }
   // L12: the doorbell picker keeps a readable width (in real HA a crowded short header squeezed it to 26 px).
   const pill = m.controls.find((x) => x.id === 'db-pill');
   check('L12', `${label}: picker not squeezed (${pill ? Math.round(pill.w) : '-'} px)`, !pill || pill.w >= 90);
@@ -198,6 +257,7 @@ async function run(browser, variant) {
   for (const touch of [true, false]) {
     const ctx = await browser.newContext({ viewport: { width: 800, height: 800 }, isMobile: touch, hasTouch: touch, deviceScaleFactor: 1 });
     const page = await ctx.newPage();
+    if (!body && CARD_FILE) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(CARD_FILE, 'utf8') }));
     if (body) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
@@ -215,7 +275,11 @@ async function run(browser, variant) {
           await ev(pageMount, { kind, sim });
           await sleep(350);
           const m = await measure();
-          layouts[label] = m.side ? 'side' : m.stack ? 'stack' : m.short ? 'overlay-short' : 'overlay';
+          const lay = m.side ? 'side' : m.stack ? 'stack' : m.split ? (m.splitHead ? 'split-head' : 'split-top') : m.short ? 'overlay-short' : 'overlay';
+          const calls = m.controls.filter((x) => ['snd-btn', 'mic-button', 'unlock-button'].includes(x.id));
+          const covered = calls.some((x) => x.x < m.imgR.r - 1 && m.imgR.x < x.r - 1 && x.y < m.imgR.b - 1 && m.imgR.y < x.b - 1);
+          const minCall = calls.length ? Math.round(Math.min(...calls.map((x) => Math.min(x.w, x.h)))) : 0;
+          layouts[label] = `${lay.padEnd(13)} img ${Math.round(m.img.w)}x${Math.round(m.img.h)} = ${(100 * m.img.w * m.img.h / (m.vw * m.vh)).toFixed(0)}% of screen${covered ? ' COVERED' : ''}, smallest call button ${minCall}`;
           judge(m, label, check);
           if (sname === 'pc' && kind === 'panel') {
             check('L9', `${label}: getCardSize = ceil(height/50) (${m.cardSize} for ${Math.round(m.card.h)} px)`, m.cardSize === Math.ceil(m.card.h / 50));
@@ -240,7 +304,7 @@ async function run(browser, variant) {
       await page.setViewportSize({ width: 844, height: 390 });
       await sleep(400);
       m = await measure();
-      check('L8', `resized to 844x390 without reload: overlay-short (${m.cls})`, !m.side && !m.stack && m.short);
+      check('L8', `resized to 844x390 without reload: buttons beside the portrait picture (${m.cls})`, !m.side && !m.stack && m.split);
       judge(m, 'after resize to 844x390', check);
       await page.setViewportSize({ width: 1280, height: 800 });
       await sleep(400);
@@ -288,7 +352,8 @@ async function run(browser, variant) {
   for (const r of real.results) console.log(`${r.ok ? 'OK  ' : 'FAIL'} [${r.id}] ${r.label}`);
   const bad = real.results.filter((r) => !r.ok);
   console.log(`\nREAL: ${real.results.length - bad.length}/${real.results.length} OK`);
-  console.log('layouts chosen:', JSON.stringify(real.layouts, null, 0));
+  console.log('layouts chosen:');
+  for (const [k, v] of Object.entries(real.layouts)) console.log(`  ${k.padEnd(34)} ${v}`);
   if (bad.length) allOk = false;
   if (!process.env.SKIP_MUTANTS) {
     for (const name of Object.keys(MUTANTS).filter((n) => !process.env.ONLY || process.env.ONLY.split(',').includes(n))) {

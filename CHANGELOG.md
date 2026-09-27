@@ -6,6 +6,21 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.1] — unreleased
+
+### Fixed
+
+- **The card no longer puts the call buttons over the picture when there is room beside it.** On a
+  phone in landscape with a portrait camera (the Home Assistant app on an iPhone), sound, mic and
+  door covered the lower half of a picture that used a quarter of the screen's width - the part
+  where a visitor's face is - with a third of the width empty on each side. The buttons now sit in
+  a column next to the picture, and on a phone in landscape the doorbell picker, mode, REC, bell,
+  Recordings and Quick replies move to a column on the other side, so the picture gets the full
+  height (844x390, portrait camera: 146x260 covered -> 177x314 uncovered). Landscape cameras in the
+  same kind of space get the same treatment. Buttons stay over the picture only when the picture
+  fills the width and there is genuinely no room beside it. Every other layout (portrait phones,
+  tablets, wall panels, desktop) is unchanged.
+
 ## [1.1.0] — 2026-09-27
 
 ### New: secure local connection (HTTPS) — off by default
