@@ -29,7 +29,7 @@ from custom_components.ig_doorbell.const import (
 from .conftest import CREDENTIAL, DEVICE_ID, LAN_IP
 
 WID = webhook.webhook_id_for(DEVICE_ID)
-CALL = "0b4bd339-d146-4929-a2d4-38ac4ac6af7d"
+CALL = "11111111-2222-4333-8444-555555555555"
 TAG = f"igd_{DEVICE_ID}_{CALL}"
 PAGE = f"/ig-doorbell?device={DEVICE_ID}"
 
