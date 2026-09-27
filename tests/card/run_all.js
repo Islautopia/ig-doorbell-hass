@@ -20,6 +20,9 @@
 //   - ui_v1_11_0 against the 1.0.0 card (fixtures/legacy/card_1.0.0.js, a plain copy: no renames
 //     needed) must go red on L13 - the call buttons over a portrait picture on a phone in landscape
 //     with room beside it (fixed in 1.1.1).
+//   - registry_race against the 1.1.1 build (fixtures/legacy/card_1.1.1.js, a plain copy) must go
+//     red on R1 - the card defined in the native registry before Home Assistant's polyfill replaced
+//     it (fixed in 1.1.2).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
 //     fixtures/legacy/card_3983f68.js) plus its own mutants.
 const http = require('http');
@@ -69,6 +72,7 @@ const JOBS = [
   { name: 'mount_sessions (+ mutants X1-X3)', bench: 'mount_sessions', args: ['mount_sessions/driver.js'], expect: 0 },
   { name: 'idle_release_network', bench: 'idle_release_network', args: ['idle_release_network/driver.js'], expect: 0 },
   { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
+  { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada --controls', args: ['sim_carrera_reentrada.js', '--controls'], expect: 0 },
@@ -79,6 +83,8 @@ const JOBS = [
     args: ['ui_v1_9_8/driver.js'], env: { CARD_FILE: LEGACY('card_1.9.7.js') }, expect: 1, failText: /^ {2}FAIL /m, },
   { name: 'CONTROL ui_v1_11_0 vs 1.0.0 card (must fail L13)', bench: 'ui_v1_11_0', control: true,
     args: ['ui_v1_11_0/driver.js'], env: { CARD_FILE: LEGACY('card_1.0.0.js'), SKIP_MUTANTS: '1' }, expect: 1, failText: /^FAIL \[L13\]/m, },
+  { name: 'CONTROL registry_race vs 1.1.1 card (must fail R1)', bench: 'registry_race', control: true,
+    args: ['registry_race/driver.js'], env: { CARD_FILE: LEGACY('card_1.1.1.js') }, expect: 1, failText: /^ {2}FAIL \[R1\]/m, },
 ];
 
 (async () => {

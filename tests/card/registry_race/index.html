@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Card registration vs Home Assistant's registry polyfill</title></head>
+<body style="margin:0;background:#111;">
+  <div id="host" style="width:420px;"></div>
+  <!-- The 1.10.0 harness doubles hass and the network; it does not touch the card or the
+       registry. The card and the polyfill are NOT loaded here: driver.js adds them in the order
+       each case needs (the order is the thing under test). -->
+  <script src="../ui_v1_10_0/harness.js"></script>
+</body>
+</html>

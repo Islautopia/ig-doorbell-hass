@@ -3,6 +3,7 @@
   "private": true,
   "description": "Browser and simulation benches for the IG Doorbell card (frontend/ig-doorbell-card.js). Run: node run_all.js",
   "devDependencies": {
+    "@webcomponents/scoped-custom-element-registry": "^0.0.10",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4",
     "playwright-core": "1.55.1"

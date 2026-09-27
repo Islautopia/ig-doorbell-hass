@@ -6,6 +6,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.2] — 2026-09-27
+
+### Fixed
+
+- **The card no longer shows "Configuration error" when a dashboard opens.** On some page loads -
+  most of them over HTTPS, where Home Assistant's service worker serves the card from cache - the
+  whole card was replaced by Home Assistant's red "Configuration error" until a hard reload
+  (Ctrl+F5). The card was being registered before Home Assistant finished setting up the page, and
+  Home Assistant then could not find it. It now registers again once Home Assistant is ready, so
+  it appears on every load, cached or not.
+
 ## [1.1.1] — 2026-09-27
 
 ### Changed

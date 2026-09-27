@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.1.2';
+const CARD_VERSION = '1.1.1';
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
@@ -6971,52 +6971,32 @@ class IgDoorbellCardEditor extends HTMLElement {
   }
 }
 
-// (1.1.2) WHICH REGISTRY: Home Assistant's own app bundle ships the scoped-custom-element-registry
-// polyfill, and when that bundle runs it REPLACES `window.customElements` with the polyfill's
-// registry. This file is an extra module (card.py, `frontend.add_extra_js_url`), and the page
-// imports extra modules IN PARALLEL with the app bundle, so which one runs first is a race. When
-// this file wins, its definitions land in the browser's native registry; the polyfill's registry
-// never hears of them; Home Assistant asks the polyfill's `get()` and paints its red "Configuration
-// error" (message: "Custom element doesn't exist: ig-doorbell-card") - and it stays, because the
-// `whenDefined()` it waits on belongs to the new registry and never resolves.
-// Measured 2026-09-27 on Home Assistant 2026.9.3, desktop Chrome: 5 of 6 loads over https (the
-// service worker serves this file from cache in ~30 ms, ahead of the 560 KB app bundle), none over
-// plain http (no service worker: this file arrives later). Ctrl+F5 "fixed" it because it bypasses
-// the service worker. The card itself never threw.
-// So registration is idempotent and runs again against whatever `window.customElements` is once
-// the registry is swapped. Registering the SAME class on the polyfill after the native registry
-// already has it is fine: the polyfill reuses the native definition instead of defining a stand-in.
-// Do NOT "simplify" this back to one define at load time: that is the bug, and it only shows on
-// a cached https load. tests/card/registry_race covers it, with the 1.1.1 build as its control.
-const IG_ELEMENTS = [
-  // The view before the card: the card's first `createElement(VIEW_TAG)` must find it defined.
-  [EDITOR_TAG, IgDoorbellCardEditor],
-  [VIEW_TAG, IgDoorbellView],
-  [CARD_TAG, IgDoorbellCard],
-];
-const IG_REGISTRIES_DONE = [];
+// Idempotency guards (found in real testing 2026-07-09, see COORDINATION.md): if
+// this card is ALSO still installed via HACS (resource /hacsfiles/...) AT THE SAME TIME this
+// file gets added as a manual resource (/local/...) to test changes before publishing a new
+// release, the browser loads BOTH scripts - without this guard, the second `customElements.define`
+// throws "has already been used with this registry" and crashes in the console (and, worse, depending
+// on the load order, the code that "wins" could be HACS's old one, not the one being
+// tested). This doesn't replace the real fix (keep only one resource active at a time, or publish
+// a new HACS release before removing the manual resource) but it avoids the crash and makes
+// it clear from the console which copy is actually active.
+if (!customElements.get(EDITOR_TAG)) {
+  customElements.define(EDITOR_TAG, IgDoorbellCardEditor);
+} else {
+  console.warn('[ig-doorbell-card] ig-doorbell-card-editor was already registered (there are probably two resources of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate');
+}
 
-function igRegisterElements() {
-  const reg = window.customElements;
-  if (!reg || IG_REGISTRIES_DONE.includes(reg)) return;
-  IG_REGISTRIES_DONE.push(reg);
-  for (const [tag, cls] of IG_ELEMENTS) {
-    const existing = reg.get(tag);
-    if (existing === cls) continue;
-    if (existing) {
-      // Idempotency guard (found in real testing 2026-07-09, see COORDINATION.md): two copies of
-      // this card loaded at once (e.g. an old HACS resource plus this integration's module). The
-      // second `define` would throw "has already been used with this registry"; the copy that got
-      // there first stays active, and the console says so.
-      console.warn(`[ig-doorbell-card] ${tag} was already registered (there are probably two copies of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate`);
-      continue;
-    }
-    try {
-      reg.define(tag, cls);
-    } catch (err) {
-      console.warn(`[ig-doorbell-card] could not register ${tag}: ${err && err.message}`);
-    }
-  }
+// One doorbell's view (1.10.0): the card creates it, never Home Assistant. It's registered BEFORE
+// the card so the first `createElement('ig-doorbell-view')` already finds it defined.
+if (!customElements.get(VIEW_TAG)) {
+  customElements.define(VIEW_TAG, IgDoorbellView);
+} else {
+  console.warn('[ig-doorbell-card] ig-doorbell-view was already registered (two resources of this card loaded at the same time) - this copy of the script will not activate');
+}
+
+if (!customElements.get(CARD_TAG)) {
+  customElements.define(CARD_TAG, IgDoorbellCard);
+
   window.customCards = window.customCards || [];
   if (!window.customCards.some((c) => c.type === CARD_TAG)) {
     window.customCards.push({
@@ -7028,30 +7008,9 @@ function igRegisterElements() {
       description: "Live video, two-way audio and door control for Islautopia Garage Doorbell (IG Doorbell). No options: everything is configured in the Islautopia Garage Doorbell integration."
     });
   }
+} else {
+  console.warn('[ig-doorbell-card] ig-doorbell-card was already registered (there are probably two resources of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate');
 }
-
-igRegisterElements();
-
-// Register again if the registry is swapped after this module ran (see above). Two triggers:
-//  - `<home-assistant>`: Home Assistant defines it right after installing the polyfill, and the
-//    registry we saw at load (native) sees that definition too, because the polyfill defines its
-//    stand-ins there. On a page where the polyfill was already in place this resolves at once
-//    and is a no-op.
-//  - a short watch of `window.customElements` itself, for a polyfill installed by anything else.
-//    Bounded (30 s), and it stops at the first swap.
-(function igWatchRegistrySwap() {
-  const first = window.customElements;
-  if (!first) return;
-  try {
-    first.whenDefined('home-assistant').then(igRegisterElements, () => {});
-  } catch (err) { /* not a registry we can wait on: the watch below still runs */ }
-  let ticks = 0;
-  const timer = setInterval(() => {
-    const swapped = window.customElements !== first;
-    if (swapped) igRegisterElements();
-    if (swapped || ++ticks >= 150) clearInterval(timer);
-  }, 200);
-})();
 
 // ==============================================================================
 // (1.1.0) Microphone and secure context. Browsers expose `navigator.mediaDevices` only to a

@@ -10,6 +10,38 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## "Configuration error" on load: the card registered in the wrong registry (1.1.2, 2026-09-27)
+
+**Symptom** (Iñaki, integration 1.1.1, HA 2026.9.3, desktop Chrome, zero-config panel card): some
+loads showed Home Assistant's red "Configuration error" instead of the card; a hard reload fixed it.
+The error card's message was `Custom element doesn't exist: ig-doorbell-card.` The card never threw.
+
+**Mechanism (measured on the real HA through CDP).** Home Assistant's app bundle includes
+`@webcomponents/scoped-custom-element-registry`, which REPLACES `window.customElements` when the
+bundle runs. The page imports extra modules (ours, via `add_extra_js_url`) in PARALLEL with that
+bundle. When the card runs first, `customElements.define` goes to the native registry; the
+polyfill's registry, which is what HA's `createCardElement` asks (`get`, then `whenDefined`),
+never hears of it - so the error card never goes away. In the failing page:
+`customElements.get('ig-doorbell-card')` undefined, `document.createElement('ig-doorbell-card')`
+an `IgDoorbellCard`, and `window.customCards` listing the card (pushed right after the define).
+
+**Why https and why Ctrl+F5.** Over https the service worker (HA's `sw-modern.js`, stale-while-
+revalidate for anything outside `/static`, `/frontend_*`, `/api`) serves the card from cache in
+~30 ms, ahead of the 560 KB app bundle. Plain http has no service worker, the card arrives later,
+and it never failed. Ctrl+F5 bypasses the service worker; a plain F5 does not (4/6 bad).
+
+**Frequency, before -> after** (goto of the dashboard, fresh browser context each run, Waveshare
+pinned): https 1.1.1: 5/6, 7/8, 5/8 bad; http 1.1.1: 0/3; https with the 1.1.2 file served through
+the same service worker: 0/8 and see the release note for the final run.
+
+**Fix.** Registration is idempotent per registry (`igRegisterElements`) and runs again when the
+registry is swapped: on the native `whenDefined('home-assistant')` (HA defines its root right
+after installing the polyfill, and the polyfill defines a stand-in natively, so the native registry
+sees it), and on a bounded 30 s watch of `window.customElements` for a polyfill installed by anyone
+else. Defining the same class on the polyfill after the native one is safe: the polyfill reuses the
+native definition as its stand-in. Bench: `tests/card/registry_race/` (real polyfill from npm,
+both orders, HA-style mount; mutants Z1-Z3; the 1.1.1 build is a control that must fail R1).
+
 ## Six languages, the same set as the apps (1.1.1, Iñaki 2026-09-27)
 
 The integration/card set used to be es/en/fr/de/pt/zh-Hans/ru/hi/ar (nine languages, no Italian).
