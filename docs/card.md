@@ -10,6 +10,23 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## Six languages, the same set as the apps (1.1.1, Iñaki 2026-09-27)
+
+The integration/card set used to be es/en/fr/de/pt/zh-Hans/ru/hi/ar (nine languages, no Italian).
+Decision: the product's languages are es, en, fr, it, de, pt - the exact set the iOS and Android
+apps already ship, fallback English. zh-Hans/ru/hi/ar are gone from `igLocales`, `IG_EV_TEXT` and
+`IG_HTTPS_TEXT` in `ig-doorbell-card.js`, and from the `T` table in `frontend/https-install.html`;
+`it` was added to all four with full key parity to `en`. Each table's own per-key English
+fallback (`getLocalText`, `igEvText`, `igHttpsText`, and the install page's `t()`) needed no
+change - it already falls back key-by-key, not just language-by-language.
+
+The `document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'` line in the install page lost
+its reason to exist (Arabic was the only RTL language in the old set) and is now a plain `'ltr'`.
+
+`tests/test_supported_languages.py` pins the six-language set going forward: it fails loudly if
+any of the four surfaces (translations/, the three card.js tables, the install page's table) ever
+drifts from exactly {es, en, fr, it, de, pt}, or from full key parity with `en`.
+
 ## The microphone on a page that is not secure (1.1.0)
 
 On `http://<ip>:8123` the page is not a secure context and the browser has **no**
@@ -18,7 +35,8 @@ threw, and the button silently went back to off. Now `toggleTalk()` checks `igMi
 first and, if it fails, opens `.ig-https-panel` (same overlay as the quick replies) instead of
 requesting the turn. The panel asks the integration `ig_doorbell/https_status` and links to the
 install page `/ig_doorbell/https` (QR on a fine pointer), or to the integration when HTTPS is off.
-Texts: `IG_HTTPS_TEXT` at the end of the file (9 languages). Bench: `tests/card/mic_https_1_1_0`
+Texts: `IG_HTTPS_TEXT` at the end of the file (6 languages as of 1.1.1: es/en/fr/it/de/pt). Bench:
+`tests/card/mic_https_1_1_0`
 opens the card as `http://insecure.test` (mapped to 127.0.0.1: NOT secure) and as `127.0.0.1`
 (secure, the control), with a mutant that removes the guard. `sim_multicliente` now declares its
 fake page a secure context, which it always implicitly was.

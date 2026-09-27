@@ -135,7 +135,8 @@ That is the whole configuration: it shows every doorbell of the integration.
   entity pauses it when nobody touches the card.
 - **Adapts to the space** it is given (stacked, overlaid or side column), fullscreen, pinch to
   zoom, touch-sized buttons on touch screens.
-- Translated to English, Spanish, Portuguese, German, French, Russian, Chinese, Hindi and Arabic.
+- Translated to English, Spanish, French, Italian, German and Portuguese - the same six languages
+  as the iOS and Android apps, fallback English.
 
 ### Updating
 
