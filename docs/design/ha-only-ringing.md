@@ -123,6 +123,32 @@ notifications and panels open, so **nobody has to build a dashboard view** for t
 The card already has the wall-panel behaviour (wake lock, idle pause lifted by a ring, sound on
 ring).
 
+### 5. Revised the same night (Iñaki, 2026-09-27): the stream rule, going home, speakers, a chime
+
+- **Stream rule**: while the card is visible there is always a stream; when it is not visible the
+  stream stops at once (the existing hide/off-screen `live_pause`). The integration's timeout no
+  longer cuts the stream.
+- **The timeout is repurposed**: the number entity keeps its id, unique id and value (so an owner's
+  setting is kept) and is renamed *Back to the home page after*. After that long with nobody
+  touching it, the card takes the screen to Home Assistant's default page. That is the user's
+  `default_panel` in the frontend's `core` user data, then the system one, then the built-in `home`
+  dashboard (all measured on HA 2026.9.3). For an unanswered call the time counts from the ring.
+  An answered call (microphone/turn) never goes home while it lasts. On the default page itself the
+  card stays, so there is no navigation loop. `0` means never. This replaces the notifier's
+  `command_webview` back home and its "return path" option; the notifier only clears the panel's
+  chime notice.
+- **Speakers** (`announce.py`, off by default): Echo devices (official `alexa_devices`) play
+  Amazon's doorbell chime through `send_sound` and speak through their `announce` notify entity.
+  Other media players play our chime with `play_media(announce=true)`, plus `tts.speak` if there is
+  a TTS engine. This coexists with users' own announcement automations: the options text says they
+  will announce twice.
+- **The IG Doorbell chime**: synthesized for the product (`tools/make_chime.py`, no third-party
+  audio) and served at `/ig_doorbell/sounds/ig-doorbell-chime.mp3` without authentication, because
+  speakers fetch it with no token. The call page plays it only when a ring arrives while the page
+  is already open (an iPad kiosk); when the ring opened the page, the notification has already
+  sounded. Android channel sounds and iOS notification sounds cannot be set from Home Assistant;
+  the docs say how to set them by hand.
+
 ## What the platform does NOT allow, said plainly
 
 - **Push to a phone needs internet** (Apple/Google) — *except* when the companion's **local push**

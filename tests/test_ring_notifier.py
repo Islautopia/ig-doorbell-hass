@@ -23,7 +23,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.ig_doorbell import api, net, notify_ring, panel, webhook
 from custom_components.ig_doorbell.const import (
     CONF_CREDENTIAL, CONF_DEVICE_ID, CONF_HOST_HINT, CONF_NOTIFY_CRITICAL, CONF_NOTIFY_OPEN_DOOR,
-    CONF_NOTIFY_PANELS, CONF_NOTIFY_PHONES, CONF_PANEL_RETURN_PATH, DOMAIN, RING_SAFETY_S,
+    CONF_NOTIFY_PANELS, CONF_NOTIFY_PHONES, DOMAIN, RING_SAFETY_S,
 )
 
 from .conftest import CREDENTIAL, DEVICE_ID, LAN_IP
@@ -118,8 +118,7 @@ def _all(ids, **extra):
 @pytest.fixture
 async def rung(hass):
     entry, ids, calls, patches = await _setup(
-        hass, lambda ids: _all(ids, **{CONF_PANEL_RETURN_PATH: "/lovelace/home",
-                                       CONF_NOTIFY_OPEN_DOOR: True}))
+        hass, lambda ids: _all(ids, **{CONF_NOTIFY_OPEN_DOOR: True}))
     await _post(hass, _envelope("ring"))
     yield entry, ids, calls
     for p in patches:
@@ -178,7 +177,7 @@ async def test_ipad_panel_gets_a_notification_only(hass, rung):
     assert msgs[0]["data"]["url"] == PAGE
 
 
-async def test_answered_clears_everywhere_by_the_same_tag_and_panels_go_home(hass, rung):
+async def test_answered_clears_everywhere_by_the_same_tag(hass, rung):
     _, _, calls = rung
     for c in calls.values():
         c.clear()
@@ -189,9 +188,9 @@ async def test_answered_clears_everywhere_by_the_same_tag_and_panels_go_home(has
     # Android: the clear must be a high-priority push, or a phone in Doze holds it for minutes.
     (clear_android,) = [m for m in _msgs(calls, "M23 Test") if m["message"] == "clear_notification"]
     assert clear_android["data"]["priority"] == "high" and clear_android["data"]["ttl"] == 0
-    home = [m for m in _msgs(calls, "Tab Test") if m["message"] == "command_webview"]
-    assert home and home[0]["data"]["command"] == "/lovelace/home"
-    assert not [m for m in _msgs(calls, "Ipad Test") if m["message"] == "command_webview"]
+    # 1.2.0 (Iñaki): the notifier no longer sends the panel home - the card does, after the
+    # "back to the default page" deadline, and not while the answered call lasts.
+    assert not [m for m in _msgs(calls, "Tab Test") if m["message"] == "command_webview"]
 
 
 async def test_missed_replaces_the_ring_quietly_on_phones(hass, rung):
@@ -206,7 +205,7 @@ async def test_missed_replaces_the_ring_quietly_on_phones(hass, rung):
     assert android["data"]["tag"] == TAG and android["data"]["importance"] == "low"
     assert android["data"]["channel"] != "alarm_stream"
     assert android["data"]["priority"] == "high" and android["data"]["ttl"] == 0
-    assert [m["message"] for m in _msgs(calls, "Tab Test")] == ["clear_notification", "command_webview"]
+    assert [m["message"] for m in _msgs(calls, "Tab Test")] == ["clear_notification"]
 
 
 async def test_a_resolution_of_another_call_changes_nothing(hass, rung):
@@ -232,13 +231,13 @@ async def test_a_ring_delivered_twice_rings_once(hass, rung):
     assert len(_msgs(calls, "Iphone Test")) == 1
 
 
-async def test_no_resolution_panels_go_home_phones_keep_their_notice(hass, rung):
+async def test_no_resolution_the_panel_chime_is_cleared_phones_keep_their_notice(hass, rung):
     _, _, calls = rung
     for c in calls.values():
         c.clear()
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=RING_SAFETY_S + 1))
     await hass.async_block_till_done()
-    assert [m["message"] for m in _msgs(calls, "Tab Test")] == ["clear_notification", "command_webview"]
+    assert [m["message"] for m in _msgs(calls, "Tab Test")] == ["clear_notification"]
     assert not _msgs(calls, "Iphone Test") and not _msgs(calls, "M23 Test")
 
 

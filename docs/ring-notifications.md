@@ -13,7 +13,14 @@ From 1.2.0 the integration can ring your phones and wall panels itself. They onl
 | **Wall panels** | Companion-app tablets on the wall. On Android, the screen wakes up and shows the call page. On an iPad, see below. |
 | **Ring through silent mode** | On by default. iPhone: a *critical alert*. Android: the alarm sound stream. |
 | **"Open door" button on phones** | Off by default. It only works while the bell is ringing (up to 3 minutes). The iPhone asks for Face ID first. |
-| **Panel: page to return to after the call** | For example `/lovelace/0`. If you leave it empty, the panel goes to the app's home page. |
+| **Speakers that announce the call** | Off by default. Echo speakers (the official Alexa integration) play Amazon's doorbell chime; every other speaker plays the IG Doorbell chime. If you already announce the bell on those speakers with an automation, you don't need this, or they will announce twice. |
+| **Also say which doorbell is ringing** | Echo: an announcement. Other speakers: needs a text-to-speech engine in Home Assistant. |
+
+**Phones are chosen one by one, per doorbell.** If a phone already takes this doorbell's calls
+through the IG Doorbell app (for example, for CarPlay or Android Auto), don't add it here, or it
+will ring twice. A phone you leave out still gets all its other Home Assistant notifications. If a
+phone should get everything through Home Assistant, add it here and turn off calls for this
+doorbell in the IG Doorbell app. Each phone can do it either way.
 
 To turn it off again, leave both lists empty. **If you already have your own automation for the
 bell, turn one of the two off**, or every ring will arrive twice.
@@ -23,12 +30,18 @@ bell, turn one of the two off**, or every ring will arrive twice.
 1. Every phone and panel you picked rings right away. The picture comes a moment later and never
    delays the ring.
 2. Once someone answers, from the app, the card, a quick reply or the doorbell's own screen, the
-   notification **disappears from every device**. Panels go back to their dashboard.
+   notification **disappears from every device**.
 3. If nobody answers, the notification on each phone is quietly replaced by *"Missed call at 16:13"*.
 
 Clearing notifications when a call is answered needs **doorbell firmware 0.101.3** or later. With
-older firmware they still ring, but they are not cleared. Panels go back to their dashboard after
-2 minutes anyway.
+older firmware they still ring, but they are not cleared.
+
+**When the doorbell page goes away.** Every card and call page follows the same rule. While it is on
+screen, the video is on; when it leaves the screen, the video stops at once. The doorbell's
+*Back to the home page after* setting (default 120 s) takes the screen back to Home Assistant's
+default page after that long with nobody touching it. For a call nobody answered, the time counts from
+the ring. It never leaves during a call that was answered, and it never navigates away if the card
+is already on the default page. `0` means never.
 
 ## Setting up each device
 
@@ -82,3 +95,18 @@ Everything the built-in notifications use is also there for your own automations
   `call_missed`, each with `call_id` and, when known, `by` (who answered).
 - `image.<doorbell>_visitor`: the picture of the last ring (`/api/image_proxy/image.<…>`).
 - The call page: `/ig-doorbell?device=<doorbell id>`.
+
+## The IG Doorbell chime
+
+The integration ships its own chime, `/ig_doorbell/sounds/ig-doorbell-chime.mp3`. It was made for
+this product: synthesized in `tools/make_chime.py`, with no third-party audio. Where it plays:
+
+- **Speakers** that are not Echo devices, when *Speakers that announce the call* is on.
+- **The call page**, when a ring arrives while the page is already open, as on an iPad left on it.
+  It does not play when the ring itself opened the page, because the notification has already
+  sounded. Browsers only let a page play sound after someone has touched it.
+- **Android notifications**: the sound of a notification channel is chosen in Android, not by
+  Home Assistant. To use the chime, download it to the device and pick it in *Settings → Apps →
+  Home Assistant → Notifications → (channel) → Sound*.
+- **iPhone notifications**: iOS only plays custom sounds that were imported into the Home Assistant
+  app first. There is no way to send one with the notification.

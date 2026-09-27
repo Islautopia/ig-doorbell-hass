@@ -50,7 +50,6 @@ from .const import (
     CONF_NOTIFY_OPEN_DOOR,
     CONF_NOTIFY_PANELS,
     CONF_NOTIFY_PHONES,
-    CONF_PANEL_RETURN_PATH,
     OPEN_DOOR_WINDOW_S,
     RING_SAFETY_S,
     SIGNAL_EVENT,
@@ -145,7 +144,6 @@ class Call:
     outcome: str | None = None
     picture: bool = False
     cancel_safety: Callable[[], None] | None = None
-    panels_home: bool = False
     extra: dict = field(default_factory=dict)
 
 
@@ -366,7 +364,6 @@ class RingNotifier:
             else:
                 coros.append(self._clear(call, t))
         await self._each(coros)
-        await self._panels_home(call)
 
     async def _clear(self, call: Call, target: Target) -> None:
         data: dict[str, Any] = {"tag": call.tag}
@@ -400,29 +397,15 @@ class RingNotifier:
         when = when.astimezone(tz) if tz else dt_util.as_local(when)
         await self._replace_quiet(call, target, text(call.lang, "missed", time=when.strftime("%H:%M")))
 
-    async def _panels_home(self, call: Call) -> None:
-        if call.panels_home:
-            return
-        call.panels_home = True
-        ret = (self.entry.options.get(CONF_PANEL_RETURN_PATH) or "").strip()
-        data: dict[str, Any] = {"ttl": 0, "priority": "high"}
-        if ret:
-            data["command"] = ret
-        await self._each(
-            self._send(t, "command_webview", dict(data))
-            for t in call.targets if t.role == "panel" and t.platform == "android"
-        )
-
     def _safety(self, call_id: str):
         async def _fire(_now) -> None:
             call = self.calls.get(call_id)
             if call is None or call.outcome is not None:
                 return
             call.cancel_safety = None
-            _LOGGER.info("No resolution for call %s after %d s: panels go home, phones keep "
-                         "their notice (the outcome is unknown)", call_id, RING_SAFETY_S)
+            _LOGGER.info("No resolution for call %s after %d s: the panels' chime notice is "
+                         "cleared, phones keep theirs (the outcome is unknown)", call_id, RING_SAFETY_S)
             await self._each(self._clear(call, t) for t in call.targets if t.role == "panel")
-            await self._panels_home(call)
         return _fire
 
     def _forget_old(self) -> None:

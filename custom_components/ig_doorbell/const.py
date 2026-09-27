@@ -150,8 +150,6 @@ CONF_NOTIFY_CRITICAL = "notify_critical"
 # "Open door" button on the phone notification. OFF by default: whether the Android companion asks
 # to unlock the phone before running an action from the lock screen is not measured yet.
 CONF_NOTIFY_OPEN_DOOR = "notify_open_door"
-# Where an Android panel goes back to after the call. Empty = the companion app's home.
-CONF_PANEL_RETURN_PATH = "panel_return_path"
 
 # The call page the integration serves (a hidden frontend panel, see panel.py).
 CALL_PAGE_PATH = "ig-doorbell"

@@ -25,6 +25,57 @@ class IgDoorbellPanel extends HTMLElement {
     this._hass = hass;
     if (!this._built) this._build();
     if (this._card) this._card.hass = hass;
+    this._watchRing(hass);
+  }
+
+  // THE IG DOORBELL CHIME WHEN A RING ARRIVES WITH THIS PAGE ALREADY OPEN (1.2.0).
+  //
+  // Only then, and it is deliberate: when the page was OPENED BY the ring (an Android panel sent here
+  // by the notifier, a tap on a notification) the notification has already sounded, and chiming
+  // again would ring twice. The case this covers is the page left open on a panel (an iPad in
+  // Guided Access): there, nothing else would sound in the house. Played once, never looped.
+  // Browsers only let a page play sound after a person has touched it; a kiosk page was touched when
+  // it was set up. If the browser refuses, it is logged - never retried in a loop.
+  _eventsEntity(hass) {
+    if (this._eventsId !== undefined) return this._eventsId;
+    const id = this._deviceId();
+    let found = null;
+    if (id && hass.entities && hass.devices) {
+      for (const eid of Object.keys(hass.entities)) {
+        const e = hass.entities[eid];
+        if (!e || e.platform !== 'ig_doorbell' || !eid.startsWith('event.')) continue;
+        const dev = hass.devices[e.device_id];
+        if (dev && (dev.identifiers || []).some((x) => x && x[0] === 'ig_doorbell' && x[1] === id)) { found = eid; break; }
+      }
+    }
+    this._eventsId = found;
+    return found;
+  }
+
+  _watchRing(hass) {
+    const eid = this._eventsEntity(hass);
+    const st = eid && hass.states ? hass.states[eid] : null;
+    if (!st) return;
+    const marker = String(st.state);
+    const prev = this._ringMarker;
+    this._ringMarker = marker;
+    if (prev === undefined || marker === prev) return;          // first read = what opened the page
+    if (!st.attributes || st.attributes.event_type !== 'ring') return;
+    if (document.visibilityState !== 'visible') return;
+    this._chime();
+  }
+
+  _chime() {
+    try {
+      const a = new Audio('/ig_doorbell/sounds/ig-doorbell-chime.mp3');
+      const p = a.play();
+      if (p && p.catch) {
+        p.then(() => console.info('[ig-doorbell-panel] ring: chime played'))
+          .catch((err) => console.warn('[ig-doorbell-panel] ring: the browser did not let the page play the chime', err && err.name));
+      }
+    } catch (err) {
+      console.warn('[ig-doorbell-panel] ring: chime failed', err);
+    }
   }
 
   set panel(p) { this._panel = p; }

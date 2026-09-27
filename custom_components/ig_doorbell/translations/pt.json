@@ -35,16 +35,14 @@
           "notify_panels": "Painéis de parede",
           "notify_critical": "Tocar mesmo em modo silencioso",
           "notify_open_door": "Botão «Abrir a porta» nos telemóveis",
-          "panel_return_path": "Painel: página para onde voltar após a chamada",
           "announce_players": "Altifalantes que anunciam a chamada",
           "announce_voice": "Dizer também que campainha está a tocar"
         },
         "data_description": {
-          "notify_phones": "Telemóveis com a app Home Assistant. Recebem um aviso com a foto; ao tocar abre-se a página da chamada.",
-          "notify_panels": "Tablets de parede com a app Home Assistant. Android: o ecrã acende-se e mostra a página da chamada (a app precisa da permissão «Mostrar sobre outras apps»; sem ela mostra um aviso normal sem dizer nada). iPad: um aviso; para um verdadeiro painel deixe a página da chamada aberta com Acesso guiado.",
+          "notify_phones": "Telemóveis com a app Home Assistant. Recebem um aviso com a foto; ao tocar abre-se a página da chamada. Não adicione telemóveis que já usam a app IG Doorbell para as chamadas, ou tocarão duas vezes. Um telemóvel não adicionado continua a receber tudo o resto do Home Assistant; escolhe-se telemóvel a telemóvel.",
+          "notify_panels": "Tablets de parede com a app Home Assistant. Android: o ecrã acende-se e mostra a página da chamada (a app precisa da permissão «Mostrar sobre outras apps»; sem ela mostra um aviso normal sem dizer nada); volta à página inicial após o tempo «Voltar à página inicial após» da campainha, nunca durante uma chamada atendida. iPad: um aviso; para um verdadeiro painel deixe a página da chamada aberta com Acesso guiado.",
           "notify_critical": "iPhone: alerta crítico (permita Alertas críticos à app Home Assistant). Android: canal de alarme.",
           "notify_open_door": "Adiciona um botão «Abrir a porta» ao aviso, válido apenas enquanto toca. O iPhone pede Face ID antes. No Android ainda não se sabe se obriga a desbloquear o telemóvel: deixe desligado se isso importa.",
-          "panel_return_path": "Por exemplo /lovelace/0. Vazio: a página inicial da app Home Assistant.",
           "announce_players": "Tocam um carrilhão quando alguém toca: a Alexa (Echo) o seu próprio carrilhão de campainha, os outros altifalantes o da IG Doorbell. Se já anuncia a campainha nestes altifalantes com uma automação, não precisa disto, ou anunciarão duas vezes.",
           "announce_voice": "Alexa: um anúncio; outros altifalantes: precisa de um motor de texto para voz no Home Assistant."
         }
@@ -114,7 +112,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Tempo limite da vista em direto"
+        "name": "Voltar à página inicial após"
       }
     },
     "select": {

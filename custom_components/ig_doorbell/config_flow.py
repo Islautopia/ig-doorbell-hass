@@ -49,7 +49,6 @@ from .const import (
     CONF_NOTIFY_OPEN_DOOR,
     CONF_NOTIFY_PANELS,
     CONF_NOTIFY_PHONES,
-    CONF_PANEL_RETURN_PATH,
     DEFAULT_PAIR_LABEL,
     DOMAIN,
     ALLOWED_DOMAINS,
@@ -355,7 +354,7 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
             options[CONF_NOTIFY_PANELS] = list(user_input.get(CONF_NOTIFY_PANELS) or [])
             options[CONF_NOTIFY_CRITICAL] = bool(user_input.get(CONF_NOTIFY_CRITICAL, True))
             options[CONF_NOTIFY_OPEN_DOOR] = bool(user_input.get(CONF_NOTIFY_OPEN_DOOR, False))
-            options[CONF_PANEL_RETURN_PATH] = (user_input.get(CONF_PANEL_RETURN_PATH) or "").strip()
+            options.pop("panel_return_path", None)     # 1.2.0 dev builds only: the card goes home now
             options[CONF_ANNOUNCE_PLAYERS] = list(user_input.get(CONF_ANNOUNCE_PLAYERS) or [])
             options[CONF_ANNOUNCE_VOICE] = bool(user_input.get(CONF_ANNOUNCE_VOICE, False))
             return self.async_create_entry(title="", data=options)
@@ -375,10 +374,6 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
                              default=list(o.get(CONF_ANNOUNCE_PLAYERS) or [])): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="media_player", multiple=True)),
                 vol.Optional(CONF_ANNOUNCE_VOICE, default=o.get(CONF_ANNOUNCE_VOICE, False)): bool,
-                vol.Optional(
-                    CONF_PANEL_RETURN_PATH,
-                    description={"suggested_value": o.get(CONF_PANEL_RETURN_PATH, "")},
-                ): selector.TextSelector(),
             }),
         )
 

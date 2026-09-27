@@ -35,16 +35,14 @@
           "notify_panels": "Panneaux muraux",
           "notify_critical": "Sonner même en mode silencieux",
           "notify_open_door": "Bouton « Ouvrir la porte » sur les téléphones",
-          "panel_return_path": "Panneau : page où revenir après l'appel",
           "announce_players": "Enceintes qui annoncent l'appel",
           "announce_voice": "Dire aussi quelle sonnette sonne"
         },
         "data_description": {
-          "notify_phones": "Téléphones avec l'application Home Assistant. Ils reçoivent une notification avec la photo ; un appui ouvre la page d'appel.",
-          "notify_panels": "Tablettes murales avec l'application Home Assistant. Android : l'écran s'allume et affiche la page d'appel (l'application a besoin de l'autorisation « Afficher par-dessus les autres applis », sinon elle affiche une simple notification sans prévenir). iPad : une notification ; pour un vrai panneau, laissez la page d'appel ouverte en Accès guidé.",
+          "notify_phones": "Téléphones avec l'application Home Assistant. Ils reçoivent une notification avec la photo ; un appui ouvre la page d'appel. N'ajoutez pas les téléphones qui utilisent déjà l'application IG Doorbell pour les appels, sinon ils sonneront deux fois. Un téléphone non ajouté continue de recevoir tout le reste de Home Assistant ; le choix se fait téléphone par téléphone.",
+          "notify_panels": "Tablettes murales avec l'application Home Assistant. Android : l'écran s'allume et affiche la page d'appel (l'application a besoin de l'autorisation « Afficher par-dessus les autres applis », sinon elle affiche une simple notification sans prévenir) ; elle revient à la page d'accueil après le délai « Retour à la page d'accueil après » de la sonnette, jamais pendant un appel pris. iPad : une notification ; pour un vrai panneau, laissez la page d'appel ouverte en Accès guidé.",
           "notify_critical": "iPhone : alerte critique (autorisez les alertes critiques pour l'application Home Assistant). Android : flux d'alarme.",
           "notify_open_door": "Ajoute un bouton « Ouvrir la porte » à la notification, valable seulement pendant l'appel. L'iPhone demande Face ID. Sur Android, on ne sait pas encore si le téléphone doit être déverrouillé : laissez désactivé si cela compte pour vous.",
-          "panel_return_path": "Par exemple /lovelace/0. Vide : la page d'accueil de l'application Home Assistant.",
           "announce_players": "Elles jouent un carillon quand quelqu'un sonne : Alexa (Echo) son propre carillon de sonnette, les autres enceintes celui d'IG Doorbell. Si vous annoncez déjà la sonnette sur ces enceintes avec une automatisation, vous n'en avez pas besoin, sinon elles annonceront deux fois.",
           "announce_voice": "Alexa : une annonce ; autres enceintes : nécessite un moteur de synthèse vocale dans Home Assistant."
         }
@@ -114,7 +112,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Délai de la vue en direct"
+        "name": "Retour à la page d'accueil après"
       }
     },
     "select": {
