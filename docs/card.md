@@ -735,7 +735,7 @@ creation, in handling the SDP offer (negotiated direction + the real `m=audio` l
 Playwright against real HA. **SDP negotiation CONFIRMED fixed**: `currentDirection=sendrecv`
 (previously `null`/mismatched) and the answer says `a=sendrecv` (previously `a=recvonly`) — the
 `addTransceiver()`→`addTrack()` fix genuinely works. **`bytesSent`/real audio could NOT be
-verified**: the test environment reaches HA over `http://192.168.42.138:8123` (a bare LAN IP, not
+verified**: the test environment reaches HA over `http://192.168.1.10:8123` (a bare LAN IP, not
 HTTPS) — `navigator.mediaDevices` is `undefined` there (`isSecureContext:false`), so
 `getUserMedia()` fails BEFORE ever reaching anything from this fix, regardless of whether the fix
 is correct. Confirmed as a limitation of the test sandbox (not of the real product, which is
@@ -864,7 +864,7 @@ the ones nobody tests by hand.
 # HANDOFF NOTE — branch `feature-giro-imagen-audio-confirmacion` (2026-08-03)
 
 Four whole contract sections this card was ENTIRELY missing, plus a real bug measured on the
-local path. Everything verified against the real doorbell (`f9b31fc3bb64bc26`) and Iñaki's real
+local path. Everything verified against the real doorbell (`0123456789abcdef`) and Iñaki's real
 Home Assistant, with a real browser — not just `node --check`, which is how almost everything
 else in this repo had been verified until now.
 

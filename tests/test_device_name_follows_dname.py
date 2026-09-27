@@ -1,7 +1,7 @@
 """The config entry's title and the device's name track the doorbell's own name (`dname`).
 
 Iñaki, 2026-09-26: looking for where to configure its entities, he did not recognize the entry
-for his own doorbell in Settings > Devices & services - it was named `f9b31fc3bb64bc26` (its bare
+for his own doorbell in Settings > Devices & services - it was named `0123456789abcdef` (its bare
 `device_id`), not "Ermita" or anything he'd typed. This happened because a manually-paired entry
 (no zeroconf discovery) got its title from `result.device_id` at pairing time and nothing ever
 corrected it afterwards.

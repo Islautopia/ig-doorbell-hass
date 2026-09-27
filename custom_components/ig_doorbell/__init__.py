@@ -413,7 +413,7 @@ def _sync_name(
 
     Iñaki, 2026-09-26: *"the doorbell's name is actually useful, the id throws you off"* -
     looking for where to configure its entities, he did not recognise Ermita's entry because in
-    Settings > Devices & services it was called `f9b31fc3bb64bc26` (its `device_id`), not "Ermita"
+    Settings > Devices & services it was called `0123456789abcdef` (its `device_id`), not "Ermita"
     or anything like it. `coordinator.doorbell_name` already resolves `dname` (or the firmware's
     generic one if there is none, never the bare id - const.py), so it only needs pushing to the
     two places Home Assistant shows separately.

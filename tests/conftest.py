@@ -29,9 +29,9 @@ try:
 except (ImportError, AttributeError):  # older pycares: no shared shutdown thread, nothing to do
     pass
 
-DEVICE_ID = "97295a23721ab81b"
+DEVICE_ID = "0123456789abcdef"
 CREDENTIAL = "c" * 64
-LAN_IP = "192.168.41.155"
+LAN_IP = "192.168.1.10"
 
 
 @pytest.fixture(autouse=True)

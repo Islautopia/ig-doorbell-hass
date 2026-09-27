@@ -19,7 +19,7 @@ const { chromium } = require('playwright-core');
 const HASS_URL = (process.env.HASS_URL || '').replace(/\/$/, '');
 const HASS_TOKEN = process.env.HASS_TOKEN || '';
 const CHROME = 'C:/Users/inaki/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe';
-const IP = { Waveshare: '192.168.41.155', 'Ermita 10': '192.168.33.173' };
+const IP = { Waveshare: '192.168.1.10', 'Ermita 10': '192.168.1.11' };
 const OUT = __dirname;
 if (!HASS_URL || !HASS_TOKEN) { console.error('HASS_URL / HASS_TOKEN missing'); process.exit(2); }
 
