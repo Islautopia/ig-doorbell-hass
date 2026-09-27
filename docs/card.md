@@ -51,6 +51,17 @@ Known flaky, and not a regression: `idle_release_network` CASE 2 ("first start H
 reports "did not recover in 13 s" about one run in three - measured the same on the old repository
 before the 1.0.0 renames. The bench is a diagnostic (it prints verdicts, it does not fail on them).
 
+**2026-09-27 — "opening the mic doesn't pick up the call": not the card's to fix (measured).**
+Iñaki opened the mic in the card during a ring and the call kept ringing. Measured with
+`tests/card/real_ha_answer/run.js` (Waveshare, real HA, a temporary mode sequence so the ring is a
+real one): the doorbell resolves the call `answered` ~0.4 s after the click and sends `call_ended`
+to the card's LAN session; the relay is never told and rings the phones (CallKit/ConnectionService)
+until its 40 s timeout. The card has no ringing of its own to stop, and sending `call_end answered`
+would change nothing (the mic already resolves the call; first reason wins). Reaching the relay is
+forbidden to Home Assistant. The gap is written in API_CONTRACT §3.3-nonies ("OPEN GAP") with the
+doorbell -> relay shape that would close it. Re-run this bench to verify that fix: its `relay_close`
+must turn from `reason=timeout` into `answered`.
+
 **v1.11.0 (2026-09-26) — adaptive layout.** (Iñaki approved the proposals of the 1.10.0 layout
 analysis.)
 
