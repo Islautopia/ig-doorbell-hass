@@ -10,6 +10,23 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## Six languages, the same set as the apps (1.1.1, Iñaki 2026-09-27)
+
+The integration/card set used to be es/en/fr/de/pt/zh-Hans/ru/hi/ar (nine languages, no Italian).
+Decision: the product's languages are es, en, fr, it, de, pt - the exact set the iOS and Android
+apps already ship, fallback English. zh-Hans/ru/hi/ar are gone from `igLocales`, `IG_EV_TEXT` and
+`IG_HTTPS_TEXT` in `ig-doorbell-card.js`, and from the `T` table in `frontend/https-install.html`;
+`it` was added to all four with full key parity to `en`. Each table's own per-key English
+fallback (`getLocalText`, `igEvText`, `igHttpsText`, and the install page's `t()`) needed no
+change - it already falls back key-by-key, not just language-by-language.
+
+The `document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'` line in the install page lost
+its reason to exist (Arabic was the only RTL language in the old set) and is now a plain `'ltr'`.
+
+`tests/test_supported_languages.py` pins the six-language set going forward: it fails loudly if
+any of the four surfaces (translations/, the three card.js tables, the install page's table) ever
+drifts from exactly {es, en, fr, it, de, pt}, or from full key parity with `en`.
+
 ## The microphone on a page that is not secure (1.1.0)
 
 On `http://<ip>:8123` the page is not a secure context and the browser has **no**
@@ -18,7 +35,8 @@ threw, and the button silently went back to off. Now `toggleTalk()` checks `igMi
 first and, if it fails, opens `.ig-https-panel` (same overlay as the quick replies) instead of
 requesting the turn. The panel asks the integration `ig_doorbell/https_status` and links to the
 install page `/ig_doorbell/https` (QR on a fine pointer), or to the integration when HTTPS is off.
-Texts: `IG_HTTPS_TEXT` at the end of the file (9 languages). Bench: `tests/card/mic_https_1_1_0`
+Texts: `IG_HTTPS_TEXT` at the end of the file (6 languages as of 1.1.1: es/en/fr/it/de/pt). Bench:
+`tests/card/mic_https_1_1_0`
 opens the card as `http://insecure.test` (mapped to 127.0.0.1: NOT secure) and as `127.0.0.1`
 (secure, the control), with a mutant that removes the guard. `sim_multicliente` now declares its
 fake page a secure context, which it always implicitly was.
@@ -63,6 +81,59 @@ fixtures in `tests/card/fixtures/legacy/` (`make_legacy.js` explains why).
 Known flaky, and not a regression: `idle_release_network` CASE 2 ("first start HUNG, then tap")
 reports "did not recover in 13 s" about one run in three - measured the same on the old repository
 before the 1.0.0 renames. The bench is a diagnostic (it prints verdicts, it does not fail on them).
+
+**Integration 1.1.1 (2026-09-27) — SPLIT: call buttons beside the picture, not over it.**
+(Iñaki's screenshot: iPhone 15 Pro in landscape, HA app, Ermita 10's portrait stream. Overlay put
+sound/mic/door over the lower half of a picture using ~25 % of the width, over the visitor's face,
+with > 35 % of the width empty on each side. *"We are not optimizing the space in this specific
+case."* Cause: under 350 px of height the side column is not allowed, so 1.11.0 fell back to overlay.)
+
+- **Rule.** While the card has room beside the picture for a column of buttons, they go there;
+  overlay only survives when the picture fills the width (no room for a 44 px column) or the
+  height is under `SPLIT_MIN_H` (180). Fourth layout `split` (class `ig-split`), two variants
+  (`_planSplit()`): **header beside** (`ig-split-head`: picker / mode / REC / bell / Recordings /
+  Quick replies in a compact 144 px column on the LEFT, buttons in an 88 px column on the RIGHT,
+  the picture at the FULL height) and **header on top** (buttons column only; Recordings in the
+  header when short, as overlay-short). `ig-split-lbl` from 270 px of picture: labels + mic 64 /
+  others 52; below, no labels, mic 56 / others 48 (always >= 44).
+- **Split only REPLACES overlay** (`_planLayout`): when overlay (or the no-fit fallback, now scored
+  like an overlay) won, the best split takes over if its uncovered area >= overlay's area x 0.85.
+  Stack and side column (approved in 1.11.0) are never displaced: every non-overlay row of the
+  1.11.0 matrix is identical.
+- Reuses the existing boxes: `#stack-controls` = button column, `#side-col` = header column; CSS
+  `order` places them. The frame is sized to the picture as in side.
+- **Learned (measured):** (1) the frame's 1 px border sits outside its inline width: a row exactly
+  full (144 + 10 + 220 + 10 + 88 = 472) wrapped the button column to a second line and the
+  correction pass then shrank the picture to the 180 floor. `_planSplit` subtracts the measured
+  border and `_imgWidth()` never rounds the frame up past what the columns leave. (2) An
+  unconditional split in place of the fallback shrank a landscape picture from 420x236 to 322x181
+  in a 492 px column with no room beside it: the fallback is scored like overlay now.
+- **Verification.** `tests/card/ui_v1_11_0/driver.js` extended: sizes + 932x430, streams 1080x1920
+  / 1080x1200 / 1280x720; **L13** (no call button over the picture while >= 98 px free beside it),
+  L1 / L6 / L11 extended to the split columns. 724/724; mutants M12 (split never used -> L13),
+  M13 (labelled column at any height -> L11), M14 (split frame not sized -> L6) caught, M1-M11
+  still caught. Negative control in `run_all.js`: the 1.0.0 card (`fixtures/legacy/card_1.0.0.js`)
+  goes red on L13 (18 cases). Offline, phone 844x390 panel: portrait 146x260 covered -> 177x314
+  free (12 -> 17 % of the screen), near-square 234x260 -> 283x314 (18 -> 27 %), landscape 462x260
+  -> 557x313 (37 -> 53 %). Real HA (`tests/card/layout_matrix_1_1_1/`, Waveshare only, temporary
+  dashboard `igd-card-layout-111` removed after; 5 views x 6 sizes x 3 streams = 90 cases, before =
+  1.0.0 card): call buttons over the picture 29 -> 7 cases, and those 7 have 12-48 px free beside
+  the picture (no room for the column); 22 layouts changed, all former overlays; overflow /
+  unreachable / touch < 44 unchanged (1 / 1 / 0, the by-design Sidebar-side phone). Panel phone
+  844x390: portrait 12 -> 17 %, near-square 18 -> 27 %, landscape 36 -> 53 % of the screen, none
+  covered. `table.md` has the 90 rows. Screenshots gitignored (real camera).
+
+**"2 viewers for a few seconds on opening the card" (measured 2026-09-27, Waveshare + real HA).**
+Leaving the dashboard and coming back within the 15 s pause grace, Home Assistant builds a NEW card
+element instead of re-inserting the old one. The old view, off the page, kept its paused session
+until its grace ran out: `/api/debug/cores` showed viewers=2 for ~12 s, then 1. Every mount opened
+exactly one EventSource and closed it with `bye` - no leak, just a grace kept for an element nobody
+would put back. Fix: a view starting a session hangs up (with `bye`, before its own SSE) any view
+of the same doorbell that is off the page and still in its grace (`VIEWS_WITH_SESSION`,
+`_hangUpDetachedTwins`). Re-insertion of the same element still resumes with `live_resume`.
+Re-measured with the fix: viewers never above 1. Bench: `tests/card/mount_sessions` (sessions per
+mount, with mutants X1-X3). Switching views inside the same dashboard re-inserts the same element
+(no second session), and a plain reload sends `bye` from `pagehide` - both measured clean.
 
 **v1.11.0 (2026-09-26) — adaptive layout.** (Iñaki approved the proposals of the 1.10.0 layout
 analysis.)

@@ -235,7 +235,8 @@ Authorities → Import).
 | `voucher_unsupported` | the doorbell's firmware is too old to vouch | update the doorbell (0.101.1 or newer) |
 | `ip_must_be_private_ipv4` | this Home Assistant has no private IPv4 address | the public name only points to private addresses; use the local address |
 | `no_doorbell` | no doorbell of the integration is loaded | check the doorbell entry |
-| `vps_unreachable`, `doorbell_unreachable`, `rate_limited`, `upstream_failed`, `issuance_limited`, `clock_not_set` | temporary | retried every hour on its own; no repair is raised for these |
+| `vps_unreachable`, `doorbell_unreachable`, `rate_limited`, `upstream_failed`, `clock_not_set` | temporary | retried on its own after 30 s, 1, 2, 5, 15 and 30 min, then every hour; a repair is raised only once the public name has been failing for an hour. HTTPS itself stays on and the local address keeps working |
+| `issuance_limited` | this Home Assistant's name got too many new certificates this week (3 per 7 days) | nothing to do: a repair appears at once because it can last days, and the name is retried on its own (same schedule) until the week's count allows a new certificate. HTTPS itself stays on and the local address keeps working |
 | `unknown_device`, `device_not_authorized` | the cloud does not recognise the doorbell | contact support |
 
 The log has the detail:

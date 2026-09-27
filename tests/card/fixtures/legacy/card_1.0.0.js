@@ -6,8 +6,8 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.1.1';
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
+const CARD_VERSION = '1.0.0';
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-26-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -43,31 +43,6 @@ let LAST_INTERACTION_MS = Date.now();
 // An idle pause can only be lifted by a person (touch) or a doorbell ring; never a
 // connectedCallback. It's lost on a full reload, which is correct: reloading means starting over.
 const PAUSED_BY_DOORBELL = {};
-
-// ⚠️ A VIEW THAT LEFT THE PAGE FOR GOOD MUST NOT KEEP ITS SESSION: A NEW VIEW HANGS UP ITS DETACHED TWIN
-// (2026-09-27).
-//
-// Iñaki: «every time I open the card the doorbell shows 2 viewers for a few seconds». Measured on the
-// Waveshare with the real Home Assistant (/api/debug/cores every 100 ms + the page's EventSources):
-// leaving the dashboard and coming back within the 15 s grace, Home Assistant does NOT re-insert the
-// old card -- it builds a NEW one. The old view is off the page and paused (`live_pause`, session
-// alive, waiting to be re-inserted); the new one opens its own session: viewers=2 for the rest of the
-// grace (12 s in the measurement), then the old one's `bye` -> 1. Every step was clean (one
-// EventSource per mount, a `bye` at the end); the second viewer was the grace itself, kept for an
-// element nobody will ever put back.
-//
-// So when a view STARTS a session it hangs up, right away and with `bye`, every other view of the
-// SAME doorbell that is OFF the page (`!isConnected`) and still in its grace. The `bye` leaves before
-// the new EventSource (startWebRTC() waits for get_connection_info first), so the doorbell does not
-// count both. What this deliberately does NOT touch, each for its reason:
-//  · a view still ON the page (two cards on screen for one doorbell are two real viewers);
-//  · the grace itself: Home Assistant re-inserting the SAME element resumes it with `live_resume`
-//    (connectedCallback -> _resume, no startWebRTC) -- the 2026-09-25 rule still holds;
-//  · a view of ANOTHER doorbell.
-// If Home Assistant did re-insert a hung-up twin later, that one just starts a new session (and hangs
-// up whichever view is then off the page). The Set holds the views that have started a session; a
-// view leaves it when destroyed, or when hung up while off the page, so it can be garbage-collected.
-const VIEWS_WITH_SESSION = new Set();
 
 // ⚠️ REENTRANCY-GUARD FUSE FOR startWebRTC() -- see that function for the full argument.
 //
@@ -111,7 +86,7 @@ const RESCUE_NEW_SESSION_MS = 24000;
 
 console.log(`[ig-doorbell-card] module loaded - build=${CARD_BUILD_ID} (compare this value against CARD_BUILD_ID in the repo if you're unsure whether the browser is serving a stale cached copy)`);
 
-// Global translation dictionary for Card and Editor: the product languages (es, en, fr, it, de, pt)
+// Global translation dictionary for Card and Editor (Top 9 Languages + HA Community)
 const igLocales = {
   es: { // Spanish
     connecting: "Conectando...", live: "En directo", open: "Comms Abiertas", error_cam: "Error", no_lock: "Sin cerradura configurada",
@@ -218,26 +193,89 @@ const igLocales = {
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
     db_switch: "Changer de sonnette", db_unnamed: "Sonnette sans nom", no_doorbells: "Aucune sonnette trouvée. Ajoutez l'intégration Islautopia Garage Doorbell dans Paramètres › Appareils et services.", ed_nothing: "Cette carte n'a rien à configurer : elle affiche toutes vos sonnettes et l'on passe de l'une à l'autre depuis la carte elle-même. Les réglages sont dans l'intégration : Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer."
   },
-  it: { // Italian
-    connecting: "Connessione...", live: "In diretta", open: "Comunicazione aperta", error_cam: "Errore", no_lock: "Nessuna serratura configurata",
-    motion_detected: "Movimento rilevato", audio_active: "Audio attivo", idle_status: "Sistema in attesa", door_open_prefix: "Porta aperta · Si chiude in",
-    lbl_mic_off: "Microfono", lbl_mic_on: "Attivo", lbl_door_idle: "Porta", lbl_door_open: "Aperta",
-    talk_requesting: "Richiesta del turno...", talk_denied_msg: "Canale voce occupato da un altro utente", talk_busy: "Canale voce in uso",
-    talk_taken: "Un altro utente ha preso il canale voce", talk_silence: "Il videocitofono ha chiuso il canale voce per silenzio",
-    talk_legacy: "Questo videocitofono non conferma il turno di parola (firmware precedente)", lbl_mic_listen: "In ascolto", clients_tip: "Client connessi",
-    q_label: "Qualità", q_auto: "Auto", q_full: "Alta", q_low: "Bassa", q_audio_only: "Solo audio",
-    q_auto_loss: "Qualità adattata automaticamente: perdita di pacchetti", q_auto_bw: "Qualità adattata automaticamente: larghezza di banda insufficiente",
-    q_auto_sub: "Decide il videocitofono", q_full_sub: "Video completo", q_low_sub: "~1 fotogramma/s (solo keyframe)", q_audio_only_sub: "Nessun video, solo audio",
-    q_low_warn: "Qualità bassa: circa 1 fotogramma al secondo. Non è un guasto.", talk_free_retry: "Canale voce libero — puoi parlare",
-    fs_enter: "Schermo intero", fs_exit: "Esci da schermo intero",
-    door_confirm: "Aprire la porta? Premi di nuovo", lbl_door_confirm: "Aprire?",
-    snd_on: "Disattiva audio", snd_off: "Ascolta", snd_ring: "Qualcuno sta chiamando — audio attivato",
-    door_opening: "Apertura della porta...", lbl_door_opening: "Apertura", door_no_answer: "Nessuna risposta dal videocitofono — la porta NON si è aperta",
-    conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", paused: "In pausa", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
-    snd_blocked: "Tocca l'altoparlante per ascoltare", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
-    lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
-    quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
-    db_switch: "Cambia videocitofono", db_unnamed: "Videocitofono senza nome", no_doorbells: "Nessun videocitofono trovato. Aggiungi l'integrazione Islautopia Garage Doorbell in Impostazioni › Dispositivi e servizi.", ed_nothing: "Questa card non ha nulla da configurare: mostra tutti i tuoi videocitofoni e si passa dall'uno all'altro dalla card stessa. Le impostazioni sono nell'integrazione: Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura."
+  ru: { // Russian
+    connecting: "Подключение...", live: "В прямом эфире", open: "Связь открыта", error_cam: "Ошибка", no_lock: "Замок не настроен",
+    motion_detected: "Обнаружено движение", audio_active: "Аудио активно", idle_status: "Система в режиме ожидания", door_open_prefix: "Дверь открыта · Закрытие через",
+    lbl_mic_off: "Микрофон", lbl_mic_on: "Активен", lbl_door_idle: "Дверь", lbl_door_open: "Открыта",
+    talk_requesting: "Запрос очереди...", talk_denied_msg: "Голосовой канал занят другим пользователем", talk_busy: "Голосовой канал занят",
+    talk_taken: "Другой пользователь занял голосовой канал", talk_silence: "Домофон закрыл голосовой канал из-за тишины",
+    talk_legacy: "Этот домофон не подтверждает очередь речи (старая прошивка)", lbl_mic_listen: "Прослушивание", clients_tip: "Подключенные клиенты",
+    q_label: "Качество", q_auto: "Авто", q_full: "Высокое", q_low: "Низкое", q_audio_only: "Только звук",
+    q_auto_loss: "Качество изменено автоматически: потеря пакетов", q_auto_bw: "Качество изменено автоматически: недостаточно полосы",
+    q_auto_sub: "Решает домофон", q_full_sub: "Полное видео", q_low_sub: "~1 кадр/с (только ключевые)", q_audio_only_sub: "Без видео, только звук",
+    q_low_warn: "Низкое качество: около 1 кадра в секунду. Это не неисправность.", talk_free_retry: "Голосовой канал свободен — можно говорить",
+    fs_enter: "Полный экран", fs_exit: "Выйти из полного экрана",
+    door_confirm: "Открыть дверь? Нажмите ещё раз", lbl_door_confirm: "Открыть?",
+    snd_on: "Выключить звук", snd_off: "Слушать", snd_ring: "Звонят — звук включён",
+    door_opening: "Открывание двери...", lbl_door_opening: "Открывание", door_no_answer: "Домофон не ответил — дверь НЕ открыта",
+    conn_lan: "Home Assistant не может связаться с домофоном в локальной сети", paused: "Пауза", paused_tap: "Пауза, чтобы освободить домофон · коснитесь, чтобы продолжить", retry_prefix: "Нет связи · повтор через",
+    snd_blocked: "Коснитесь динамика, чтобы слышать", cred_revoked: "Домофон отклонил эту привязку — выполните привязку заново в Настройки › Устройства и службы",
+    lbl_rec_off: "REC", lbl_rec_on: "Запись", rec_start_tip: "Начать запись", rec_stop_tip: "Остановить запись", rec_no_answer: "Home Assistant не принял запрос на запись", recordings_title: "Записи",
+    quick_reply_title: "Быстрые ответы", qr_empty: "На звонке не настроено ни одного быстрого ответа", qr_load_error: "Не удалось получить список со звонка", qr_no_answer: "Звонок не принял быстрый ответ",
+    db_switch: "Сменить звонок", db_unnamed: "Звонок без имени", no_doorbells: "Звонок не найден. Добавьте интеграцию Islautopia Garage Doorbell в разделе Настройки › Устройства и службы.", ed_nothing: "В этой карточке нечего настраивать: она показывает все ваши звонки, а переключаться между ними можно прямо в карточке. Настройки находятся в интеграции: Настройки › Устройства и службы › Islautopia Garage Doorbell › Настроить."
+  },
+  zh: { // Mandarin Chinese
+    connecting: "连接中...", live: "直播中", open: "通话中", error_cam: "错误", no_lock: "未配置门锁",
+    motion_detected: "检测到移动", audio_active: "音频已激活", idle_status: "系统待机", door_open_prefix: "门已开 · 关闭倒计时",
+    lbl_mic_off: "麦克风", lbl_mic_on: "已激活", lbl_door_idle: "门", lbl_door_open: "已开",
+    talk_requesting: "正在请求发言权...", talk_denied_msg: "语音通道被其他用户占用", talk_busy: "语音通道占用中",
+    talk_taken: "其他用户已接管语音通道", talk_silence: "门口机因静音已关闭语音通道",
+    talk_legacy: "该门口机不确认发言权（旧固件）", lbl_mic_listen: "收听中", clients_tip: "已连接客户端",
+    q_label: "画质", q_auto: "自动", q_full: "高", q_low: "低", q_audio_only: "仅音频",
+    q_auto_loss: "画质已自动调整：丢包", q_auto_bw: "画质已自动调整：带宽不足",
+    q_auto_sub: "由门口机决定", q_full_sub: "完整视频", q_low_sub: "约1帧/秒（仅关键帧）", q_audio_only_sub: "无视频，仅声音",
+    q_low_warn: "低画质：约每秒1帧，这不是故障。", talk_free_retry: "语音通道已空闲 — 现在可以讲话",
+    fs_enter: "全屏", fs_exit: "退出全屏",
+    door_confirm: "确定开门？再按一次", lbl_door_confirm: "开门？",
+    snd_on: "静音", snd_off: "收听", snd_ring: "有人按门铃 — 已开启声音",
+    door_opening: "正在开门...", lbl_door_opening: "开门中", door_no_answer: "门口机没有响应 — 门并未打开",
+    conn_lan: "Home Assistant 无法通过局域网连接门铃", paused: "已暂停", paused_tap: "已暂停以释放门铃 · 轻触继续", retry_prefix: "无连接 · 重试倒计时",
+    snd_blocked: "点击扬声器以收听", cred_revoked: "门口机拒绝了此配对 — 请在 设置 › 设备与服务 中重新配对",
+    lbl_rec_off: "REC", lbl_rec_on: "录制中", rec_start_tip: "开始录制", rec_stop_tip: "停止录制", rec_no_answer: "Home Assistant 未接受录制请求", recordings_title: "录像",
+    quick_reply_title: "快捷回复", qr_empty: "门铃未配置任何快捷回复", qr_load_error: "无法从门铃获取列表", qr_no_answer: "门铃未接受该快捷回复",
+    db_switch: "切换门铃", db_unnamed: "未命名的门铃", no_doorbells: "未找到门铃。请在 设置 › 设备与服务 中添加 Islautopia Garage Doorbell 集成。", ed_nothing: "此卡片无需任何配置：它会显示您的所有门铃，并可直接在卡片中切换。设置位于集成中：设置 › 设备与服务 › Islautopia Garage Doorbell › 配置。"
+  },
+  hi: { // Hindi
+    connecting: "कनेक्ट हो रहा है...", live: "लाइव", open: "संचार चालू", error_cam: "त्रुटि", no_lock: "कोई लॉक कॉन्फ़िगर नहीं",
+    motion_detected: "गति का पता चला", audio_active: "ऑडियो सक्रिय", idle_status: "सिस्टम निष्क्रिय", door_open_prefix: "दरवाज़ा खुला · बंद हो रहा है",
+    lbl_mic_off: "माइक्रोफ़ोन", lbl_mic_on: "सक्रिय", lbl_door_idle: "दरवाज़ा", lbl_door_open: "खुला",
+    talk_requesting: "बोलने की बारी मांगी जा रही है...", talk_denied_msg: "वॉइस चैनल किसी अन्य उपयोगकर्ता के पास है", talk_busy: "वॉइस चैनल व्यस्त",
+    talk_taken: "किसी अन्य उपयोगकर्ता ने वॉइस चैनल ले लिया", talk_silence: "खामोशी के कारण डोरबेल ने वॉइस चैनल बंद कर दिया",
+    talk_legacy: "यह डोरबेल बोलने की बारी की पुष्टि नहीं करता (पुराना फर्मवेयर)", lbl_mic_listen: "सुन रहे हैं", clients_tip: "जुड़े क्लाइंट",
+    q_label: "गुणवत्ता", q_auto: "ऑटो", q_full: "उच्च", q_low: "निम्न", q_audio_only: "केवल ऑडियो",
+    q_auto_loss: "गुणवत्ता स्वतः समायोजित: पैकेट हानि", q_auto_bw: "गुणवत्ता स्वतः समायोजित: अपर्याप्त बैंडविड्थ",
+    q_auto_sub: "डोरबेल तय करता है", q_full_sub: "पूरा वीडियो", q_low_sub: "~1 फ्रेम/सेकंड (केवल कीफ्रेम)", q_audio_only_sub: "वीडियो नहीं, केवल ध्वनि",
+    q_low_warn: "कम गुणवत्ता: लगभग 1 फ्रेम प्रति सेकंड। यह खराबी नहीं है।", talk_free_retry: "वॉइस चैनल खाली — अब आप बोल सकते हैं",
+    fs_enter: "पूर्ण स्क्रीन", fs_exit: "पूर्ण स्क्रीन से बाहर",
+    door_confirm: "दरवाज़ा खोलें? फिर से दबाएँ", lbl_door_confirm: "खोलें?",
+    snd_on: "म्यूट करें", snd_off: "सुनें", snd_ring: "कोई घंटी बजा रहा है — ध्वनि चालू",
+    door_opening: "दरवाज़ा खोला जा रहा है...", lbl_door_opening: "खुल रहा है", door_no_answer: "डोरबेल ने जवाब नहीं दिया — दरवाज़ा नहीं खुला",
+    conn_lan: "Home Assistant लोकल नेटवर्क पर डोरबेल तक नहीं पहुँच पा रहा", paused: "रुका हुआ", paused_tap: "डोरबेल खाली करने के लिए रुका · फिर शुरू करने के लिए छुएँ", retry_prefix: "कनेक्शन नहीं · फिर कोशिश",
+    snd_blocked: "सुनने के लिए स्पीकर पर टैप करें", cred_revoked: "डोरबेल ने यह पेयरिंग अस्वीकार कर दी — सेटिंग्स › डिवाइस और सेवाएँ में दोबारा पेयर करें",
+    lbl_rec_off: "REC", lbl_rec_on: "रिकॉर्डिंग हो रही है", rec_start_tip: "रिकॉर्डिंग शुरू करें", rec_stop_tip: "रिकॉर्डिंग रोकें", rec_no_answer: "Home Assistant ने रिकॉर्डिंग का अनुरोध स्वीकार नहीं किया", recordings_title: "रिकॉर्डिंग",
+    quick_reply_title: "त्वरित उत्तर", qr_empty: "डोरबेल में कोई त्वरित उत्तर कॉन्फ़िगर नहीं है", qr_load_error: "डोरबेल से सूची प्राप्त नहीं हो सकी", qr_no_answer: "डोरबेल ने त्वरित उत्तर स्वीकार नहीं किया",
+    db_switch: "डोरबेल बदलें", db_unnamed: "बिना नाम की डोरबेल", no_doorbells: "कोई डोरबेल नहीं मिली। सेटिंग्स › डिवाइस और सेवाएँ में Islautopia Garage Doorbell इंटीग्रेशन जोड़ें।", ed_nothing: "इस कार्ड में कॉन्फ़िगर करने के लिए कुछ नहीं है: यह आपकी सभी डोरबेल दिखाता है और आप कार्ड से ही उनके बीच बदल सकते हैं। सेटिंग्स इंटीग्रेशन में हैं: सेटिंग्स › डिवाइस और सेवाएँ › Islautopia Garage Doorbell › कॉन्फ़िगर करें।"
+  },
+  ar: { // Arabic
+    connecting: "جارٍ الاتصال...", live: "مباشر", open: "اتصال مفتوح", error_cam: "خطأ", no_lock: "لا يوجد قفل مُهيأ",
+    motion_detected: "تم اكتشاف حركة", audio_active: "الصوت نشط", idle_status: "النظام في وضع الخمول", door_open_prefix: "الباب مفتوح · يُغلق خلال",
+    lbl_mic_off: "الميكروفون", lbl_mic_on: "نشط", lbl_door_idle: "الباب", lbl_door_open: "مفتوح",
+    talk_requesting: "جارٍ طلب الدور...", talk_denied_msg: "قناة الصوت مشغولة بمستخدم آخر", talk_busy: "قناة الصوت مشغولة",
+    talk_taken: "استحوذ مستخدم آخر على قناة الصوت", talk_silence: "أغلق الجهاز قناة الصوت بسبب الصمت",
+    talk_legacy: "هذا الجهاز لا يؤكد دور التحدث (إصدار سابق)", lbl_mic_listen: "استماع", clients_tip: "العملاء المتصلون",
+    q_label: "الجودة", q_auto: "تلقائي", q_full: "عالية", q_low: "منخفضة", q_audio_only: "صوت فقط",
+    q_auto_loss: "تم ضبط الجودة تلقائياً: فقد الحزم", q_auto_bw: "تم ضبط الجودة تلقائياً: عرض نطاق غير كافٍ",
+    q_auto_sub: "الجهاز يقرر", q_full_sub: "فيديو كامل", q_low_sub: "~إطار واحد/ث (إطارات مفتاحية فقط)", q_audio_only_sub: "بدون فيديو، صوت فقط",
+    q_low_warn: "جودة منخفضة: إطار واحد تقريباً في الثانية. ليس عطلاً.", talk_free_retry: "قناة الصوت متاحة — يمكنك التحدث الآن",
+    fs_enter: "ملء الشاشة", fs_exit: "إنهاء ملء الشاشة",
+    door_confirm: "هل تفتح الباب؟ اضغط مرة أخرى", lbl_door_confirm: "فتح؟",
+    snd_on: "كتم الصوت", snd_off: "استماع", snd_ring: "هناك من يطرق — تم تشغيل الصوت",
+    door_opening: "جارٍ فتح الباب...", lbl_door_opening: "جارٍ الفتح", door_no_answer: "لا رد من الجهاز — لم يُفتح الباب",
+    conn_lan: "لا يصل Home Assistant إلى الجرس عبر الشبكة المحلية", paused: "متوقف مؤقتاً", paused_tap: "متوقف مؤقتاً لتحرير الجرس · المس للمتابعة", retry_prefix: "لا يوجد اتصال · إعادة المحاولة خلال",
+    snd_blocked: "المس مكبر الصوت للاستماع", cred_revoked: "رفض الجهاز هذا الاقتران — أعد الاقتران من الإعدادات › الأجهزة والخدمات",
+    lbl_rec_off: "REC", lbl_rec_on: "جارٍ التسجيل", rec_start_tip: "بدء التسجيل", rec_stop_tip: "إيقاف التسجيل", rec_no_answer: "لم يقبل Home Assistant طلب التسجيل", recordings_title: "التسجيلات",
+    quick_reply_title: "الردود السريعة", qr_empty: "لا توجد ردود سريعة مُعدة على الجرس", qr_load_error: "تعذر جلب القائمة من الجرس", qr_no_answer: "لم يقبل الجرس الرد السريع",
+    db_switch: "تبديل الجرس", db_unnamed: "جرس بدون اسم", no_doorbells: "لم يتم العثور على أي جرس. أضف تكامل Islautopia Garage Doorbell من الإعدادات › الأجهزة والخدمات.", ed_nothing: "لا يوجد ما يمكن ضبطه في هذه البطاقة: فهي تعرض جميع أجراسك ويمكنك التبديل بينها من البطاقة نفسها. الإعدادات موجودة في التكامل: الإعدادات › الأجهزة والخدمات › Islautopia Garage Doorbell › تكوين."
   }
 };
 
@@ -365,21 +403,69 @@ const IG_EV_TEXT = {
     mode_changed: 'Mode changé', ring_suppressed: 'Sonnette coupée par Ne pas déranger', viewer_joined: "Quelqu'un regarde la caméra", unknown: 'Avis',
     mode_failed: "L'interphone n'a pas changé de mode", mode_failed_why: "L'interphone n'a pas changé de mode : {w}",
   },
-  it: {
-    bell: 'Notifiche', bell_new: 'Notifiche — c\'è qualcosa di nuovo', all: 'Tutto', back: 'Indietro',
-    g_door: 'Alla porta', g_call: 'La chiamata', g_lock: 'La porta', g_health: 'Stato del dispositivo', g_security: 'Account e sicurezza', g_status: 'Stato',
-    r_lastHour: "Ultima ora", r_last6Hours: '6 ore', r_day: 'Giorno', r_week: 'Settimana',
-    today: 'Oggi', yesterday: 'Ieri', this_week: 'Questa settimana', last_week: 'Settimana scorsa', prev: 'Prima', next: 'Dopo',
-    empty: 'Nessuna notifica in questo periodo', empty_hint: 'Qui compare quello che succede alla tua porta: suonate, pacchi, aperture…',
-    loading: 'Caricamento…', load_err: 'Non è stato possibile leggere la cronologia da Home Assistant', no_entity: 'Questo videocitofono non ha un\'entità eventi in Home Assistant',
-    m0: 'Normale', m1: 'Assente', m2: 'Non disturbare', m3: 'Personalizzata', mode_to: 'Modalità: {m}', by: 'da {w}',
-    ring: 'Campanello suonato', visitor: 'Visitatore rilevato', package: 'Pacco alla porta', person_with_package: 'Persona con un pacco', package_gone: 'Il pacco non è più visibile',
-    call_answered: 'Chiamata risposta', call_declined: 'Chiamata rifiutata', call_missed: 'Nessuno ha risposto', visitor_message: 'Messaggio lasciato dal visitatore',
-    door_opened: 'Porta aperta', device_offline: 'Videocitofono offline', device_online: 'Videocitofono di nuovo online', storage_problem: 'Problema con la scheda',
-    firmware_available: 'Aggiornamento firmware disponibile', unexpected_reboot: 'Riavvio inatteso', client_paired: 'Nuovo client accoppiato', user_added: 'Utente aggiunto',
-    user_revoked: 'Utente revocato', login_failed: 'Tentativi di accesso falliti', key_denied: 'Chiave rifiutata', key_locked: 'Chiave bloccata dopo tentativi falliti',
-    mode_changed: 'Modalità cambiata', ring_suppressed: 'Campanello silenziato da Non disturbare', viewer_joined: 'Qualcuno sta guardando la telecamera', unknown: 'Notifica',
-    mode_failed: 'Il videocitofono non ha cambiato modalità', mode_failed_why: 'Il videocitofono non ha cambiato modalità: {w}',
+  ru: {
+    bell: 'Уведомления', bell_new: 'Уведомления — есть новые', all: 'Все', back: 'Назад',
+    g_door: 'У двери', g_call: 'Вызов', g_lock: 'Дверь', g_health: 'Состояние устройства', g_security: 'Учётные записи и безопасность', g_status: 'Статус',
+    r_lastHour: 'Последний час', r_last6Hours: '6 часов', r_day: 'День', r_week: 'Неделя',
+    today: 'Сегодня', yesterday: 'Вчера', this_week: 'Эта неделя', last_week: 'Прошлая неделя', prev: 'Раньше', next: 'Позже',
+    empty: 'За этот период уведомлений нет', empty_hint: 'Здесь появляется то, что происходит у двери: звонки, посылки, открытия…',
+    loading: 'Загрузка…', load_err: 'Не удалось прочитать историю Home Assistant', no_entity: 'У этого домофона нет сущности событий в Home Assistant',
+    m0: 'Обычный', m1: 'Нет дома', m2: 'Не беспокоить', m3: 'Свой', mode_to: 'Режим: {m}', by: '{w}',
+    ring: 'Нажат звонок', visitor: 'Обнаружен посетитель', package: 'Посылка у двери', person_with_package: 'Человек с посылкой', package_gone: 'Посылка больше не видна',
+    call_answered: 'Вызов принят', call_declined: 'Вызов отклонён', call_missed: 'Никто не ответил', visitor_message: 'Сообщение от посетителя',
+    door_opened: 'Дверь открыта', device_offline: 'Домофон не в сети', device_online: 'Домофон снова в сети', storage_problem: 'Проблема с картой памяти',
+    firmware_available: 'Доступно обновление прошивки', unexpected_reboot: 'Неожиданная перезагрузка', client_paired: 'Подключён новый клиент', user_added: 'Пользователь добавлен',
+    user_revoked: 'Доступ пользователя отозван', login_failed: 'Неудачные попытки входа', key_denied: 'Ключ отклонён', key_locked: 'Ключ заблокирован после неудачных попыток',
+    mode_changed: 'Режим изменён', ring_suppressed: 'Звонок заглушён режимом «Не беспокоить»', viewer_joined: 'Кто-то смотрит камеру', unknown: 'Уведомление',
+    mode_failed: 'Домофон не сменил режим', mode_failed_why: 'Домофон не сменил режим: {w}',
+  },
+  zh: {
+    bell: '通知', bell_new: '通知 — 有新消息', all: '全部', back: '返回',
+    g_door: '门口', g_call: '通话', g_lock: '门锁', g_health: '设备状态', g_security: '账户与安全', g_status: '状态',
+    r_lastHour: '最近一小时', r_last6Hours: '6 小时', r_day: '天', r_week: '周',
+    today: '今天', yesterday: '昨天', this_week: '本周', last_week: '上周', prev: '更早', next: '更晚',
+    empty: '此时段没有通知', empty_hint: '门口发生的事情会显示在这里：按铃、包裹、开门……',
+    loading: '加载中…', load_err: '无法读取 Home Assistant 历史记录', no_entity: '此门铃在 Home Assistant 中没有事件实体',
+    m0: '正常', m1: '外出', m2: '请勿打扰', m3: '自定义', mode_to: '模式：{m}', by: '{w}',
+    ring: '门铃被按下', visitor: '检测到访客', package: '门口有包裹', person_with_package: '有人拿着包裹', package_gone: '包裹不见了',
+    call_answered: '通话已接听', call_declined: '通话被拒绝', call_missed: '无人接听', visitor_message: '访客留言',
+    door_opened: '门已打开', device_offline: '门铃离线', device_online: '门铃已恢复在线', storage_problem: '存储卡有问题',
+    firmware_available: '有可用的固件更新', unexpected_reboot: '意外重启', client_paired: '新客户端已配对', user_added: '已添加用户',
+    user_revoked: '已撤销用户', login_failed: '登录失败尝试', key_denied: '钥匙被拒绝', key_locked: '多次失败后钥匙被锁定',
+    mode_changed: '模式已更改', ring_suppressed: '门铃被“请勿打扰”静音', viewer_joined: '有人正在查看摄像头', unknown: '通知',
+    mode_failed: '门铃未切换模式', mode_failed_why: '门铃未切换模式：{w}',
+  },
+  hi: {
+    bell: 'सूचनाएँ', bell_new: 'सूचनाएँ — कुछ नया है', all: 'सभी', back: 'वापस',
+    g_door: 'दरवाज़े पर', g_call: 'कॉल', g_lock: 'दरवाज़ा', g_health: 'उपकरण की स्थिति', g_security: 'खाते और सुरक्षा', g_status: 'स्थिति',
+    r_lastHour: 'पिछला घंटा', r_last6Hours: '6 घंटे', r_day: 'दिन', r_week: 'सप्ताह',
+    today: 'आज', yesterday: 'कल', this_week: 'इस सप्ताह', last_week: 'पिछले सप्ताह', prev: 'पहले', next: 'बाद में',
+    empty: 'इस अवधि में कोई सूचना नहीं', empty_hint: 'आपके दरवाज़े पर जो होता है वह यहाँ दिखता है: घंटी, पार्सल, दरवाज़ा खुलना…',
+    loading: 'लोड हो रहा है…', load_err: 'Home Assistant का इतिहास नहीं पढ़ा जा सका', no_entity: 'इस डोरबेल की Home Assistant में कोई इवेंट एंटिटी नहीं है',
+    m0: 'सामान्य', m1: 'बाहर', m2: 'परेशान न करें', m3: 'कस्टम', mode_to: 'मोड: {m}', by: '{w}',
+    ring: 'घंटी बजाई गई', visitor: 'आगंतुक का पता चला', package: 'दरवाज़े पर पार्सल', person_with_package: 'पार्सल के साथ व्यक्ति', package_gone: 'पार्सल अब नहीं दिख रहा',
+    call_answered: 'कॉल उठाई गई', call_declined: 'कॉल अस्वीकार', call_missed: 'किसी ने जवाब नहीं दिया', visitor_message: 'आगंतुक का संदेश',
+    door_opened: 'दरवाज़ा खोला गया', device_offline: 'डोरबेल ऑफ़लाइन', device_online: 'डोरबेल फिर ऑनलाइन', storage_problem: 'कार्ड में समस्या',
+    firmware_available: 'फ़र्मवेयर अपडेट उपलब्ध', unexpected_reboot: 'अप्रत्याशित रीस्टार्ट', client_paired: 'नया क्लाइंट जोड़ा गया', user_added: 'उपयोगकर्ता जोड़ा गया',
+    user_revoked: 'उपयोगकर्ता हटाया गया', login_failed: 'असफल साइन-इन प्रयास', key_denied: 'चाबी अस्वीकार', key_locked: 'असफल प्रयासों के बाद चाबी लॉक',
+    mode_changed: 'मोड बदला गया', ring_suppressed: 'परेशान न करें से घंटी मौन', viewer_joined: 'कोई कैमरा देख रहा है', unknown: 'सूचना',
+    mode_failed: 'डोरबेल ने मोड नहीं बदला', mode_failed_why: 'डोरबेल ने मोड नहीं बदला: {w}',
+  },
+  ar: {
+    bell: 'التنبيهات', bell_new: 'التنبيهات — يوجد جديد', all: 'الكل', back: 'رجوع',
+    g_door: 'عند الباب', g_call: 'المكالمة', g_lock: 'الباب', g_health: 'حالة الجهاز', g_security: 'الحسابات والأمان', g_status: 'الحالة',
+    r_lastHour: 'آخر ساعة', r_last6Hours: '6 ساعات', r_day: 'يوم', r_week: 'أسبوع',
+    today: 'اليوم', yesterday: 'أمس', this_week: 'هذا الأسبوع', last_week: 'الأسبوع الماضي', prev: 'أقدم', next: 'أحدث',
+    empty: 'لا توجد تنبيهات في هذه الفترة', empty_hint: 'يظهر هنا ما يحدث عند بابك: الرنين، الطرود، فتح الباب…',
+    loading: 'جارٍ التحميل…', load_err: 'تعذّرت قراءة سجل Home Assistant', no_entity: 'لا يملك جرس الباب هذا كيان أحداث في Home Assistant',
+    m0: 'عادي', m1: 'خارج المنزل', m2: 'عدم الإزعاج', m3: 'مخصص', mode_to: 'الوضع: {m}', by: '{w}',
+    ring: 'تم الضغط على الجرس', visitor: 'تم اكتشاف زائر', package: 'طرد عند الباب', person_with_package: 'شخص يحمل طرداً', package_gone: 'لم يعد الطرد ظاهراً',
+    call_answered: 'تم الرد على المكالمة', call_declined: 'تم رفض المكالمة', call_missed: 'لم يرد أحد', visitor_message: 'رسالة من الزائر',
+    door_opened: 'تم فتح الباب', device_offline: 'جرس الباب غير متصل', device_online: 'عاد جرس الباب للاتصال', storage_problem: 'مشكلة في البطاقة',
+    firmware_available: 'تحديث البرنامج الثابت متاح', unexpected_reboot: 'إعادة تشغيل غير متوقعة', client_paired: 'تم إقران عميل جديد', user_added: 'تمت إضافة مستخدم',
+    user_revoked: 'تم إلغاء مستخدم', login_failed: 'محاولات دخول فاشلة', key_denied: 'تم رفض المفتاح', key_locked: 'تم قفل المفتاح بعد محاولات فاشلة',
+    mode_changed: 'تم تغيير الوضع', ring_suppressed: 'تم كتم الجرس بوضع عدم الإزعاج', viewer_joined: 'شخص ما يشاهد الكاميرا', unknown: 'تنبيه',
+    mode_failed: 'لم يغيّر جرس الباب الوضع', mode_failed_why: 'لم يغيّر جرس الباب الوضع: {w}',
   },
 };
 
@@ -508,7 +594,7 @@ function qualityModeMeta(wire) {
   return QUALITY_MODES.find((m) => m.wire === wire) || null;
 }
 
-// Mode chips (2026-07-10) - same
+// Mode chips (2026-07-10, see COORDINATION.md Q22-bis in ig_hassio_addons) - same
 // icon per mode as the real Figma mockup (the tint/border of each active mode lives in
 // injectStyles(), rules `.chip.active.mode-<key>` - this table only maps each option's LABEL
 // to a known icon). The `select.*` entity configured in `mode_entity` is the source
@@ -592,7 +678,7 @@ class IgDoorbellView extends HTMLElement {
     this._rescueTimers = [];
 
     // Legacy go2rtc/gateway mode COMPLETELY REMOVED (2026-07-10, explicit decision by the
-    // user): the project speaks native WebRTC
+    // user - see COORDINATION.md in ig_hassio_addons): the project speaks native WebRTC
     // directly with the device/relay, never go2rtc - keeping that dead branch around only added
     // confusion. The only mode supported now: native (the doorbell's own protocol,
     // ICE-Lite+DTLS-SRTP+RTP, via the ig_doorbell integration).
@@ -1581,22 +1667,8 @@ class IgDoorbellView extends HTMLElement {
   //  state (PAUSED_BY_DOORBELL). `_destroyed` also shuts the door on any in-flight callback
   //  that might try to start a session or reopen the mic afterwards.
   // ══════════════════════════════════════════════════════════════════════════════════════════
-  // See VIEWS_WITH_SESSION (module level) for the measurement, and for what this must NOT touch.
-  _hangUpDetachedTwins(reason) {
-    const id = this.config && this.config.device_id;
-    for (const v of Array.from(VIEWS_WITH_SESSION)) {
-      if (v === this) continue;
-      if (v._destroyed) { VIEWS_WITH_SESSION.delete(v); continue; }
-      if (v.isConnected || !v.config || v.config.device_id !== id) continue;   // on the page, or another doorbell
-      if (!v._pauseState || v._pauseState.phase !== 'grace') continue;
-      console.info(`[ig-doorbell-card] a new view of ${id} starts (${reason}): hanging up the paused one that left the page instead of waiting out its grace`);
-      v._hangUpPaused();
-    }
-  }
-
   _destroy(reason) {
     if (this._destroyed) return;
-    VIEWS_WITH_SESSION.delete(this);
     console.info(`[ig-doorbell-card] instance of ${this.config && this.config.device_id} destroyed (${reason})`);
     this._cancelPause();
     if (this._livePauseAck) { clearTimeout(this._livePauseAck.timer); this._livePauseAck = null; }
@@ -3138,10 +3210,9 @@ class IgDoorbellView extends HTMLElement {
   }
 
   _hangUpPaused() {
-    if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
+    this._pauseGraceTimer = null;
     if (!this._pauseState || this._pauseState.phase !== 'grace') return;
     this._pauseState.phase = 'hung_up';
-    if (!this.isConnected) VIEWS_WITH_SESSION.delete(this);   // off the page and hung up: nothing left to hang up
     // ⚠️ CLOSING THE PEER ISN'T ENOUGH: THE <video> HAS TO BE RELEASED TOO (measured 2026-09-07, dumpsys power).
     if (this.videoEl) {
       try { this.videoEl.pause(); } catch (err) { /* best effort */ }
@@ -3572,10 +3643,6 @@ class IgDoorbellView extends HTMLElement {
   //     SIDE_COL_W column hugs the image's right edge with EVERYTHING else: doorbell picker, mode
   //     chip, REC, bell; sound, mic, door; Recordings, Quick replies. Never below SIDE_MIN_H: under
   //     that the column can't hold its targets (phone in landscape pushed the mic off-screen).
-  //   - SPLIT (`ig-split`, integration 1.1.1): where OVERLAY would cover the picture but the card has
-  //     room beside it, the call buttons go to a column on the picture's right (and on a phone in
-  //     landscape the header to a column on its left, so the picture gets the full height). See
-  //     ACT_COL_W and _planSplit().
   // Exactly one is active at a time (`_layout`). Two at once is what produced the 1.9.8 bug of the
   // mic straddling the video's bottom edge (rail + stack). The side rail of §1.9 still exists, but
   // only in FULLSCREEN (see _layoutRotation): outside fullscreen its job is done by the side column.
@@ -3609,25 +3676,6 @@ class IgDoorbellView extends HTMLElement {
   static get OVERLAY_PENALTY() { return 0.85; }
   // Hysteresis: the current layout's score gets +5 %.
   static get LAYOUT_STICKY() { return 1.05; }
-  // ---- SPLIT (integration 1.1.1): the call buttons BESIDE the picture instead of over it. ----
-  // Iñaki, 2026-09-27, iPhone 15 Pro in landscape in the HA app with Ermita 10's portrait stream:
-  // overlay put sound/mic/door over the lower half of a picture that used a quarter of the width -
-  // over the visitor's face - with more than a third of the width empty on EACH side. Rule: while
-  // the card has room beside the picture for a column of buttons, the buttons go there; OVERLAY
-  // only survives when there is genuinely no lateral room. SPLIT only ever REPLACES overlay (see
-  // _planLayout): stack and side, which Iñaki approved in 1.11.0, are never displaced by it.
-  // Width of the button column (sound / mic / door, labels ellipsized). 88 = the 64 px mic plus
-  // room for a short label; the bench's L13 uses the same number + the 10 px gap as "room beside".
-  static get ACT_COL_W() { return 88; }
-  // Shortest picture that can carry the column: three targets >= 44 px without labels (mic 56,
-  // sound 48, door 48, two 8 px gaps = 168) - and the header column of the variant with the header
-  // beside the picture (picker 44 + mode/REC/bell 44 + Recordings/Quick replies 44 + gaps = ~148).
-  static get SPLIT_MIN_H() { return 180; }
-  // From this height the column shows the labels and the bigger buttons (mic 64, others 52:
-  // 168 + 3 labels x 22 + 2 x 10 gaps = ~254 px).
-  static get SPLIT_LBL_H() { return 270; }
-  // Narrower than this the picture isn't worth a layout of its own.
-  static get SPLIT_MIN_IMG_W() { return 100; }
 
   _viewHost() {
     // The Lovelace view's container (hui-panel-view, hui-masonry-view...), also walking up
@@ -3725,13 +3773,15 @@ class IgDoorbellView extends HTMLElement {
     const delta = avail - real;
     if (real > 0 && Math.abs(delta) > 0.5) {
       let feedH = plan.feedH + delta;
-      // side / split: the picture's width is limited by what the column(s) leave (plan.imgMaxW).
-      const maxW = plan.imgMaxW || width;
-      feedH = Math.min(feedH, maxW / aspect, this._feedCap());
-      feedH = Math.round(Math.max(Math.min(plan.minH || IgDoorbellView.MIN_FEED_H, maxW / aspect), feedH));
+      if (plan.layout === 'side') {
+        feedH = Math.min(feedH, (width - IgDoorbellView.SIDE_COL_W - gap) / aspect);
+      } else {
+        feedH = Math.min(feedH, width / aspect, this._feedCap());
+      }
+      feedH = Math.round(Math.max(Math.min(plan.minH || IgDoorbellView.MIN_FEED_H, width / aspect), feedH));
       if (Math.abs(feedH - plan.feedH) >= 1) {
         plan.feedH = feedH;
-        if (plan.layout === 'side' || plan.layout === 'split') plan.imgW = IgDoorbellView._imgWidth(plan, aspect);
+        if (plan.layout === 'side') plan.imgW = Math.round(feedH * aspect);
         this._applyLayout(plan);
       }
     }
@@ -3769,72 +3819,20 @@ class IgDoorbellView extends HTMLElement {
     // SIDE COLUMN: the image at full height and the column hugging it. The column is as tall as the
     // image, so the IMAGE must be at least SIDE_MIN_H tall (a wide stream in a narrow card isn't).
     {
-      const imgMaxW = width - K.SIDE_COL_W - gap;
-      const imgH = Math.min(avail - padY, imgMaxW / aspect, cap);
+      const imgH = Math.min(avail - padY, (width - K.SIDE_COL_W - gap) / aspect, cap);
       const imgW = imgH * aspect;
-      if (imgH >= K.SIDE_MIN_H && imgW >= K.SIDE_MIN_IMG_W) cands.push({ layout: 'side', short: false, feedH: imgH, imgW, imgMaxW, score: imgW * imgH });
+      if (imgH >= K.SIDE_MIN_H && imgW >= K.SIDE_MIN_IMG_W) cands.push({ layout: 'side', short: false, feedH: imgH, imgW, score: imgW * imgH });
     }
     for (const p of cands) if (p.layout === this._layout) p.score *= K.LAYOUT_STICKY;
     cands.sort((a, b) => b.score - a.score);
     // Nothing fits (a card squeezed into a tiny slot): OVERLAY at the minimum height is the one that
     // still keeps every button on screen, over the picture.
-    let best = cands[0] || { layout: 'overlay', short: hasBottom, imgW: null, fallback: true,
+    const best = cands[0] || { layout: 'overlay', short: hasBottom, imgW: null, fallback: true,
       feedH: avail - padY - topH - gap, minH: Math.min(K.MIN_FALLBACK_FEED_H, natural) };
-    // The fallback is an overlay too: scored like one (its picture at 85 %), so SPLIT only replaces
-    // it when that is worth it. Measured: a 492 px column on a phone in landscape with a landscape
-    // stream has no room beside the picture, and an unconditional split shrank it from 420x236 to 322x181.
-    if (best.fallback) best.score = area(Math.max(best.minH, Math.min(best.feedH, natural, cap)), width) * K.OVERLAY_PENALTY;
-    // SPLIT (1.1.1, see ACT_COL_W): it only ever REPLACES overlay - when overlay won, the buttons
-    // were about to cover the picture - and it takes over when its UNCOVERED picture is at least
-    // worth overlay's (overlay is already scored at 85 % for the covering). A split picture 15 %
-    // smaller than overlay's still wins: at that point the lateral room exists and the rule is
-    // "never over the image when the space beside it can hold the buttons". Overlay stays only
-    // when the picture fills the width (no room for a 44 px column) or the height is under
-    // SPLIT_MIN_H.
-    const split = this._planSplit({ width, aspect, avail, padY, gap, topH, bottomH, hasBottom, cap });
-    // ⚠️ Mutant M12 of the layout bench removes this line: L13 must go red.
-    if (split && best.layout === 'overlay' && split.score >= best.score) best = split;
     if (!best.minH) best.minH = minH;
     best.feedH = Math.round(Math.max(best.minH, Math.min(best.feedH, natural, cap)));
-    if (best.layout === 'side' || best.layout === 'split') best.imgW = IgDoorbellView._imgWidth(best, aspect);
+    if (best.layout === 'side') best.imgW = Math.round(best.feedH * aspect);
     return best;
-  }
-
-  // The two SPLIT variants, best one (or null). Both put sound / mic / door in a column (ACT_COL_W)
-  // hugging the picture's right edge, in the lateral space an overlay would leave empty:
-  //   - header BESIDE ('side', class ig-split-head): picker / mode / REC / bell / Recordings / Quick
-  //     replies in a compact column on the picture's left. The picture gets the FULL height - the
-  //     reported iPhone case (844x390, portrait stream: 146x260 covered -> ~177x314 free).
-  //   - header ON TOP ('top'): the header keeps its row (Recordings inside it when short, as in
-  //     overlay-short); for cards with room for the button column but not for two columns.
-  // The picture's width is capped by what the column(s) leave (imgMaxW), its height by the space.
-  _planSplit({ width, aspect, avail, padY, gap, topH, bottomH, hasBottom, cap }) {
-    const K = IgDoorbellView;
-    const out = [];
-    const add = (head, short, hMax, imgMaxW) => {
-      const feedH = Math.min(hMax, imgMaxW / aspect, cap);
-      const imgW = feedH * aspect;
-      if (feedH >= K.SPLIT_MIN_H && imgW >= K.SPLIT_MIN_IMG_W) {
-        const score = imgW * feedH * (this._layout === 'split' && this._splitHead === head ? K.LAYOUT_STICKY : 1);
-        out.push({ layout: 'split', head, short, feedH, imgW, imgMaxW, minH: K.SPLIT_MIN_H, score });
-      }
-    };
-    const short = hasBottom && avail < K.SHORT_H;
-    // The frame's own border (1 px each side) sits outside the inline width: without it a row that
-    // is exactly full wraps the button column to a second line (measured: 405 + 2 + 10 + 88 > 503).
-    const fb = this.feedWrap ? Math.max(0, this.feedWrap.offsetWidth - this.feedWrap.clientWidth) : 0;
-    add('top', short, avail - padY - topH - gap - (bottomH && !short ? bottomH + gap : 0), width - K.ACT_COL_W - gap - fb);
-    add('side', false, avail - padY, width - K.SIDE_COL_W - K.ACT_COL_W - 2 * gap - fb);
-    out.sort((a, b) => b.score - a.score);
-    return out[0] || null;
-  }
-
-  // The frame's width for side / split, never past what the column(s) leave: a frame rounded UP by
-  // half a pixel in a row that is exactly full wraps the button column to a second line (measured:
-  // 144 + 10 + 220 + 10 + 88 = 472 = the column's inner width, and the card grew by a whole row).
-  static _imgWidth(plan, aspect) {
-    const w = Math.round(plan.feedH * aspect);
-    return plan.imgMaxW ? Math.min(w, Math.floor(plan.imgMaxW)) : w;
   }
 
   _coarsePointer() {
@@ -3846,38 +3844,25 @@ class IgDoorbellView extends HTMLElement {
     const L = plan.layout;
     const c = this.content;
     this._layout = L;
-    const head = L === 'split' ? (plan.head || 'top') : null;
-    this._splitHead = head;
     c.classList.toggle('ig-stack', L === 'stack');
     c.classList.toggle('ig-side', L === 'side');
     c.classList.toggle('ig-short', L === 'overlay' && !!plan.short);
     c.classList.toggle('ig-side-compact', L === 'side' && plan.feedH < IgDoorbellView.SIDE_FULL_H);
-    // (1.1.1) SPLIT: ig-split, plus ig-split-head when the header is in the left column, plus
-    // ig-split-lbl when the picture is tall enough for labelled buttons (mutant M13 forces it on).
-    c.classList.toggle('ig-split', L === 'split');
-    c.classList.toggle('ig-split-head', head === 'side');
-    c.classList.toggle('ig-split-lbl', L === 'split' && plan.feedH >= IgDoorbellView.SPLIT_LBL_H);
-    this._placeControls(L, !!plan.short, head);
+    this._placeControls(L, !!plan.short);
     const fw = this.feedWrap;
     if (plan.feedH === null) {
       // Fullscreen: the .ig-fs sheet sizes the frame. No inline width may survive from the column
       // (the .ig-fs width:100% has no !important and an inline width would beat it).
       if (fw.style.width) fw.style.width = '';
       if (this.sideCol && this.sideCol.style.height) this.sideCol.style.height = '';
-      if (this.stackControls && this.stackControls.style.height) this.stackControls.style.height = '';
       return;
     }
     if (Math.abs((parseFloat(fw.style.height) || 0) - plan.feedH) > 0.5) fw.style.height = `${plan.feedH}px`;
-    // Side and split: the frame is exactly the picture (no black bars), the columns hug it.
-    const w = (L === 'side' || L === 'split') ? `${plan.imgW}px` : '';
+    const w = L === 'side' ? `${plan.imgW}px` : '';
     if (fw.style.width !== w) fw.style.width = w;
     if (this.sideCol) {
-      const h = (L === 'side' || head === 'side') ? `${plan.feedH}px` : '';
+      const h = L === 'side' ? `${plan.feedH}px` : '';
       if (this.sideCol.style.height !== h) this.sideCol.style.height = h;
-    }
-    if (this.stackControls) {
-      const h = L === 'split' ? `${plan.feedH}px` : '';
-      if (this.stackControls.style.height !== h) this.stackControls.style.height = h;
     }
     if (fw.style.aspectRatio !== 'auto') fw.style.aspectRatio = 'auto';
     if (fw.style.maxHeight) fw.style.maxHeight = '';
@@ -3885,9 +3870,7 @@ class IgDoorbellView extends HTMLElement {
 
   // Moves the three groups (header, buttons, Recordings row) to where the layout wants them.
   // MOVING, never cloning: every listener and every reference (this.micButton...) stays valid.
-  // (1.1.1) SPLIT reuses the two existing boxes: #stack-controls becomes the button column on the
-  // picture's right, #side-col the header column on its left (head 'side'); CSS orders them.
-  _placeControls(layout, short, head) {
+  _placeControls(layout, short) {
     const c = this.content;
     const top = this.topRow; const act = this.actionsRow; const rec = this.recordingsAction;
     if (!c || !top || !act || !rec || !this.stackControls || !this.feedWrap) return;
@@ -3896,14 +3879,8 @@ class IgDoorbellView extends HTMLElement {
       if (k[0] !== top || k[1] !== act || k[2] !== rec) this.sideCol.append(top, act, rec);
       return;
     }
-    if (layout === 'split' && head === 'side' && this.sideCol) {
-      const k = this.sideCol.children;
-      if (k[0] !== top || k[1] !== rec || k.length !== 2) this.sideCol.append(top, rec);
-      if (act.parentElement !== this.stackControls) this.stackControls.appendChild(act);
-      return;
-    }
     if (top.parentElement !== c || top.nextElementSibling !== this.feedWrap) c.insertBefore(top, this.feedWrap);
-    const dest = (layout === 'stack' || layout === 'split') ? this.stackControls : this.feedWrap;
+    const dest = layout === 'stack' ? this.stackControls : this.feedWrap;
     if (act.parentElement !== dest) dest.appendChild(act);
     const topRight = top.querySelector('.top-right');
     if (short && topRight) {
@@ -4391,7 +4368,7 @@ class IgDoorbellView extends HTMLElement {
   render() {
     if (!this.content) {
       // Visual language aligned with the real Figma mockup (android_app/ios_app, 2026-07-10 -
-      // the apps share it): exact palette, rounded video
+      // see COORDINATION.md Q22-bis in ig_hassio_addons): exact palette, rounded video
       // frame with the HUD overlaid INSIDE the video itself (LIVE + time, "Audio active",
       // "Motion detected"), asymmetric action buttons (mic as the star/door as
       // secondary), status line under the video, and mode chips. The mockup elements
@@ -4783,8 +4760,6 @@ class IgDoorbellView extends HTMLElement {
     // gets superseded and will collect its own instead of writing it on top of ours.
     this._teardownConnectionObjects();
     this._stopRescue();
-    this._hangUpDetachedTwins(reason);   // BEFORE our EventSource: see VIEWS_WITH_SESSION
-    VIEWS_WITH_SESSION.add(this);
     // (1.10.0) Every new session is born in 'connecting' (e.g. coming back from a hung-up pause the
     // state was 'paused'): only the first image sets 'live', see setupRemoteStream().
     if (this._liveStateKey !== 'error_cam') this._setLiveState('connecting');
@@ -4832,7 +4807,7 @@ class IgDoorbellView extends HTMLElement {
   // Speaks the doorbell's own protocol (ICE-Lite + DTLS-SRTP + RTP), direct or via relay.
   // Credentials/host served by the ig_doorbell integration
   // over HA's internal WebSocket API (never pasted by hand in YAML). See
-  // API_CONTRACT.md §1.4/§3.2/§3.3 of the IG_Doorbell firmware repository.
+  // API_CONTRACT.md §1.4/§3.2/§3.3 (IG_Doorbell) and ARCHITECTURE.md §5 (ig_hassio_addons).
   // ==============================================================================
 
   // Real instrumentation with timestamps (added 2026-07-10, see COORDINATION.md - real user
@@ -5577,73 +5552,7 @@ class IgDoorbellView extends HTMLElement {
       await this._stopTalk();
       return;
     }
-    // (1.1.0) A page opened over plain HTTP is not a secure context, and there the browser has NO
-    // microphone at all (`navigator.mediaDevices` is undefined). Until 1.0.x the tap requested
-    // the turn, getUserMedia threw, and the button just went back to off: a control that does
-    // nothing and says nothing. Now it explains why and leads to the fix, and the turn is not
-    // even requested (holding it without a microphone would silence the other clients).
-    if (!igMicPossible()) {
-      this._showMicNeedsHttps();
-      return;
-    }
     this._requestTalkTurn();
-  }
-
-  // The notice for a blocked microphone. Asks the integration whether its secure local
-  // connection is on (ig_doorbell/https_status) and points to the install page - or, if it is
-  // off, to the integration's option. Same overlay as the quick replies (.ev-panel).
-  async _showMicNeedsHttps() {
-    if (!this.content) return;
-    let st = null;
-    try {
-      st = await this._hass.connection.sendMessagePromise({ type: `${IG_DOMAIN}/https_status` });
-    } catch (err) {
-      console.warn('[ig-doorbell-card] https_status', err);
-    }
-    const T = (k) => igHttpsText(this._hass, k);
-    const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-    let panel = this.content.querySelector('.ig-https-panel');
-    if (!panel) {
-      panel = document.createElement('div');
-      panel.className = 'ev-panel ig-https-panel';
-      panel.style.cssText = 'overflow:auto;';
-      this.content.appendChild(panel);
-    }
-    const desktop = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') &&
-      !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || '')) &&
-      window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-    const btn = 'display:block;text-align:center;padding:12px 14px;border-radius:12px;font-weight:700;text-decoration:none;margin:4px 0;';
-    let body = `<p style="margin:0;color:var(--ig-muted);font-size:14px;line-height:1.45">${esc(T('why'))}</p>`;
-    if (st && st.running) {
-      const page = st.install_path || '/ig_doorbell/https';
-      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('setup'))}</p>` +
-        `<a href="${esc(page)}" target="_blank" rel="noopener" style="${btn}color:#fff;background:linear-gradient(135deg,var(--ig-blue),var(--ig-cyan))">${esc(T('open_page'))}</a>`;
-      if (desktop) {
-        body += `<div style="display:flex;gap:12px;align-items:center;margin-top:4px">` +
-          `<img src="${esc(page)}/qr.svg" alt="QR" style="width:120px;height:120px;background:#fff;border-radius:10px;padding:4px;flex:none">` +
-          `<span style="font-size:13px;color:var(--ig-muted)">${esc(T('qr'))}</span></div>`;
-      }
-      if (st.public_url) {
-        body += `<p style="margin:8px 0 0;color:var(--ig-muted);font-size:13px">${esc(T('public'))}</p>` +
-          `<a href="${esc(st.public_url)}" style="font-family:monospace;font-size:13px;color:var(--ig-cyan);word-break:break-all">${esc(st.public_url)}</a>`;
-      }
-    } else if (st && st.enabled) {
-      body += `<p style="margin:6px 0 0;color:var(--ig-amber);font-size:14px">${esc(T('down'))}</p>`;
-    } else {
-      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('off'))}</p>` +
-        `<a href="/config/integrations/integration/${IG_DOMAIN}" style="${btn}color:var(--ig-text);background:var(--ig-surf3)">${esc(T('open_integration'))}</a>`;
-    }
-    panel.innerHTML = `
-      <div class="ev-head">
-        <button type="button" class="ev-back ig-https-close" title="${esc(T('close'))}"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
-        <div class="ev-title">${esc(T('title'))}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px;padding:4px 6px">${body}</div>`;
-    panel.querySelector('.ig-https-close').addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      panel.style.display = 'none';
-    });
-    panel.style.display = 'flex';
   }
 
   async _startTalk() {
@@ -5707,8 +5616,6 @@ class IgDoorbellView extends HTMLElement {
         this._updateMotionPill(); // rule: never visible with the mic active
       } catch (err) {
         console.warn('[ig-doorbell-card] could not activate the microphone', err);
-        // Any other path that reaches here without a secure context gets the same explanation.
-        if (!igMicPossible()) this._showMicNeedsHttps();
         this.talkActive = false;
         this.videoEl.muted = true;
         // Releasing the turn the device had just granted us: holding on to the reserved voice
@@ -5876,8 +5783,8 @@ class IgDoorbellView extends HTMLElement {
     style.textContent = `
       ${CARD_TAG}, ${VIEW_TAG} { display: block; width: 100%; box-sizing: border-box; }
 
-      /* Exact palette from the Figma mockup, shared with the mobile apps.
-         Custom properties scoped to .ig-container (not :root - this
+      /* Exact palette from the Figma mockup (android_app/ios_app) - see COORDINATION.md Q22-bis
+         in ig_hassio_addons. Custom properties scoped to .ig-container (not :root - this
          card does not use Shadow DOM, so :root would leak into HA's whole document). */
       .ig-container {
         /* EXACT values confirmed against the real source code of android_app/ios_app
@@ -6582,7 +6489,7 @@ class IgDoorbellView extends HTMLElement {
       /* ==========================================================================
          1.11.0 ADAPTIVE LAYOUT. Which layout is active is decided ONLY in JS (_planLayout /
          _applyLayout, measuring the card's real space); this sheet only draws each one. Exactly
-         one of .ig-stack / .ig-side / .ig-split (1.1.1) / (none = overlay) is ever set.
+         one of .ig-stack / .ig-side / (neither = overlay) is ever set.
          ========================================================================== */
 
       /* Touch targets: 44 px on touch devices (Apple HIG / WCAG 2.5.5). Measured in 1.10.0: mode chip
@@ -6607,11 +6514,7 @@ class IgDoorbellView extends HTMLElement {
       .ig-vh-lbl, .ig-container.ig-side-compact .side-col .action .lbl,
       .ig-container.ig-side-compact .side-col .rec-pill-label,
       .ig-container.ig-side-compact .side-col .quick-btn-label,
-      .ig-container.ig-short .top-right .quick-btn-label,
-      .ig-container.ig-split .top-right .quick-btn-label,
-      .ig-container.ig-split-head .side-col .rec-pill-label,
-      .ig-container.ig-split-head .side-col .quick-btn-label,
-      .ig-container.ig-split:not(.ig-split-lbl) .stack-controls .action .lbl {
+      .ig-container.ig-short .top-right .quick-btn-label {
         position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
       }
 
@@ -6679,78 +6582,18 @@ class IgDoorbellView extends HTMLElement {
          where nothing else fits) can't hold picker + mode + four round buttons on one line: measured,
          the picker was squeezed to 26 px. The header wraps to a second line instead; the height
          correction in _fitToSpace() takes that line from the video. */
-      .ig-container.ig-short .top-row, .ig-container.ig-split > .top-row { flex-wrap: wrap; row-gap: 8px; }
-      .ig-container.ig-short .top-left, .ig-container.ig-split > .top-row .top-left { flex: 1 1 auto; }
+      .ig-container.ig-short .top-row { flex-wrap: wrap; row-gap: 8px; }
+      .ig-container.ig-short .top-left { flex: 1 1 auto; }
       /* In a short frame there is no room ABOVE the buttons for the HUD cluster (the narrow-card rule
          lifts it 148 px, measured: the fullscreen button ended outside a 158 px frame). It goes to
          the top-right corner instead, across from the live tag. */
       .ig-container.ig-short .hud-bottom { top: 12px; bottom: auto; left: auto; }
-      .ig-container.ig-short .top-right .bottom-row, .ig-container.ig-split .top-right .bottom-row { gap: 8px; }
-      .ig-container.ig-short .top-right .quick-btn.half, .ig-container.ig-split .top-right .quick-btn.half {
+      .ig-container.ig-short .top-right .bottom-row { gap: 8px; }
+      .ig-container.ig-short .top-right .quick-btn.half {
         flex: none; width: var(--ig-tap); height: var(--ig-tap); min-height: 0; padding: 0;
         justify-content: center; border-radius: 999px; gap: 0;
       }
-      .ig-container.ig-short .top-right .quick-btn-icon, .ig-container.ig-split .top-right .quick-btn-icon { width: auto; height: auto; background: none; }
-
-      /* ---- SPLIT (.ig-split, integration 1.1.1): sound / mic / door in a column hugging the
-         picture's RIGHT edge (#stack-controls), never over the picture. With .ig-split-head the
-         header and Recordings / Quick replies go to a compact column on its LEFT (#side-col) and
-         the picture takes the full height (phone in landscape); without it the header keeps its
-         row on top. JS sizes the frame to the picture and both columns to its height; the group
-         is centred. Chosen only where overlay would have covered the picture (see _planLayout). */
-      .ig-container.ig-split { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; column-gap: 10px; }
-      /* With the header beside the picture every child is on one line; never let it wrap. */
-      .ig-container.ig-split-head { flex-wrap: nowrap; }
-      .ig-container.ig-split > .top-row { flex: 0 0 100%; order: 0; }
-      .ig-container.ig-split > .side-col { order: 1; }
-      .ig-container.ig-split .feed-wrap { flex: none; order: 2; }
-      .ig-container.ig-split .stack-controls { order: 3; }
-      .ig-container.ig-split > .bottom-row { flex: 0 0 100%; order: 4; }
-      .ig-container.ig-split .stack-controls {
-        display: flex; flex-direction: column; justify-content: center;
-        width: var(--ig-act-w, 88px); flex: none; box-sizing: border-box; min-height: 0;
-      }
-      .ig-container.ig-split .stack-controls .actions-row {
-        position: static; transform: none; width: auto; left: auto; right: auto; top: auto; bottom: auto;
-        flex-direction: column; justify-content: center; align-items: center; gap: 8px;
-        pointer-events: auto; min-height: 0; padding: 0;
-      }
-      .ig-container.ig-split .stack-controls .action { max-width: 100%; gap: 4px; }
-      .ig-container.ig-split .action .btn.mic { width: 56px; height: 56px; }
-      .ig-container.ig-split .action .btn.mic ha-icon { --mdc-icon-size: 24px; }
-      .ig-container.ig-split .action .btn.door, .ig-container.ig-split .action .btn.snd { width: 48px; height: 48px; }
-      .ig-container.ig-split .action .btn.door ha-icon, .ig-container.ig-split .action .btn.snd ha-icon { --mdc-icon-size: 20px; }
-      .ig-container.ig-split-lbl .stack-controls .actions-row { gap: 10px; }
-      .ig-container.ig-split-lbl .action .btn.mic { width: 64px; height: 64px; }
-      .ig-container.ig-split-lbl .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
-      .ig-container.ig-split-lbl .action .btn.door, .ig-container.ig-split-lbl .action .btn.snd { width: 52px; height: 52px; }
-      .ig-container.ig-split .action .btn { background: linear-gradient(135deg, var(--ig-surf2), var(--ig-surf3)); backdrop-filter: none; box-shadow: none; }
-      /* Low specificity ON PURPOSE (as .ig-side .lbl): the state colours must win. */
-      .ig-split .lbl { color: var(--ig-muted); text-shadow: none; text-align: center; font-size: 11px; max-width: var(--ig-act-w, 88px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      /* Header column (.ig-split-head): the compact side column's arrangement - picker, then mode /
-         REC / bell as three 44 px icons, then Recordings / Quick replies as two icons. */
-      .ig-container.ig-split-head .side-col {
-        display: flex; flex-direction: column; justify-content: center; gap: 8px;
-        width: var(--ig-side-w, 144px); flex: none; box-sizing: border-box; min-height: 0;
-      }
-      .ig-container.ig-split-head .side-col .top-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; }
-      .ig-container.ig-split-head .side-col .top-left, .ig-container.ig-split-head .side-col .top-right { display: contents; }
-      .ig-container.ig-split-head .side-col .db-picker { grid-column: 1 / -1; min-width: 0; }
-      .ig-container.ig-split-head .side-col .mode-row { min-width: 0; }
-      .ig-container.ig-split-head .side-col .db-pill { width: 100%; min-height: var(--ig-tap); }
-      .ig-container.ig-split-head .side-col .mode-pill { width: 100%; min-height: var(--ig-tap); justify-content: center; box-sizing: border-box; min-width: 0; padding: 0; }
-      .ig-container.ig-split-head .side-col .mode-pill-label, .ig-container.ig-split-head .side-col .mode-pill-caret { display: none; }
-      .ig-container.ig-split-head .side-col .mode-pill ha-icon { --mdc-icon-size: 18px; }
-      .ig-container.ig-split-head .side-col .rec-action-wrap { min-width: 0; }
-      .ig-container.ig-split-head .side-col .rec-pill { width: 100%; height: var(--ig-tap); justify-content: center; box-sizing: border-box; padding: 0; }
-      .ig-container.ig-split-head .side-col .bell-btn { width: 100%; height: var(--ig-tap); border-radius: 999px; }
-      .ig-container.ig-split-head .side-col .bottom-row { flex-direction: row; gap: 6px; }
-      .ig-container.ig-split-head .side-col .quick-btn.half { flex: 1 1 0; min-height: 44px; justify-content: center; padding: 6px 0; }
-      /* Nothing floats over the picture's bottom: no veil; status line and HUD as in side / stack. */
-      .ig-container.ig-split .feed-wrap::after { display: none; }
-      .ig-container.ig-split .hud-bottom { bottom: 12px; }
-      .ig-container.ig-split .hud-top { top: 36px; }
-      .ig-container.ig-split .status-line { bottom: 58px; left: 12px; right: 12px; }
+      .ig-container.ig-short .top-right .quick-btn-icon { width: auto; height: auto; background: none; }
 
     `;
     this.appendChild(style);
@@ -7010,95 +6853,4 @@ if (!customElements.get(CARD_TAG)) {
   }
 } else {
   console.warn('[ig-doorbell-card] ig-doorbell-card was already registered (there are probably two resources of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate');
-}
-
-// ==============================================================================
-// (1.1.0) Microphone and secure context. Browsers expose `navigator.mediaDevices` only to a
-// secure context (HTTPS, or localhost): on `http://<ip>:8123` there is no microphone to ask for.
-// The integration can serve Home Assistant over HTTPS on the home network (its "Secure local
-// connection" option); this notice is how a user who hits the wall finds it.
-// ==============================================================================
-function igMicPossible() {
-  return !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-}
-
-const IG_HTTPS_TEXT = {
-  en: {
-    title: 'Microphone needs a secure connection',
-    why: 'Browsers only let a page use the microphone over a secure (HTTPS) connection. This page was opened over plain HTTP, so the microphone is blocked.',
-    setup: 'Set up this device once:',
-    open_page: 'Open the setup page',
-    qr: 'Or scan this with your phone to set it up there.',
-    public: 'Or open Home Assistant here, nothing to install:',
-    off: 'The secure local connection is turned off. An administrator can turn it on in Settings › Devices & services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS).',
-    open_integration: 'Open the integration',
-    down: 'The secure local connection is on but not running. See Settings › System › Repairs.',
-    close: 'Close',
-  },
-  es: {
-    title: 'El micrófono necesita una conexión segura',
-    why: 'Los navegadores solo dejan usar el micrófono con una conexión segura (HTTPS). Esta página se abrió por HTTP normal, así que el micrófono está bloqueado.',
-    setup: 'Configura este dispositivo una sola vez:',
-    open_page: 'Abrir la página de configuración',
-    qr: 'O escanea esto con tu teléfono para configurarlo allí.',
-    public: 'O abre Home Assistant aquí, sin instalar nada:',
-    off: 'La conexión local segura está desactivada. Un administrador puede activarla en Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS).',
-    open_integration: 'Abrir la integración',
-    down: 'La conexión local segura está activada pero no funciona. Mira Ajustes › Sistema › Reparaciones.',
-    close: 'Cerrar',
-  },
-  pt: {
-    title: 'O microfone precisa de uma ligação segura',
-    why: 'Os navegadores só deixam usar o microfone numa ligação segura (HTTPS). Esta página foi aberta por HTTP simples, por isso o microfone está bloqueado.',
-    setup: 'Configure este dispositivo uma única vez:',
-    open_page: 'Abrir a página de configuração',
-    qr: 'Ou leia isto com o telemóvel para o configurar lá.',
-    public: 'Ou abra o Home Assistant aqui, sem instalar nada:',
-    off: 'A ligação local segura está desligada. Um administrador pode ligá-la em Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS).',
-    open_integration: 'Abrir a integração',
-    down: 'A ligação local segura está ligada mas não está a funcionar. Veja Definições › Sistema › Reparações.',
-    close: 'Fechar',
-  },
-  de: {
-    title: 'Das Mikrofon braucht eine sichere Verbindung',
-    why: 'Browser erlauben das Mikrofon nur über eine sichere Verbindung (HTTPS). Diese Seite wurde über einfaches HTTP geöffnet, daher ist das Mikrofon gesperrt.',
-    setup: 'Richte dieses Gerät einmalig ein:',
-    open_page: 'Einrichtungsseite öffnen',
-    qr: 'Oder scanne das mit deinem Telefon, um es dort einzurichten.',
-    public: 'Oder öffne Home Assistant hier, ohne etwas zu installieren:',
-    off: 'Die sichere lokale Verbindung ist ausgeschaltet. Ein Administrator kann sie einschalten unter Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS).',
-    open_integration: 'Integration öffnen',
-    down: 'Die sichere lokale Verbindung ist eingeschaltet, läuft aber nicht. Siehe Einstellungen › System › Reparaturen.',
-    close: 'Schließen',
-  },
-  fr: {
-    title: 'Le micro a besoin d’une connexion sécurisée',
-    why: 'Les navigateurs n’autorisent le micro que sur une connexion sécurisée (HTTPS). Cette page a été ouverte en HTTP simple : le micro est donc bloqué.',
-    setup: 'Configurez cet appareil une seule fois :',
-    open_page: 'Ouvrir la page de configuration',
-    qr: 'Ou scannez ceci avec votre téléphone pour le configurer.',
-    public: 'Ou ouvrez Home Assistant ici, sans rien installer :',
-    off: 'La connexion locale sécurisée est désactivée. Un administrateur peut l’activer dans Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS).',
-    open_integration: 'Ouvrir l’intégration',
-    down: 'La connexion locale sécurisée est activée mais ne fonctionne pas. Voir Paramètres › Système › Réparations.',
-    close: 'Fermer',
-  },
-  it: {
-    title: 'Il microfono richiede una connessione sicura',
-    why: 'I browser permettono di usare il microfono solo su una connessione sicura (HTTPS). Questa pagina è stata aperta con HTTP normale, quindi il microfono è bloccato.',
-    setup: 'Configura questo dispositivo una sola volta:',
-    open_page: 'Apri la pagina di configurazione',
-    qr: 'Oppure scansiona questo con il telefono per configurarlo lì.',
-    public: 'Oppure apri Home Assistant qui, senza installare nulla:',
-    off: 'La connessione locale sicura è disattivata. Un amministratore può attivarla in Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura › Connessione locale sicura (HTTPS).',
-    open_integration: 'Apri l\'integrazione',
-    down: 'La connessione locale sicura è attiva ma non funziona. Vedi Impostazioni › Sistema › Riparazioni.',
-    close: 'Chiudi',
-  },
-};
-
-function igHttpsText(hass, key) {
-  const lang = (hass && hass.language) ? hass.language.substring(0, 2) : 'en';
-  const table = IG_HTTPS_TEXT[lang] || IG_HTTPS_TEXT.en;
-  return table[key] !== undefined ? table[key] : IG_HTTPS_TEXT.en[key];
 }

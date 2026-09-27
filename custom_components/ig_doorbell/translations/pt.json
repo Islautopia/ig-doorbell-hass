@@ -30,7 +30,8 @@
     "error": {
       "too_many": "Demasiadas entidades - escolha no máximo {max}",
       "port_in_use": "A porta {port} já está a ser usada por outro programa. Escolha outra.",
-      "port_is_ha": "Essa é a porta do próprio Home Assistant. Escolha outra."
+      "port_is_ha": "Essa é a porta do próprio Home Assistant. Escolha outra.",
+      "https_changed_elsewhere": "Esta definição foi alterada noutro lugar enquanto este formulário estava aberto. Agora mostra o valor atual: verifique-o e envie de novo."
     },
     "abort": {
       "https_unavailable": "O HTTPS não está disponível neste Home Assistant."

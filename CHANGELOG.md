@@ -6,6 +6,37 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.1] — 2026-09-27
+
+### Changed
+
+- **Six languages, the same as the IG Doorbell apps: English, Spanish, French, Italian, German and
+  Portuguese.** Italian is new across the integration, the card and the HTTPS setup page. Chinese,
+  Russian, Hindi and Arabic are no longer offered; a Home Assistant set to a language that is not
+  one of the six shows the integration in English.
+
+### Fixed
+
+- **HTTPS no longer switches itself off.** An options form left open from before HTTPS was turned
+  on could, when submitted, turn it back off and interrupt the certificate being fetched. If the
+  setting has changed since the form was opened, the form now shows the current value and asks you
+  to check it and submit again.
+- **The public name recovers by itself.** After a failure that can pass on its own (the cloud or
+  the doorbell unreachable, a slow certificate), it is retried after 30 s, 1, 2, 5, 15 and 30
+  minutes, then every hour. A repair appears only if it is still failing after an hour; HTTPS and
+  the local address keep working throughout.
+- **Opening the card no longer shows two viewers on the doorbell for a few seconds.** When you left
+  the dashboard and came back shortly after, the previous view kept its paused connection until
+  it timed out; it is now closed as soon as the new view connects.
+- **The card no longer puts the call buttons over the picture when there is room beside it.** On a
+  phone in landscape with a portrait camera, sound, mic and door covered the lower half of the
+  picture - where a visitor's face is - with a third of the width empty on each side. The buttons
+  now sit in a column next to the picture, and on a phone in landscape the doorbell picker, mode,
+  REC, bell, Recordings and Quick replies move to a column on the other side, so the picture gets
+  the full height. Landscape cameras in the same kind of space get the same treatment. Buttons stay
+  over the picture only when it fills the width and there is no room beside it. Every other layout
+  (portrait phones, tablets, wall panels, desktop) is unchanged.
+
 ## [1.1.0] — 2026-09-27
 
 ### New: secure local connection (HTTPS) — off by default
