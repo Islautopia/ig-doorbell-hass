@@ -159,26 +159,43 @@ Users who only have the companion app (no IG Doorbell app) have no such control,
 calls as long as the companion's notifications are on. The admin-picked phone list in 1.2.0 is
 **provisional**: it works and is used for testing, and its UX is not to be polished further.
 
-**Proposed mapping** (not implemented; needs the firmware, the apps and the integration):
+**Chosen mechanism (Iñaki): from the call itself** (not implemented; it needs the firmware, both
+apps and the integration). When one phone gets the call twice, once from the IG Doorbell app and once
+from the Home Assistant companion, it is offered to turn off the Home Assistant one. The offer is
+reversible: calls through Home Assistant come back on in the app's *My account*. A phone that only
+has the companion keeps receiving calls.
 
-1. **The integration publishes the house's companion phones to the doorbell**, the same way it
-   already publishes the entity allowlist (`POST /api/hass`, LAN only, never forwarded to the VPS):
-   `phones: [{"id": <HA device id>, "name": "Galaxy M23", "os": "android", "ha_user": "Iñaki"}]`.
-   `ha_user` is the Home Assistant user who registered that companion (the `mobile_app` entry's
-   `user_id`), there to help people recognise their phone. It is not used to match anything.
-2. **In the app, *My account* → "Calls through Home Assistant"**: the user ticks the phone or
-   phones that are theirs, and a switch says whether those phones get calls (default off). The
-   doorbell stores this per pairing user, next to their role. It is an **explicit link**, because
-   matching Home Assistant users to doorbell users by name would guess wrong.
-3. **The doorbell answers with the resolved policy** in `GET /api/hass`, which the integration
-   already reads: `phones_policy: {<id>: "ring" | "none"}`. A phone linked to an app user gets that
-   user's choice. A phone nobody linked gets `ring`: that is the companion-only user.
-4. **The notifier uses that policy** instead of the admin list, which stays only for wall panels.
-   A doorbell that does not send `phones_policy` (older firmware) keeps today's admin list.
+The hard part is knowing that both calls reached **the same phone**. Only the phone itself knows,
+and the way to make it say so is a link from the companion's notification into the app:
 
-To settle in the design: the levels (full call / quiet notice with the picture / nothing, where
-"nothing" is today's "none"), context such as home or away, and whether "quiet notice" should be
-the default for a phone that has the IG Doorbell app paired.
+1. **Integration.** On each call it creates a one-time token for each companion phone it notifies.
+   It hands the tokens to the doorbell (LAN, next to the webhook configuration; kept in RAM for
+   10 min). It adds an action to the notification, *"Open in the IG Doorbell app"*, whose `uri` is
+   `igdoorbell://ha-link?doorbell=<id>&ha_device=<HA device id>&t=<token>`.
+2. **App.** It registers the `igdoorbell://` scheme. Opened through that link, it knows two things:
+   this phone is companion device X, and which of its own pairings it is. It opens the call. If calls
+   are ENABLED in the app for that doorbell, it offers *"You are also getting this call from Home
+   Assistant. Turn that off on this phone?"*. If calls are disabled in the app, it offers nothing.
+   On yes, it redeems the token at the doorbell.
+3. **Firmware.** A route (HTTPS, pairing token) redeems the token: it checks it against the ones the
+   integration handed over (so nobody can switch off someone else's phone), and stores on that
+   pairing `ha_devices: [X]` with `ha_calls: off`. It publishes `phones_policy: {X: "none"}` in
+   `GET /api/hass` and sends a webhook event, so the integration stops notifying X right away.
+   *My account* in the app reads and changes that flag.
+4. **Integration**, again: it skips phones whose policy is `none`. It keeps ringing every phone the
+   doorbell knows nothing about, which is the companion-only user.
+
+**Feasibility, per platform** *(believed from the companion docs; to be measured)*:
+- iOS companion: notification actions take a `uri`, which can be another app's URL scheme. With the
+  app installed, iOS opens it. Without the app, the tap does nothing useful, so the action label must
+  make sense either way. The app can also check that the companion is present:
+  `canOpenURL("homeassistant://")`, declared in `LSApplicationQueriesSchemes`.
+- Android companion: a `uri` action fires `ACTION_VIEW`, which the app catches with an intent filter
+  for `igdoorbell://`. With no app installed, nothing opens. Detecting the companion needs
+  `<queries><package android:name="io.homeassistant.companion.android"/></queries>`.
+- Limit, said plainly: the link is made the first time someone taps that action. Until then, a
+  phone with both apps rings twice. Showing the offer without that tap is not possible, because
+  neither side can see the other's device identity.
 
 ## What the platform does NOT allow, said plainly
 
