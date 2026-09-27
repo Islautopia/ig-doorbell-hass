@@ -44,6 +44,7 @@
       "init": {
         "title": "IG Doorbell",
         "menu_options": {
+          "notifications": "Ring notifications (phones and panels)",
           "entities": "Entities the doorbell can act on",
           "address": "Doorbell address",
           "https": "Secure local connection (HTTPS)",
@@ -82,6 +83,26 @@
         "data_description": {
           "enabled": "Opens the HTTPS port and keeps its certificates up to date.",
           "port": "Default 8443. It must be free on the Home Assistant machine."
+        }
+      },
+      "notifications": {
+        "title": "Ring notifications",
+        "description": "Home Assistant rings the phones and wall panels you pick here when someone presses the bell, with the visitor's picture, and clears them everywhere as soon as the call is answered. Nothing to write: no automation needed. Leave both lists empty to turn this off (if you already have your own automation for the bell, turn one of the two off or every ring will arrive twice). Opening the call page or the picture from outside the house needs remote access to Home Assistant; talking needs a secure page (HTTPS).",
+        "data": {
+          "notify_phones": "Phones",
+          "notify_panels": "Wall panels",
+          "notify_critical": "Ring through silent mode",
+          "notify_open_door": "\"Open door\" button on phones",
+          "announce_players": "Speakers that announce the call",
+          "announce_voice": "Also say which doorbell is ringing"
+        },
+        "data_description": {
+          "notify_phones": "Companion-app phones. They get a notification with the picture; tapping it opens the call page. Don't add phones that already use the IG Doorbell app for calls, or they will ring twice. A phone left out keeps getting everything else from Home Assistant; choose per phone.",
+          "notify_panels": "Companion-app tablets on the wall. Android: the screen wakes and shows the call page (the companion app needs the \"Display over other apps\" permission, or it silently shows a plain notification instead); it goes back to the home page after the doorbell's \"Back to the home page after\" time, and not while an answered call lasts. iPad: a notification; leave the call page open in Guided Access for a real panel.",
+          "notify_critical": "iPhone: critical alert (allow Critical Alerts for the Home Assistant app). Android: alarm stream.",
+          "notify_open_door": "Adds an \"Open door\" button to the notification, valid only during the ring. iPhone asks for Face ID first. On Android it is not yet known whether the phone must be unlocked - leave it off if that matters.",
+          "announce_players": "They play a doorbell chime when someone rings: Alexa (Echo) its own doorbell chime, every other speaker the IG Doorbell chime. If you already announce the bell on these speakers with an automation, you don't need this - or they will announce twice.",
+          "announce_voice": "Alexa: an announcement; other speakers: needs a text-to-speech engine in Home Assistant."
         }
       }
     },
@@ -145,7 +166,10 @@
               "ring_suppressed": "Ring silenced",
               "viewer_joined": "Viewer joined",
               "key_denied": "Key denied",
-              "key_locked": "Key locked"
+              "key_locked": "Key locked",
+              "call_answered": "Call answered",
+              "call_declined": "Call declined",
+              "call_missed": "Missed call"
             }
           }
         }
@@ -153,7 +177,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Live view timeout"
+        "name": "Back to the home page after"
       }
     },
     "select": {
@@ -181,6 +205,11 @@
     "switch": {
       "rec": {
         "name": "Manual recording"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Visitor"
       }
     }
   },

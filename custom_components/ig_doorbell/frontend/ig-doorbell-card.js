@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.1.2';
+const CARD_VERSION = '1.2.0';
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
@@ -3071,10 +3071,47 @@ class IgDoorbellView extends HTMLElement {
       // The correct action once the wait runs out is the SAME as on hiding: release the whole
       // stream. And it's also what Inaki genuinely asked for -- «turn off the screen AND stop consuming
       // the stream», not just the first part.
-      if (!this.pc && !this._reconnecting) return;
-      this._pause('idle');
+      // ⚠️ 1.2.0 (Iñaki, 2026-09-27): THE DEADLINE NO LONGER CUTS THE STREAM. «When the card is
+      // visible there is ALWAYS a stream; when it is not visible the stream stops IMMEDIATELY» -- the
+      // second half is the hide/off-screen pause, untouched. What the deadline does now is take the
+      // screen BACK TO HOME ASSISTANT'S DEFAULT PAGE, and leaving the card is what stops the
+      // stream. So a wall panel that a ring brought to the doorbell goes back to its dashboard, and
+      // a card that IS on the default dashboard stays, with its stream (never a navigation loop).
+      // A call that was answered (mic/turn above) never gets here while it lasts.
+      this._goHome();
     }, Math.max(0, secondsLeft));
   }
+
+  // Home Assistant's default page for this user: what "/" opens. Measured on HA 2026.9.3 (Docker):
+  // the frontend keeps it in the user's `core` frontend data as `default_panel` (setting it to
+  // `map` sent "/" to /map/0), then the system-wide one, and with neither "/" opens the built-in
+  // `home` dashboard (/home/overview) -- `lovelace` only on a frontend that has no `home` panel.
+  async _defaultPanel() {
+    const h = this._hass;
+    const read = async (type) => {
+      try {
+        const r = await h.connection.sendMessagePromise({ type, key: 'core' });
+        return r && r.value && typeof r.value.default_panel === 'string' ? r.value.default_panel : null;
+      } catch (err) { return null; }
+    };
+    if (!h || !h.connection) return null;
+    return (await read('frontend/get_user_data')) || (await read('frontend/get_system_data'))
+      || (h.panels && h.panels.home ? 'home' : 'lovelace');
+  }
+
+  async _goHome() {
+    const home = await this._defaultPanel();
+    if (!home) return;
+    const current = (window.location.pathname.split('/')[1] || '');
+    if (current === home) {
+      console.info(`[ig-doorbell-card] idle deadline reached on the default page (/${home}): staying, stream on`);
+      return;
+    }
+    console.info(`[ig-doorbell-card] idle deadline reached: back to the default page /${home}`);
+    window.history.pushState(null, '', `/${home}`);
+    window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+  }
+
 
   // The current deadline, in ms. Set by the integration's entity (an automation can change it);
   // the YAML's `idle_release_seconds` only if the integration is older and doesn't offer it.
@@ -3465,6 +3502,9 @@ class IgDoorbellView extends HTMLElement {
     if (!hasRung) return;
     // A new ring wakes up a card paused for idleness, by itself.
     if (this._pauseState && document.visibilityState === 'visible') this._resume('ring');
+    // (1.2.0) The ring starts the "back to the default page" deadline again: an unanswered call goes
+    // home after the deadline counted from the ring, not from whenever the panel was last touched.
+    else if (this.pc) this._armIdleWakeLockTimer(true);
     if (this._audioOn) return; // it was already audible: nothing to announce
     this._setAudioOn(true, 'ring');
     if (this._audioOn) this._flashStatusLine('snd_ring', 6000);
@@ -6873,7 +6913,16 @@ class IgDoorbellCard extends HTMLElement {
     });
   }
 
+  // The call page (ig-doorbell-panel.js, 1.2.0) says WHICH doorbell rang: a ring notification opens
+  // the page for that doorbell, and with two doorbells the remembered selection could be the other
+  // one. For this element only and NEVER saved: the dashboard card keeps the owner's own choice.
+  set forcedDoorbell(id) {
+    this._forced = id ? String(id) : null;
+    this._sync();
+  }
+
   _defaultDoorbell(list) {
+    if (this._forced && list.some((d) => d.id === this._forced)) return this._forced;
     let savedValue = null;
     try { savedValue = localStorage.getItem(SELECTION_KEY); } catch (err) { /* no storage */ }
     if (savedValue && list.some((d) => d.id === savedValue)) return savedValue;

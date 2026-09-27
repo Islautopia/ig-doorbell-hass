@@ -134,7 +134,7 @@ async def async_logout(session: aiohttp.ClientSession, device_id: str) -> None:
     try:
         async with session.post(url, timeout=_TIMEOUT):
             pass
-    except aiohttp.ClientError:
+    except (aiohttp.ClientError, TimeoutError):
         _LOGGER.debug("Best-effort logout failed for %s (non-blocking)", device_id)
 
 
@@ -233,7 +233,7 @@ async def async_list_recordings(
             if resp.status != 200:
                 raise DoorbellApiError(f"GET list_recordings -> HTTP {resp.status}")
             return await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         # Almost always "the doorbell is not reachable from this Home Assistant" - a different
         # VLAN, or simply powered off. Said plainly so it does not read as a credential problem.
         raise DoorbellApiError(f"Could not reach the doorbell to list recordings: {err}") from err
@@ -261,7 +261,7 @@ async def async_list_quick_replies(
             if resp.status != 200:
                 raise DoorbellApiError(f"GET sequences?quick=1 -> HTTP {resp.status}")
             data = await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
     items = data.get("quick_replies") if isinstance(data, dict) else None
     return items if isinstance(items, list) else []
@@ -299,7 +299,7 @@ async def async_check_recording_playable(
                 raise DoorbellApiError("That recording no longer exists on the doorbell")
             if resp.status not in (200, 206):
                 raise DoorbellApiError(f"GET recording -> HTTP {resp.status}")
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
 
 
@@ -334,7 +334,7 @@ async def async_get_states(
             if resp.status != 200:
                 raise DoorbellApiError(f"GET get_states -> HTTP {resp.status}")
             return await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
 
 
@@ -388,7 +388,7 @@ async def async_get_firmware_info(
             if resp.status != 200:
                 raise DoorbellApiError(f"GET firmware_info -> HTTP {resp.status}")
             return await resp.json(content_type=None)
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
 
 
@@ -413,7 +413,7 @@ async def async_save_states(
                 raise NotAllowedError("This pairing is not an admin of that doorbell")
             if resp.status != 200:
                 raise DoorbellApiError(f"POST save_states -> HTTP {resp.status}")
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
 
 
@@ -438,7 +438,7 @@ async def async_open_door(
                 raise NoLockConfiguredError("That doorbell has no lock configured (door_m=2)")
             if resp.status != 200:
                 raise DoorbellApiError(f"GET /open -> HTTP {resp.status}")
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell to open: {err}") from err
 
 
@@ -474,7 +474,7 @@ async def async_set_hass_config(
             if resp.status != 200:
                 error_body = await resp.text()
                 raise DoorbellApiError(f"POST /api/hass -> HTTP {resp.status}: {error_body[:120]}")
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell to configure it: {err}") from err
 
 
@@ -485,3 +485,38 @@ class NoLockConfiguredError(DoorbellApiError):
     client needs to be able to **not draw the open button** instead of offering one that
     disappoints (§1.4-ter). Before `door_m` was carried, the only way to know was to fail once.
     """
+
+
+class SnapshotDisabledError(DoorbellApiError):
+    """`403 call_snapshot_disabled`: the owner said ring notices carry no picture (`call_snap`=0).
+
+    Not a failure: a decision. The notice goes out without a picture and it is NOT retried (§3.5).
+    """
+
+
+async def async_get_alert_snapshot(
+    session: aiohttp.ClientSession, device_id: str, credential: str, timeout_s: float
+) -> bytes | None:
+    """`GET /api/snapshot?for=alert` (§3.5): the picture for a ring notification.
+
+    ⚠️ `for=alert` is REQUIRED here, not decoration: it is what lets the owner's `call_snap`
+    setting refuse it. Without the marker this request would ignore the owner's decision.
+
+    Returns the JPEG, or None when the doorbell could not capture one right now (`503`) - never
+    retried: the ring must not wait for a picture. Raises `SnapshotDisabledError` on the owner's
+    `403`.
+    """
+    url = (f"https://{doorbell_hostname(device_id)}:8443/api/snapshot"
+           f"?for=alert&token={quote(credential)}")
+    try:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout_s)) as resp:
+            if resp.status == 403:
+                raise SnapshotDisabledError("call_snapshot_disabled")
+            if resp.status == 401:
+                raise AuthenticationError("Pairing credential rejected by the doorbell")
+            if resp.status != 200:
+                _LOGGER.info("No snapshot for the ring: HTTP %s", resp.status)
+                return None
+            return await resp.read()
+    except (aiohttp.ClientError, TimeoutError) as err:
+        raise DoorbellApiError(f"Could not fetch the snapshot: {err}") from err

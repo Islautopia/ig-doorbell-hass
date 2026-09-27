@@ -1,31 +1,23 @@
-"""Live view timeout: how long the card keeps the live stream without anyone touching it.
+"""Back to the home page after: how long a card waits, untouched, before taking the screen back to
+Home Assistant's default page (1.2.0).
 
-## Why it exists (Iñaki, 2026-09-25)
+## What it was, and why it changed (Iñaki, 2026-09-27)
 
-A very common Home Assistant automation brings the doorbell card to the front of a wall panel when
-someone rings. That leaves a client connected to the doorbell 24x7 for no one: it keeps a WebRTC
-slot (four for the whole house) and the doorbell encrypting video nobody watches. The apps solve the
-same thing when they go to the background (`live_pause`, then hang up after a grace period, §1.4-bis
-"Live pause"); the card now does the same after this many seconds without interaction.
+Until 1.1.x this was the *live view timeout*: after this many seconds without a touch the card
+paused the stream. Iñaki's rule for 1.2.0 replaces it: **when the card is visible there is always a
+stream; when it is not visible the stream stops at once** (the hide/off-screen pause, unchanged). So
+the deadline no longer cuts the stream: it takes the screen back to the default page, and leaving
+the card is what stops the stream.
 
-## Why an entity here and not a card option
+- During a call that was **not** answered: after the deadline (counted from the ring) -> default page.
+- During a call that **was** answered (microphone/turn): never while it lasts.
+- Outside a call: after the deadline without a touch -> default page. `0` = never: the card stays,
+  with its stream on.
+- A card that IS on the default page stays there (no navigation loop).
 
-So an automation or any dashboard can change it ("no timeout while we are on holiday", "short at
-night"). The integration only HOLDS the value; **the card applies it**, because the card is the one
-with the session. Never during an active call or with the microphone open (§1.4-bis rule), and a
-new ring wakes a paused card by itself.
-
-## The default: 120 s, and why
-
-- Long enough for the normal use of a ring-triggered panel: look, recognise, walk to the panel or
-  open the door. A visitor rarely waits more than a minute or two, and a conversation keeps the
-  session alive on its own (the microphone vetoes the timeout).
-- Short enough that a panel nobody looks at frees its slot within two minutes, well inside the
-  window in which a second ring or another member of the house would need it.
-- It is also longer than the doorbell's own 20 s abandonment deadline and the apps' 15 s background
-  grace, so the card is never the most aggressive client in the house.
-
-`0` disables the timeout (a phone dashboard, where the user closes the view anyway).
+The value, the entity id and the unique id are the same as before on purpose: an owner who had set
+it keeps it (RestoreNumber), and only its meaning and name change. The card applies it, because the
+card is the one on screen.
 """
 from __future__ import annotations
 
@@ -47,10 +39,10 @@ async def async_setup_entry(
 
 
 class LiveTimeoutNumber(DoorbellEntity, RestoreNumber):
-    """Seconds without interaction before the card stops the live stream and frees the slot."""
+    """Seconds without a touch before the card goes back to Home Assistant's default page."""
 
     _attr_translation_key = "live_view_timeout"
-    _attr_icon = "mdi:timer-pause-outline"
+    _attr_icon = "mdi:home-clock-outline"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_native_min_value = 0
     _attr_native_max_value = LIVE_TIMEOUT_MAX_S

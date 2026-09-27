@@ -3,6 +3,7 @@
     "step": {
       "init": {
         "menu_options": {
+          "notifications": "Notifications d'appel (téléphones et panneaux)",
           "entities": "Entités que la sonnette peut actionner",
           "https": "Connexion locale sécurisée (HTTPS)"
         }
@@ -24,6 +25,26 @@
         "data_description": {
           "enabled": "Ouvre le port HTTPS et tient ses certificats à jour.",
           "port": "8443 par défaut. Il doit être libre sur la machine Home Assistant."
+        }
+      },
+      "notifications": {
+        "title": "Notifications d'appel",
+        "description": "Home Assistant fait sonner les téléphones et panneaux muraux choisis ici quand quelqu'un sonne, avec la photo du visiteur, et les efface partout dès que l'appel est pris. Rien à écrire : aucune automatisation. Laissez les deux listes vides pour désactiver (si vous avez déjà votre propre automatisation pour la sonnette, désactivez l'une des deux ou chaque appel arrivera deux fois). Ouvrir la page d'appel ou la photo hors de chez vous nécessite un accès à distance à Home Assistant ; parler nécessite une page sécurisée (HTTPS).",
+        "data": {
+          "notify_phones": "Téléphones",
+          "notify_panels": "Panneaux muraux",
+          "notify_critical": "Sonner même en mode silencieux",
+          "notify_open_door": "Bouton « Ouvrir la porte » sur les téléphones",
+          "announce_players": "Enceintes qui annoncent l'appel",
+          "announce_voice": "Dire aussi quelle sonnette sonne"
+        },
+        "data_description": {
+          "notify_phones": "Téléphones avec l'application Home Assistant. Ils reçoivent une notification avec la photo ; un appui ouvre la page d'appel. N'ajoutez pas les téléphones qui utilisent déjà l'application IG Doorbell pour les appels, sinon ils sonneront deux fois. Un téléphone non ajouté continue de recevoir tout le reste de Home Assistant ; le choix se fait téléphone par téléphone.",
+          "notify_panels": "Tablettes murales avec l'application Home Assistant. Android : l'écran s'allume et affiche la page d'appel (l'application a besoin de l'autorisation « Afficher par-dessus les autres applis », sinon elle affiche une simple notification sans prévenir) ; elle revient à la page d'accueil après le délai « Retour à la page d'accueil après » de la sonnette, jamais pendant un appel pris. iPad : une notification ; pour un vrai panneau, laissez la page d'appel ouverte en Accès guidé.",
+          "notify_critical": "iPhone : alerte critique (autorisez les alertes critiques pour l'application Home Assistant). Android : flux d'alarme.",
+          "notify_open_door": "Ajoute un bouton « Ouvrir la porte » à la notification, valable seulement pendant l'appel. L'iPhone demande Face ID. Sur Android, on ne sait pas encore si le téléphone doit être déverrouillé : laissez désactivé si cela compte pour vous.",
+          "announce_players": "Elles jouent un carillon quand quelqu'un sonne : Alexa (Echo) son propre carillon de sonnette, les autres enceintes celui d'IG Doorbell. Si vous annoncez déjà la sonnette sur ces enceintes avec une automatisation, vous n'en avez pas besoin, sinon elles annonceront deux fois.",
+          "announce_voice": "Alexa : une annonce ; autres enceintes : nécessite un moteur de synthèse vocale dans Home Assistant."
         }
       }
     },
@@ -59,12 +80,39 @@
     },
     "event": {
       "events": {
-        "name": "Événements"
+        "name": "Événements",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Sonnerie",
+              "visitor": "Visiteur",
+              "package": "Colis",
+              "person_with_package": "Personne avec un colis",
+              "package_gone": "Colis disparu",
+              "visitor_message": "Message du visiteur",
+              "door_opened": "Porte ouverte",
+              "storage_problem": "Problème de stockage",
+              "unexpected_reboot": "Redémarrage inattendu",
+              "client_paired": "Application associée",
+              "user_added": "Utilisateur ajouté",
+              "user_revoked": "Utilisateur révoqué",
+              "login_failed": "Échec de connexion",
+              "mode_changed": "Mode changé",
+              "ring_suppressed": "Sonnerie silencieuse",
+              "viewer_joined": "Spectateur connecté",
+              "key_denied": "Code refusé",
+              "key_locked": "Clavier bloqué",
+              "call_answered": "Appel pris",
+              "call_declined": "Appel refusé",
+              "call_missed": "Appel manqué"
+            }
+          }
+        }
       }
     },
     "number": {
       "live_view_timeout": {
-        "name": "Délai de la vue en direct"
+        "name": "Retour à la page d'accueil après"
       }
     },
     "select": {
@@ -92,6 +140,11 @@
     "switch": {
       "rec": {
         "name": "Enregistrement manuel"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Visiteur"
       }
     }
   },

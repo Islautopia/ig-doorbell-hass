@@ -46,7 +46,7 @@ async def test_every_entity_has_a_translation_key_and_english_name(hass):
     entry = await _setup(hass)
     reg = er.async_get(hass)
     entities = er.async_entries_for_config_entry(reg, entry.entry_id)
-    assert len(entities) == 12
+    assert len(entities) == 13      # 1.2.0: + image.visitor
     en = json.loads((ROOT / "translations" / "en.json").read_text(encoding="utf-8"))["entity"]
     for e in entities:
         assert e.translation_key, e.entity_id

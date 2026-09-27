@@ -3,6 +3,7 @@
     "step": {
       "init": {
         "menu_options": {
+          "notifications": "Klingel-Benachrichtigungen (Telefone und Panels)",
           "entities": "Entitäten, die die Türklingel steuern kann",
           "https": "Sichere lokale Verbindung (HTTPS)"
         }
@@ -24,6 +25,26 @@
         "data_description": {
           "enabled": "Öffnet den HTTPS-Port und hält seine Zertifikate aktuell.",
           "port": "Standard 8443. Er muss auf dem Home-Assistant-Rechner frei sein."
+        }
+      },
+      "notifications": {
+        "title": "Klingel-Benachrichtigungen",
+        "description": "Home Assistant lässt die hier gewählten Telefone und Wand-Panels klingeln, wenn jemand klingelt – mit dem Foto des Besuchers – und entfernt die Benachrichtigung überall, sobald jemand rangeht. Nichts zu schreiben: keine Automatisierung nötig. Beide Listen leer lassen, um es auszuschalten (wenn du schon eine eigene Automatisierung für die Klingel hast, schalte eine der beiden aus, sonst kommt jedes Klingeln doppelt). Die Anrufseite oder das Foto außer Haus zu öffnen erfordert Fernzugriff auf Home Assistant; Sprechen erfordert eine sichere Seite (HTTPS).",
+        "data": {
+          "notify_phones": "Telefone",
+          "notify_panels": "Wand-Panels",
+          "notify_critical": "Auch im Lautlos-Modus klingeln",
+          "notify_open_door": "Schaltfläche „Tür öffnen“ auf den Telefonen",
+          "announce_players": "Lautsprecher, die den Anruf ansagen",
+          "announce_voice": "Auch sagen, welche Türklingel klingelt"
+        },
+        "data_description": {
+          "notify_phones": "Telefone mit der Home-Assistant-App. Sie erhalten eine Benachrichtigung mit Foto; Antippen öffnet die Anrufseite. Füge keine Telefone hinzu, die schon die IG-Doorbell-App für Anrufe nutzen, sonst klingeln sie doppelt. Ein nicht hinzugefügtes Telefon bekommt weiterhin alles andere von Home Assistant; die Wahl gilt pro Telefon.",
+          "notify_panels": "Wand-Tablets mit der Home-Assistant-App. Android: Der Bildschirm geht an und zeigt die Anrufseite (die App braucht die Berechtigung „Über anderen Apps einblenden“, sonst zeigt sie stillschweigend nur eine normale Benachrichtigung); sie kehrt nach der Zeit „Zurück zur Startseite nach“ der Türklingel zur Startseite zurück, nie während eines angenommenen Anrufs. iPad: eine Benachrichtigung; für ein echtes Panel die Anrufseite im geführten Zugriff offen lassen.",
+          "notify_critical": "iPhone: kritischer Hinweis (kritische Hinweise für die Home-Assistant-App erlauben). Android: Wecker-Kanal.",
+          "notify_open_door": "Fügt der Benachrichtigung eine Schaltfläche „Tür öffnen“ hinzu, nur während des Klingelns gültig. Das iPhone fragt vorher nach Face ID. Bei Android ist noch nicht bekannt, ob das Telefon entsperrt sein muss – ausgeschaltet lassen, wenn das wichtig ist.",
+          "announce_players": "Sie spielen einen Gong, wenn jemand klingelt: Alexa (Echo) ihren eigenen Türklingel-Gong, alle anderen Lautsprecher den IG-Doorbell-Gong. Wenn du die Klingel auf diesen Lautsprechern schon per Automatisierung ansagst, brauchst du das nicht – sonst sagen sie zweimal an.",
+          "announce_voice": "Alexa: eine Durchsage; andere Lautsprecher: benötigt eine Sprachausgabe (TTS) in Home Assistant."
         }
       }
     },
@@ -59,12 +80,39 @@
     },
     "event": {
       "events": {
-        "name": "Ereignisse"
+        "name": "Ereignisse",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Klingeln",
+              "visitor": "Besucher",
+              "package": "Paket",
+              "person_with_package": "Person mit Paket",
+              "package_gone": "Paket weg",
+              "visitor_message": "Besuchernachricht",
+              "door_opened": "Tür geöffnet",
+              "storage_problem": "Speicherproblem",
+              "unexpected_reboot": "Unerwarteter Neustart",
+              "client_paired": "App gekoppelt",
+              "user_added": "Benutzer hinzugefügt",
+              "user_revoked": "Benutzer entfernt",
+              "login_failed": "Anmeldung fehlgeschlagen",
+              "mode_changed": "Modus geändert",
+              "ring_suppressed": "Klingeln stummgeschaltet",
+              "viewer_joined": "Zuschauer verbunden",
+              "key_denied": "Code abgelehnt",
+              "key_locked": "Tastatur gesperrt",
+              "call_answered": "Anruf angenommen",
+              "call_declined": "Anruf abgelehnt",
+              "call_missed": "Verpasster Anruf"
+            }
+          }
+        }
       }
     },
     "number": {
       "live_view_timeout": {
-        "name": "Zeitlimit der Live-Ansicht"
+        "name": "Zurück zur Startseite nach"
       }
     },
     "select": {
@@ -92,6 +140,11 @@
     "switch": {
       "rec": {
         "name": "Manuelle Aufnahme"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Besucher"
       }
     }
   },

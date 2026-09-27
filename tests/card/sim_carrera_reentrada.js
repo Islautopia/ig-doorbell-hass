@@ -67,7 +67,7 @@ const { execFileSync } = require('child_process');
 //  how many close, which is exactly the real bug's signature ("of N, one closes").
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 function buildEnvironment(clock) {
-  const census = { ws: [], pc: [], es: [], iceServers: [], fetch: [] };
+  const census = { ws: [], pc: [], es: [], iceServers: [], fetch: [], nav: [] };
 
   class FakeWebSocket {
     constructor(url) {
@@ -120,7 +120,7 @@ function buildEnvironment(clock) {
     close() { this.closed = true; }
   }
 
-  return { census, FakeWebSocket, FakePeerConnection, FakeEventSource, FakeAudioContext };
+  return { census, FakeWebSocket, FakePeerConnection, FakeEventSource, FakeAudioContext, startPath: clock && clock.startPath };
 }
 
 function loadCardClass(src, environment, docListeners) {
@@ -148,7 +148,14 @@ function loadCardClass(src, environment, docListeners) {
       removeEventListener() {},
       body: { classList: { add() {}, remove() {} } },
     },
-    window: { addEventListener() {}, removeEventListener() {}, AudioContext: environment.FakeAudioContext },
+    window: {
+      addEventListener() {}, removeEventListener() {}, AudioContext: environment.FakeAudioContext,
+      // 1.2.0: the idle deadline navigates to Home Assistant's default page instead of pausing.
+      location: { pathname: environment.startPath || '/ig-doorbell' },
+      history: { pushState(st, t, url) { environment.census.nav.push(url); sandbox.window.location.pathname = url; } },
+      dispatchEvent() {},
+    },
+    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
     customElements: { get: () => undefined, define: (n, c) => { if (n === 'ig-doorbell-view' || (n === 'ig-doorbell-card' && !CardClass)) CardClass = c; } },  // pre-1.10.0 commits (negative control) have no view element: the card IS the view
   };
   sandbox.window.customCards = [];
@@ -182,9 +189,12 @@ function newCard(CardClass, options) {
           const r0 = msg.type === 'ig_doorbell/get_turn_credentials' ? { urls: [] } : { signal_url: '/api/ig_doorbell/signal/abc?authSig=x' };
           return new Promise((r) => setTimeout(() => r(r0), o.turnMs || 0));
         }
+        if (msg.type === 'frontend/get_user_data') return Promise.resolve({ value: o.defaultPanel ? { default_panel: o.defaultPanel } : null });
+        if (msg.type === 'frontend/get_system_data') return Promise.resolve({ value: null });
         return Promise.reject(new Error('unknown'));
       },
     },
+    panels: { home: {}, lovelace: {} },
     states: o.entityStates || {},
     callApi: (method, route, requestBody) => { c._enviados.push(requestBody); return Promise.resolve({}); },
   };
@@ -365,17 +375,38 @@ async function runCases(src, verbose) {
     if (c._idleWakeLockTimer) clearTimeout(c._idleWakeLockTimer);
   }
 
-  // ── 6. AND IT FIRES: without touching anything, it releases the video ─────────────────────
-  section('6. With no interaction, the deadline expires and releases the video');
+  // ── 6. AND IT FIRES: without touching anything, it goes HOME (1.2.0) ───────────────────────
+  // Iñaki, 2026-09-27: while the card is visible there is ALWAYS a stream; the deadline takes the
+  // screen back to Home Assistant's default page, and leaving the card is what stops the stream.
+  section('6. With no interaction, the deadline takes the screen home -- and does NOT cut the stream');
   {
     const e = buildEnvironment({ wsOpenMs: 5 });
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 250, graceMs: 50 });
+    const c = newCard(C, { turnMs: 10, idleMs: 250, graceMs: 50, defaultPanel: 'dashboard-casa' });
     await c.startWebRTC('sole');
     await wait(600);
-    check('the session has released itself', c.pc === null);
-    check('  -> the EventSource is closed', e.census.es.every((w) => w.closed));
-    check('  -> and it is left hung-up paused, waiting for someone', !!c._pauseState && c._pauseState.phase === 'hung_up');
+    check("it navigated to the user's default page", e.census.nav.length === 1 && e.census.nav[0] === '/dashboard-casa');
+    check('  -> the session is still alive (the deadline no longer pauses)', !!c.pc && !c.pc.closed && !c._pauseState);
+    check('  -> and no live_pause was sent by the deadline', !c._enviados.some((m) => m.type === 'live_pause'));
+    cleanup(c);
+  }
+  section('6b. On the default page itself it stays (never a navigation loop); with no setting, "home"');
+  {
+    const e = buildEnvironment({ wsOpenMs: 5, startPath: '/home/overview' });
+    const C = loadCardClass(src, e, {});
+    const c = newCard(C, { turnMs: 10, idleMs: 200, graceMs: 50 });
+    await c.startWebRTC('sole');
+    await wait(500);
+    check('on /home (the built-in default) it does not navigate', e.census.nav.length === 0);
+    check('  -> and keeps its stream', !!c.pc && !c.pc.closed && !c._pauseState);
+    cleanup(c);
+    const e2 = buildEnvironment({ wsOpenMs: 5, startPath: '/ig-doorbell' });
+    const C2 = loadCardClass(src, e2, {});
+    const c2 = newCard(C2, { turnMs: 10, idleMs: 200, graceMs: 50 });
+    await c2.startWebRTC('sole');
+    await wait(500);
+    check('from the call page with no setting it goes to /home', e2.census.nav.length === 1 && e2.census.nav[0] === '/home');
+    cleanup(c2);
   }
 
   // ── 7. NO-FIRE CONTROL: while touching, it can NEVER release ──────────────────────────────
@@ -411,6 +442,7 @@ async function runCases(src, verbose) {
     // Phase 0: expiring no longer hangs up right away (live_pause + grace), so "it paused and the
     // next tap resumed it" leaves no trace in pc/sessions. It shows up in what was sent to the doorbell.
     check('  -> and not a single live_pause was sent', !(c._enviados || []).some((m) => m.type === 'live_pause'));
+    check('  -> and it never navigated away', e.census.nav.length === 0);
     c._teardownConnectionObjects();
     if (c._idleWakeLockTimer) clearTimeout(c._idleWakeLockTimer);
   }
@@ -424,12 +456,12 @@ async function runCases(src, verbose) {
     const c = newCard(C, { turnMs: 10, idleMs: 999000, entityDeadline: 0.25, graceMs: 20000 });
     await c.startWebRTC('sole');
     await wait(500);
-    check('with the entity at 0.25 s it expires even if the fallback is 999 s', !!c._pauseState && c._pauseState.phase === 'grace');
+    check('with the entity at 0.25 s it expires even if the fallback is 999 s', e.census.nav.length === 1);
     cleanup(c);
     const c2 = newCard(C, { turnMs: 10, idleMs: 250, entityDeadline: 0 });
     await c2.startWebRTC('sole');
     await wait(500);
-    check('  -> and with the entity at 0 it never expires', !c2._pauseState && !!c2.pc);
+    check('  -> and with the entity at 0 it never expires (no navigation, stream on)', e.census.nav.length === 1 && !c2._pauseState && !!c2.pc);
     cleanup(c2);
   }
 
@@ -443,20 +475,23 @@ async function runCases(src, verbose) {
     c.talkActive = true;
     await wait(800);
     check('with the mic open for 0.8 s and a 0.25 s deadline: neither pause nor bye', !c._pauseState && !!c.pc && !c.pc.closed);
+    check('  -> and it does NOT go home during an answered call', e.census.nav.length === 0);
     check('  -> and no live_pause was sent', !c._enviados.some((m) => m.type === 'live_pause'));
     c.talkActive = false;
     cleanup(c);
   }
 
   // ── 10. On expiry: live_pause RIGHT AWAY, bye after grace (the slot is released) ───────────
-  section('10. Expires: live_pause right away and bye after the grace period');
+  section('10. The pause machinery (by hand since 1.2.0): live_pause right away and bye after the grace period');
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 200, graceMs: 300 });
+    const c = newCard(C, { turnMs: 10, idleMs: 0, graceMs: 300 });
     await c.startWebRTC('sole');
     const pc = c.pc;
-    await wait(350);
+    await wait(150);
+    if (c._pause) c._pause('idle');   // 1.2.0: no deadline pauses any more; the machinery, by hand
+    await wait(200);
     check('within the grace period: live_pause sent and the session is still alive', c._enviados.some((m) => m.type === 'live_pause' && m.slot === 0) && c.pc === pc && !pc.closed);
     check('  -> still no bye', !c._enviados.some((m) => m.type === 'bye'));
     await wait(400);
@@ -470,9 +505,10 @@ async function runCases(src, verbose) {
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 200, graceMs: 2000 });
+    const c = newCard(C, { turnMs: 10, idleMs: 999000, graceMs: 2000 });   // listeners on, never fires
     await c.startWebRTC('sole');
-    await wait(350);
+    await wait(150);
+    if (c._pause) c._pause('idle');
     check('it is in the grace period', !!c._pauseState && c._pauseState.phase === 'grace');
     if (c._onIdleActivity) c._onIdleActivity();
     await wait(50);
@@ -487,12 +523,14 @@ async function runCases(src, verbose) {
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 150, graceMs: 50 });
+    const c = newCard(C, { turnMs: 10, idleMs: 0, graceMs: 50 });
     c.config.ring_entity = undefined;
     c._hass.states['event.x_events'] = { state: 't0', attributes: { event_type: 'ring' } };
     await c.startWebRTC('sole');
     c._updateRingState();                       // first read: doesn't fire
-    await wait(500);
+    await wait(100);
+    if (c._pause) c._pause('idle');
+    await wait(400);
     check('hung up due to inactivity', !!c._pauseState && c._pauseState.phase === 'hung_up' && c.pc === null);
     c._hass.states['event.x_events'] = { state: 't1', attributes: { event_type: 'package' } };
     c._updateRingState();
@@ -587,9 +625,11 @@ async function runCases(src, verbose) {
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 150, graceMs: 50 });
+    const c = newCard(C, { turnMs: 10, idleMs: 0, graceMs: 50 });
     await c.startWebRTC('sole');
-    await wait(400);
+    await wait(100);
+    if (c._pause) c._pause('idle');
+    await wait(300);
     check('hung up due to inactivity', !!c._pauseState && c._pauseState.phase === 'hung_up');
     const displayBefore = e.census.pc.length;
     const c2 = newCard(C, { turnMs: 10, idleMs: 150, graceMs: 50 });   // Home Assistant recreates the element
@@ -606,9 +646,11 @@ async function runCases(src, verbose) {
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
-    const c = newCard(C, { turnMs: 10, idleMs: 150, graceMs: 50 });
+    const c = newCard(C, { turnMs: 10, idleMs: 0, graceMs: 50 });
     await c.startWebRTC('sole');
-    await wait(400);
+    await wait(100);
+    if (c._pause) c._pause('idle');
+    await wait(300);
     const c2 = newCard(C, { turnMs: 10, idleMs: 150, graceMs: 50 });
     c2._connInfo = { events_entity: 'event.x_events' };
     c2._hass.states['event.x_events'] = { state: new Date(Date.now() - 5000).toISOString(), attributes: { event_type: 'ring' } };
@@ -757,7 +799,8 @@ function mutate(src, anchor, replacement, mutantLabel) {
       },
       // Phase 0: expiring no longer releases right away, it pauses (live_pause) and the next tap resumes it;
       // case 7 sees this in what was sent to the doorbell.
-      mustFail: '  -> and not a single live_pause was sent',
+      // 1.2.0: expiring navigates home, so case 7 sees it as a navigation away.
+      mustFail: '  -> and it never navigated away',
     },
     {
       mutantLabel: 'phase 0: the deadline ignores the entity',
@@ -767,7 +810,7 @@ function mutate(src, anchor, replacement, mutantLabel) {
     {
       mutantLabel: 'phase 0: no call veto',
       src: () => mutate(src, "    return !!(this.talkActive || this._talkHeld || this._talkPending);", "    return false;", 'no veto'),
-      mustFail: 'with the mic open',
+      mustFail: '  -> and it does NOT go home during an answered call',
     },
     {
       mutantLabel: 'phase 0: on expiry it hangs up with no live_pause or grace period',

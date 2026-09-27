@@ -42,7 +42,13 @@ from .const import (
     CONF_DEVICE_ID,
     CONF_ENTITIES,
     CONF_HOST_HINT,
+    CONF_ANNOUNCE_PLAYERS,
+    CONF_ANNOUNCE_VOICE,
     CONF_LABEL,
+    CONF_NOTIFY_CRITICAL,
+    CONF_NOTIFY_OPEN_DOOR,
+    CONF_NOTIFY_PANELS,
+    CONF_NOTIFY_PHONES,
     DEFAULT_PAIR_LABEL,
     DOMAIN,
     ALLOWED_DOMAINS,
@@ -328,7 +334,47 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return self.async_show_menu(
-            step_id="init", menu_options=["entities", "address", "https", "repair"]
+            step_id="init",
+            menu_options=["notifications", "entities", "address", "https", "repair"],
+        )
+
+    async def async_step_notifications(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Ring notifications sent by the integration itself (1.2.0).
+
+        ONE place to configure (product rule): pick the companion-app phones and wall panels, and
+        the integration rings them, clears them when the call is resolved and sends the panels
+        back home. Nothing picked = off, which is the default (docs/design/ha-only-ringing.md).
+        """
+        if user_input is not None:
+            # ⚠️ The other options are kept: an options flow REPLACES the whole dict.
+            options = dict(self._entry.options)
+            options[CONF_NOTIFY_PHONES] = list(user_input.get(CONF_NOTIFY_PHONES) or [])
+            options[CONF_NOTIFY_PANELS] = list(user_input.get(CONF_NOTIFY_PANELS) or [])
+            options[CONF_NOTIFY_CRITICAL] = bool(user_input.get(CONF_NOTIFY_CRITICAL, True))
+            options[CONF_NOTIFY_OPEN_DOOR] = bool(user_input.get(CONF_NOTIFY_OPEN_DOOR, False))
+            options.pop("panel_return_path", None)     # 1.2.0 dev builds only: the card goes home now
+            options[CONF_ANNOUNCE_PLAYERS] = list(user_input.get(CONF_ANNOUNCE_PLAYERS) or [])
+            options[CONF_ANNOUNCE_VOICE] = bool(user_input.get(CONF_ANNOUNCE_VOICE, False))
+            return self.async_create_entry(title="", data=options)
+
+        o = self._entry.options
+        companion = selector.DeviceSelector(
+            selector.DeviceSelectorConfig(integration="mobile_app", multiple=True)
+        )
+        return self.async_show_form(
+            step_id="notifications",
+            data_schema=vol.Schema({
+                vol.Optional(CONF_NOTIFY_PHONES, default=list(o.get(CONF_NOTIFY_PHONES) or [])): companion,
+                vol.Optional(CONF_NOTIFY_PANELS, default=list(o.get(CONF_NOTIFY_PANELS) or [])): companion,
+                vol.Optional(CONF_NOTIFY_CRITICAL, default=o.get(CONF_NOTIFY_CRITICAL, True)): bool,
+                vol.Optional(CONF_NOTIFY_OPEN_DOOR, default=o.get(CONF_NOTIFY_OPEN_DOOR, False)): bool,
+                vol.Optional(CONF_ANNOUNCE_PLAYERS,
+                             default=list(o.get(CONF_ANNOUNCE_PLAYERS) or [])): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="media_player", multiple=True)),
+                vol.Optional(CONF_ANNOUNCE_VOICE, default=o.get(CONF_ANNOUNCE_VOICE, False)): bool,
+            }),
         )
 
     async def async_step_entities(

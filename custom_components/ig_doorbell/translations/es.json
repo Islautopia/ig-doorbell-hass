@@ -44,6 +44,7 @@
       "init": {
         "title": "IG Doorbell",
         "menu_options": {
+          "notifications": "Avisos de timbre (móviles y paneles)",
           "entities": "Entidades que puede accionar el videoportero",
           "address": "Dirección del videoportero",
           "https": "Conexión local segura (HTTPS)",
@@ -82,6 +83,26 @@
         "data_description": {
           "enabled": "Abre el puerto HTTPS y mantiene sus certificados al día.",
           "port": "Por defecto 8443. Tiene que estar libre en la máquina de Home Assistant."
+        }
+      },
+      "notifications": {
+        "title": "Avisos de timbre",
+        "description": "Home Assistant hace sonar los móviles y paneles de pared que elijas aquí cuando alguien llama, con la foto de quien está en la puerta, y los quita de todos en cuanto se atiende la llamada. No hay que escribir nada: ninguna automatización. Deja las dos listas vacías para desactivarlo (si ya tienes tu propia automatización para el timbre, desactiva una de las dos o cada timbrazo llegará dos veces). Abrir la página de la llamada o la foto desde fuera de casa necesita acceso remoto a Home Assistant; para hablar hace falta una página segura (HTTPS).",
+        "data": {
+          "notify_phones": "Móviles",
+          "notify_panels": "Paneles de pared",
+          "notify_critical": "Sonar aunque esté en silencio",
+          "notify_open_door": "Botón «Abrir puerta» en los móviles",
+          "announce_players": "Altavoces que anuncian la llamada",
+          "announce_voice": "Decir también qué portero llama"
+        },
+        "data_description": {
+          "notify_phones": "Móviles con la app de Home Assistant. Reciben un aviso con la foto; al tocarlo se abre la página de la llamada. No añadas móviles que ya usan la app IG Doorbell para las llamadas, o sonarán dos veces. Un móvil que no añadas sigue recibiendo todo lo demás de Home Assistant; se elige móvil a móvil.",
+          "notify_panels": "Tabletas de pared con la app de Home Assistant. Android: la pantalla se enciende y muestra la página de la llamada (la app necesita el permiso «Mostrar sobre otras apps»; sin él muestra un aviso normal sin decir nada); vuelve a la página de inicio pasado el tiempo «Volver a la página de inicio tras» del portero, y nunca mientras dura una llamada contestada. iPad: un aviso; para un panel de verdad deja la página de la llamada abierta con Acceso Guiado.",
+          "notify_critical": "iPhone: alerta crítica (permite las Alertas críticas a la app de Home Assistant). Android: canal de alarma.",
+          "notify_open_door": "Añade un botón «Abrir puerta» al aviso, válido solo mientras suena. El iPhone pide Face ID antes. En Android aún no se sabe si obliga a desbloquear el móvil: déjalo apagado si eso te importa.",
+          "announce_players": "Suenan con un carillón cuando alguien llama: Alexa (Echo) con su propio carillón de timbre, el resto de altavoces con el de IG Doorbell. Si ya anuncias el timbre en estos altavoces con una automatización, no necesitas esto, o sonarán dos veces.",
+          "announce_voice": "Alexa: un anuncio; otros altavoces: necesita un motor de texto a voz en Home Assistant."
         }
       }
     },
@@ -145,7 +166,10 @@
               "ring_suppressed": "Timbre silenciado",
               "viewer_joined": "Espectador conectado",
               "key_denied": "Llave denegada",
-              "key_locked": "Llave bloqueada"
+              "key_locked": "Llave bloqueada",
+              "call_answered": "Llamada atendida",
+              "call_declined": "Llamada rechazada",
+              "call_missed": "Llamada perdida"
             }
           }
         }
@@ -153,7 +177,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Tiempo de espera de la vista en vivo"
+        "name": "Volver a la página de inicio tras"
       }
     },
     "select": {
@@ -181,6 +205,11 @@
     "switch": {
       "rec": {
         "name": "Grabación manual"
+      }
+    },
+    "image": {
+      "visitor": {
+        "name": "Visitante"
       }
     }
   },

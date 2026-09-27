@@ -138,3 +138,29 @@ DOMAIN_CLOSE_SERVICE: dict[str, tuple[str, str]] = {
     "fan": ("fan", "turn_off"),
     "siren": ("siren", "turn_off"),
 }
+
+# --- Ring notifications sent by the integration itself (1.2.0, docs/design/ha-only-ringing.md) ---
+# Companion-app devices (device registry ids of `mobile_app` devices). Empty = the built-in
+# notifier is off, which is the default: upgrading must not start ringing anybody's phone, and a
+# house that already has its own automation would get every ring twice.
+CONF_NOTIFY_PHONES = "notify_phones"
+CONF_NOTIFY_PANELS = "notify_panels"
+# iOS: critical alert / Android: the alarm stream. Both ring through silent mode.
+CONF_NOTIFY_CRITICAL = "notify_critical"
+# "Open door" button on the phone notification. OFF by default: whether the Android companion asks
+# to unlock the phone before running an action from the lock screen is not measured yet.
+CONF_NOTIFY_OPEN_DOOR = "notify_open_door"
+
+# The call page the integration serves (a hidden frontend panel, see panel.py).
+CALL_PAGE_PATH = "ig-doorbell"
+# No resolution after this long (a firmware before 0.101.3, a lost webhook): panels go home anyway.
+RING_SAFETY_S = 120
+# "Open door" from a notification is honoured only this long after its ring, and never after the
+# call was resolved: a notification left in the shade must not open the door hours later.
+OPEN_DOOR_WINDOW_S = 180
+# How long the snapshot for a ring may take. The notification never waits for it (it is sent at
+# once and the phone fetches the picture a moment later); this bounds that fetch.
+SNAPSHOT_TIMEOUT_S = 4
+# Speakers that announce the call (media_player entities) and whether they also say it. Empty = off.
+CONF_ANNOUNCE_PLAYERS = "announce_players"
+CONF_ANNOUNCE_VOICE = "announce_voice"
