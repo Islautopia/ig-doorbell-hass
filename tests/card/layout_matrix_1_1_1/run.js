@@ -35,7 +35,8 @@ const { chromium } = require('playwright-core');
 const HASS_URL = (process.env.HASS_URL || '').replace(/\/$/, '');
 const HASS_TOKEN = process.env.HASS_TOKEN || '';
 const TARGET = process.env.TARGET_NAME || 'Waveshare';
-const WAVESHARE_IP = '192.168.1.10';
+// Bench doorbell address comes from the environment: real LAN addresses never live in this public repo.
+const WAVESHARE_IP = process.env.IGD_BENCH_IP || (() => { throw new Error("Set IGD_BENCH_IP to the LAN address of the bench doorbell"); })();
 const URL_PATH = 'igd-card-layout-111';
 const LABEL = process.env.LABEL || 'after';
 const CARD_REF = process.env.CARD_REF || '';

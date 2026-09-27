@@ -19,7 +19,9 @@ const { chromium } = require('playwright-core');
 const HASS_URL = (process.env.HASS_URL || '').replace(/\/$/, '');
 const HASS_TOKEN = process.env.HASS_TOKEN || '';
 const CHROME = 'C:/Users/inaki/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe';
-const IP = { Waveshare: '192.168.1.10', 'Ermita 10': '192.168.1.11' };
+// Doorbell addresses come from the environment: real LAN addresses never live in this public repo.
+const need = (k) => process.env[k] || (() => { throw new Error(`Set ${k} to the doorbell's LAN address`); })();
+const IP = { Waveshare: need('IGD_BENCH_IP'), 'Ermita 10': need('IGD_HOME_IP') };
 const OUT = __dirname;
 if (!HASS_URL || !HASS_TOKEN) { console.error('HASS_URL / HASS_TOKEN missing'); process.exit(2); }
 
