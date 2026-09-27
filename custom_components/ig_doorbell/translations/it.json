@@ -1,0 +1,249 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aggiungi IG Doorbell",
+        "description": "Inserisci l'indirizzo IP del videocitofono sulla tua rete locale (salta questo passaggio se è già stato rilevato automaticamente). Home Assistant comunica con il videocitofono solo sulla rete locale, mai tramite internet.",
+        "data": {
+          "host": "Indirizzo IP del videocitofono"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Videocitofono trovato sulla rete",
+        "description": "Trovato {name} via mDNS. Continua per accoppiarlo."
+      },
+      "pair": {
+        "title": "Accoppia con {name}",
+        "description": "Inserisci l'email e la password amministratore già create sul videocitofono stesso (app o dashboard web). Usate una sola volta per ottenere una credenziale d'accesso - non vengono mai memorizzate.",
+        "data": {
+          "email": "Email amministratore",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "not_on_lan": "Home Assistant deve trovarsi sulla stessa rete del videocitofono (o su una VLAN instradata). Non è stato possibile collegarsi direttamente a {host}.",
+      "other_device": "Un altro dispositivo ha risposto a quell'indirizzo, non questo videocitofono.",
+      "no_tls": "Il videocitofono ha risposto su {host} ma non sulla porta sicura con un certificato valido. Un videocitofono che non è mai stato online non ha ancora un certificato e non può essere aggiunto.",
+      "pair_verify_failed": "L'accoppiamento è riuscito ma la nuova credenziale è stata rifiutata sulla rete locale. L'accoppiamento è stato annullato sul videocitofono; non è stato configurato nulla. Riprova.",
+      "invalid_auth": "Email o password amministratore errate",
+      "label_in_use": "Un altro utente di questo videocitofono ha già un client con un nome simile a questo Home Assistant. Cambia il nome di Home Assistant (Impostazioni > Sistema > Generale) e riprova.",
+      "device_not_paired": "Il videocitofono non è ancora registrato - attendi un momento e riprova",
+      "cloud_authorize_failed": "Il videocitofono non è riuscito a registrare questo accoppiamento - riprova più tardi"
+    },
+    "abort": {
+      "already_configured": "Questo videocitofono è già configurato",
+      "no_device_id": "L'annuncio mDNS non includeva un device_id valido",
+      "not_on_lan": "Home Assistant deve trovarsi sulla stessa rete del videocitofono (o su una VLAN instradata). Non è stato possibile collegarsi direttamente a {host}.",
+      "other_device": "Un altro dispositivo ha risposto a quell'indirizzo, non questo videocitofono.",
+      "no_tls": "Il videocitofono ha risposto su {host} ma non sulla porta sicura con un certificato valido."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IG Doorbell",
+        "menu_options": {
+          "entities": "Entità su cui il videocitofono può agire",
+          "address": "Indirizzo del videocitofono",
+          "https": "Connessione locale sicura (HTTPS)",
+          "repair": "Riaccoppia"
+        }
+      },
+      "entities": {
+        "title": "Entità su cui il videocitofono può agire",
+        "description": "Scegli le entità che il videocitofono deve poter attivare - per aprire la porta, o da un passaggio di una delle sue sequenze. Solo queste saranno proposte nelle app. Massimo {max}.",
+        "data": {
+          "entities": "Entità"
+        }
+      },
+      "address": {
+        "title": "Indirizzo del videocitofono",
+        "description": "L'indirizzo IP del videocitofono sulla tua rete locale. Cambialo se il videocitofono si è spostato (nuovo IP o VLAN). Home Assistant raggiunge il videocitofono solo a questo indirizzo.",
+        "data": {
+          "host": "Indirizzo IP del videocitofono"
+        }
+      },
+      "repair": {
+        "title": "Riaccoppia",
+        "description": "Usa questa opzione se la credenziale d'accesso è stata revocata. Inserisci di nuovo l'email/password amministratore del videocitofono.",
+        "data": {
+          "email": "Email amministratore",
+          "password": "Password"
+        }
+      },
+      "https": {
+        "title": "Connessione locale sicura (HTTPS)",
+        "description": "Serve questo Home Assistant via HTTPS sulla rete di casa, su una porta dedicata, così i browser permettono alla card del videocitofono di usare il microfono (audio bidirezionale). Disattivata di default. La porta e le impostazioni proprie di Home Assistant non vengono toccate.\n\n**Non è un accesso remoto.** Non sostituisce Home Assistant Cloud né un tuo dominio con un reverse proxy.\n\nOffre due indirizzi:\n- **Nome pubblico** – nulla da installare sui tuoi dispositivi. Un certificato riconosciuto pubblicamente per un nome come `<id>.ha.doorbell.islautopia.com`. Richiede un videocitofono IG Doorbell accoppiato qui come amministratore e registrato con il cloud Islautopia: il videocitofono garantisce per questo Home Assistant. Il cloud viene contattato solo per questo e non riceve mai la chiave privata del certificato. Richiede internet per trovare il nome.\n- **Indirizzo locale** (IP o homeassistant.local) – funziona senza internet e senza videocitofono. Il certificato proviene dall'autorità di certificazione locale di questa integrazione: installane il certificato radice una volta su ogni dispositivo.\n\nConfigura i tuoi dispositivi: [pagina di installazione]({install_url}) · [Come funziona]({docs_url})",
+        "data": {
+          "enabled": "Attiva HTTPS",
+          "port": "Porta"
+        },
+        "data_description": {
+          "enabled": "Apre la porta HTTPS e mantiene aggiornati i suoi certificati.",
+          "port": "Predefinita 8443. Deve essere libera sulla macchina Home Assistant."
+        }
+      }
+    },
+    "error": {
+      "not_on_lan": "Home Assistant deve trovarsi sulla stessa rete del videocitofono (o su una VLAN instradata). Non è stato possibile collegarsi direttamente a {host}.",
+      "other_device": "Un altro dispositivo ha risposto a quell'indirizzo, non questo videocitofono.",
+      "no_tls": "Il videocitofono ha risposto su {host} ma non sulla porta sicura con un certificato valido.",
+      "pair_verify_failed": "L'accoppiamento è riuscito ma la nuova credenziale è stata rifiutata sulla rete locale. L'accoppiamento è stato annullato sul videocitofono.",
+      "invalid_auth": "Email o password amministratore errate",
+      "device_not_paired": "Il videocitofono non è ancora registrato",
+      "cloud_authorize_failed": "Il videocitofono non è riuscito a registrare questo accoppiamento",
+      "too_many": "Troppe entità - scegline al massimo {max}",
+      "port_in_use": "La porta {port} è già usata da un altro programma. Scegline un'altra.",
+      "port_is_ha": "Questa è la porta di Home Assistant stesso. Scegline un'altra."
+    },
+    "abort": {
+      "https_unavailable": "HTTPS non è disponibile in questo Home Assistant."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "visitor": {
+        "name": "Visitatore"
+      },
+      "package": {
+        "name": "Pacco alla porta"
+      },
+      "street_panel": {
+        "name": "Pannello di strada"
+      },
+      "fingerprint_reader": {
+        "name": "Lettore di impronte"
+      }
+    },
+    "button": {
+      "open_door": {
+        "name": "Apri porta"
+      }
+    },
+    "event": {
+      "events": {
+        "name": "Eventi",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Suoneria",
+              "visitor": "Visitatore",
+              "package": "Pacco",
+              "person_with_package": "Persona con pacco",
+              "package_gone": "Pacco rimosso",
+              "visitor_message": "Messaggio del visitatore",
+              "door_opened": "Porta aperta",
+              "storage_problem": "Problema di archiviazione",
+              "unexpected_reboot": "Riavvio inatteso",
+              "client_paired": "App accoppiata",
+              "user_added": "Utente aggiunto",
+              "user_revoked": "Utente revocato",
+              "login_failed": "Accesso non riuscito",
+              "mode_changed": "Modalità cambiata",
+              "ring_suppressed": "Suoneria silenziata",
+              "viewer_joined": "Spettatore collegato",
+              "key_denied": "Chiave negata",
+              "key_locked": "Chiave bloccata"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "live_view_timeout": {
+        "name": "Timeout della vista dal vivo"
+      }
+    },
+    "select": {
+      "mode": {
+        "name": "Modalità",
+        "state": {
+          "normal": "Normale",
+          "away": "Assente",
+          "do_not_disturb": "Non disturbare",
+          "custom": "Personalizzata"
+        }
+      }
+    },
+    "sensor": {
+      "viewers": {
+        "name": "Spettatori"
+      },
+      "firmware_version": {
+        "name": "Versione firmware"
+      },
+      "panel_firmware": {
+        "name": "Firmware del pannello"
+      }
+    },
+    "switch": {
+      "rec": {
+        "name": "Registrazione manuale"
+      }
+    }
+  },
+  "services": {
+    "play_sequence": {
+      "name": "Riproduci sequenza",
+      "description": "Esegue una delle sequenze del videocitofono (una risposta rapida che può parlare, accendere una luce o prolungare la registrazione).",
+      "fields": {
+        "device_id": {
+          "name": "Videocitofono",
+          "description": "Il videocitofono."
+        },
+        "seq_id": {
+          "name": "Id sequenza",
+          "description": "Id della sequenza sul videocitofono."
+        }
+      }
+    },
+    "play_audio": {
+      "name": "Riproduci risposta rapida",
+      "description": "Riproduce l'audio memorizzato in uno slot di risposta rapida attraverso l'altoparlante del videocitofono.",
+      "fields": {
+        "device_id": {
+          "name": "Videocitofono",
+          "description": "Il videocitofono."
+        },
+        "audio_slot": {
+          "name": "Slot",
+          "description": "Slot di risposta rapida, 1-10."
+        }
+      }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Connessione locale sicura: la porta {port} è occupata",
+      "description": "Un altro programma usa già la porta {port}, quindi la connessione locale sicura (HTTPS) non è potuta partire. Scegli un'altra porta in Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura › Connessione locale sicura (HTTPS). Nient'altro è interessato."
+    },
+    "https_unsupported": {
+      "title": "Connessione locale sicura non supportata",
+      "description": "Questa versione di Home Assistant non permette all'integrazione di servire HTTPS nel modo necessario. La connessione locale sicura è disattivata; tutto il resto funziona. Aggiorna Home Assistant o l'integrazione."
+    },
+    "https_public_name_admin_required": {
+      "title": "Nome pubblico non disponibile: accoppiamento come ospite",
+      "description": "Il videocitofono garantisce solo per un Home Assistant accoppiato come amministratore, e questo è accoppiato come ospite (user). L'indirizzo locale sicuro funziona come sempre: installa il suo certificato radice sui tuoi dispositivi dalla pagina di installazione. Per ottenere il nome pubblico, riaccoppia con un account amministratore (Configura › Riaccoppia)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Nome pubblico non disponibile: videocitofono non registrato",
+      "description": "Il videocitofono non è registrato con il cloud Islautopia, quindi non può garantire per questo Home Assistant. L'indirizzo locale sicuro funziona come sempre: installa il suo certificato radice sui tuoi dispositivi dalla pagina di installazione."
+    },
+    "https_public_name_taken": {
+      "title": "Il nome pubblico del videocitofono appartiene a un altro Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Spostare qui il nome pubblico?",
+            "description": "Ogni videocitofono ha un solo nome pubblico per Home Assistant, e {hostname} è attualmente usato da un altro Home Assistant. Se dovesse appartenere a questo (ad esempio dopo una reinstallazione), spostalo qui. L'altro continua a funzionare finché il suo certificato non scade, dopodiché avrà solo il suo indirizzo locale.\n\nIl nome pubblico punterà a questo Home Assistant e il suo certificato sarà emesso per esso. L'altro Home Assistant non potrà rinnovare il proprio."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Nome pubblico non disponibile",
+      "description": "Non è stato possibile ottenere il nome pubblico per Home Assistant ({code}). L'indirizzo locale sicuro non è interessato. La documentazione dell'integrazione spiega ogni codice."
+    }
+  }
+}
