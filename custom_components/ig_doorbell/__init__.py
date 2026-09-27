@@ -220,6 +220,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         image_entity_id=lambda: (img := data.get("visitor_image")) and img.entity_id,
     )
     data["ring_notifier"] = notifier
+    if (img := data.get("visitor_image")) is not None:
+        img._wanted_at_ring = lambda: notifier.enabled  # noqa: SLF001 - wired here on purpose
     entry.async_on_unload(notifier.async_start())
     await async_register_call_page(hass)
 

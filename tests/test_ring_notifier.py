@@ -267,18 +267,44 @@ async def test_no_picture_when_the_owner_turned_it_off(hass):
         p.stop()
 
 
-async def test_the_picture_is_fetched_for_alerts_and_a_403_clears_it(hass):
+async def test_without_the_notifier_the_picture_is_only_fetched_when_asked_and_a_403_clears_it(hass):
     snap = AsyncMock(return_value=b"JPEG1")
     entry, _, _, patches = await _setup(hass, snapshot=snap)
     img = hass.data[DOMAIN][entry.entry_id]["visitor_image"]
     await _post(hass, _envelope("ring"))
-    assert snap.await_count == 1
+    # Nobody uses the built-in notifier here: no capture at the ring (principle 2).
+    assert snap.await_count == 0
     assert await img.async_image() == b"JPEG1"
+    assert snap.await_count == 1
     snap.side_effect = api.SnapshotDisabledError("call_snapshot_disabled")
     await _post(hass, _envelope("ring", call_id="second"))
     # The previous visitor must not be shown as this ring's.
     assert await img.async_image() is None
     assert snap.await_count == 2
+    for p in patches:
+        p.stop()
+
+
+async def test_with_the_notifier_on_the_picture_is_fetched_at_the_ring(hass):
+    snap = AsyncMock(return_value=b"JPEG1")
+    entry, _, _, patches = await _setup(hass, lambda ids: {CONF_NOTIFY_PHONES: [ids["M23 Test"]]},
+                                        snapshot=snap)
+    await _post(hass, _envelope("ring"))
+    assert snap.await_count == 1
+    for p in patches:
+        p.stop()
+
+
+async def test_a_picture_asked_for_too_late_is_not_the_visitor_and_is_not_fetched(hass):
+    snap = AsyncMock(return_value=b"JPEG1")
+    entry, _, _, patches = await _setup(hass, snapshot=snap)
+    img = hass.data[DOMAIN][entry.entry_id]["visitor_image"]
+    await _post(hass, _envelope("ring"))
+    assert await img.async_image() == b"JPEG1"
+    await _post(hass, _envelope("ring", call_id="second"))
+    img._ring_at -= 3600          # asked for an hour after the ring
+    assert await img.async_image() is None
+    assert snap.await_count == 1
     for p in patches:
         p.stop()
 

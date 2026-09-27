@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
@@ -38,6 +39,10 @@ from .coordinator import DoorbellCoordinator
 from .entity import AddEntities, DoorbellEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+# A picture asked for later than this after the ring would show whoever is there NOW, not the
+# visitor who rang: not fetched.
+LAZY_WINDOW_S = 60
 
 
 async def async_setup_entry(
@@ -60,6 +65,9 @@ class VisitorImage(DoorbellEntity, ImageEntity):
         ImageEntity.__init__(self, coordinator.hass)
         self._jpeg: bytes | None = None
         self._fetch: asyncio.Task | None = None
+        self._ring_at: float | None = None
+        # Set by __init__.py: whether the built-in ring notifier is on for this doorbell.
+        self._wanted_at_ring = lambda: False
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -82,6 +90,18 @@ class VisitorImage(DoorbellEntity, ImageEntity):
             return
         if self._fetch is not None and not self._fetch.done():
             self._fetch.cancel()
+        self._fetch = None
+        # The previous visitor is never this ring's: dropped at once.
+        self._jpeg = None
+        self._ring_at = time.monotonic()
+        # ⚠️ FETCHED AT THE RING ONLY WHEN SOMEONE WILL LOOK AT IT (the built-in notifier is on).
+        # Otherwise it is fetched the first time it is asked for (a dashboard, an automation's
+        # notification) within LAZY_WINDOW_S of the ring. A doorbell whose owner uses none of this
+        # gets no extra capture per ring and no picture ever enters Home Assistant (principle 2).
+        if self._wanted_at_ring():
+            self._start_fetch()
+
+    def _start_fetch(self) -> None:
         self._fetch = self.hass.async_create_task(self._async_fetch(), eager_start=False)
 
     async def _async_fetch(self) -> None:
@@ -102,6 +122,9 @@ class VisitorImage(DoorbellEntity, ImageEntity):
         self.async_write_ha_state()
 
     async def async_image(self) -> bytes | None:
+        if (self._fetch is None and self._ring_at is not None
+                and time.monotonic() - self._ring_at <= LAZY_WINDOW_S):
+            self._start_fetch()
         fetch = self._fetch
         if fetch is not None and not fetch.done():
             try:
