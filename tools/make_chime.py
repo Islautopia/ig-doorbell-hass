@@ -1,6 +1,7 @@
 """IG Doorbell chime: original, synthesized here from sine partials (no samples, no third-party audio).
 
-    python tools/make_chime.py && ffmpeg -i ig-doorbell-chime.wav -codec:a libmp3lame -b:a 128k -ac 1 \n        custom_components/ig_doorbell/sounds/ig-doorbell-chime.mp3
+    python tools/make_chime.py
+    ffmpeg -i ig-doorbell-chime.wav -codec:a libmp3lame -b:a 128k -ac 1 custom_components/ig_doorbell/sounds/ig-doorbell-chime.mp3
 
 Three bell strikes E6 - C6 - G5 (a descending major arpeggio, 'ding-dong-dang'), bell timbre from
 inharmonic partials with exponential decay, a soft attack to avoid clicks."""
