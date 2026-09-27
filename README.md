@@ -171,6 +171,24 @@ and **reload the browser page**. No cache clearing is needed.
 
 ---
 
+## Ring notifications (phones and wall panels, no app needed)
+
+The integration can ring your phones and wall panels itself. They only need the **Home Assistant
+companion app**, and you don't write any automation. Go to **Settings → Devices & services → IG
+Doorbell → Configure → Ring notifications** and pick the phones and the panels:
+
+- **Phones** get a notification with the visitor's picture that rings even in silent mode (a
+  critical alert on iPhone). Tapping it opens the doorbell full-screen.
+- **Android wall panels** wake up and show the doorbell. They go back to their dashboard when the
+  call is over.
+- When someone answers, the notification **disappears from every device**. A missed call is left
+  as a quiet "Missed call at 16:13". This needs doorbell firmware 0.101.3 or later.
+
+It is off until you pick a device. Setup per device, what works away from home, and privacy:
+[docs/ring-notifications.md](docs/ring-notifications.md).
+
+---
+
 ## Entities and events
 
 | | |
