@@ -6997,7 +6997,9 @@ const IG_ELEMENTS = [
 const IG_REGISTRIES_DONE = [];
 
 function igRegisterElements() {
-  const reg = window.customElements;
+  // The bare global, not `window.customElements`: same property in a page (looked up afresh on
+  // every read, so it follows the swap), and it also works in the benches' VM sandboxes.
+  const reg = customElements;
   if (!reg || IG_REGISTRIES_DONE.includes(reg)) return;
   IG_REGISTRIES_DONE.push(reg);
   for (const [tag, cls] of IG_ELEMENTS) {
@@ -7040,17 +7042,19 @@ igRegisterElements();
 //  - a short watch of `window.customElements` itself, for a polyfill installed by anything else.
 //    Bounded (30 s), and it stops at the first swap.
 (function igWatchRegistrySwap() {
-  const first = window.customElements;
+  const first = customElements;
   if (!first) return;
   try {
     first.whenDefined('home-assistant').then(igRegisterElements, () => {});
   } catch (err) { /* not a registry we can wait on: the watch below still runs */ }
   let ticks = 0;
   const timer = setInterval(() => {
-    const swapped = window.customElements !== first;
+    const swapped = customElements !== first;
     if (swapped) igRegisterElements();
     if (swapped || ++ticks >= 150) clearInterval(timer);
   }, 200);
+  // Node (the simulation benches) would otherwise wait for this watch before exiting.
+  if (timer && typeof timer.unref === 'function') timer.unref();
 })();
 
 // ==============================================================================
