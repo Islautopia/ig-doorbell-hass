@@ -64,6 +64,7 @@ const JOBS = [
   { name: 'ui_v1_9_5', bench: 'ui_v1_9_5', args: ['ui_v1_9_5/driver.js'], expect: 0 },
   { name: 'ui_v1_9_2', bench: 'ui_v1_9_2', args: ['ui_v1_9_2/driver.js'], expect: 0 },
   { name: 'idle_release_network', bench: 'idle_release_network', args: ['idle_release_network/driver.js'], expect: 0 },
+  { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada --controls', args: ['sim_carrera_reentrada.js', '--controls'], expect: 0 },

@@ -41,7 +41,11 @@ const sandbox = {
   HTMLElement: class {},
   WebSocket: { OPEN: 1 },
   document: { createElement: () => fakeEl(), addEventListener() {}, removeEventListener() {} },
-  window: { addEventListener() {}, removeEventListener() {} },
+  // (1.1.0) The page this simulates is a SECURE context with a microphone API: since 1.1.0 the
+  // card checks both before requesting the talk turn (a non-secure page gets the HTTPS notice
+  // instead - that case has its own real-browser bench, mic_https_1_1_0).
+  window: { addEventListener() {}, removeEventListener() {}, isSecureContext: true },
+  navigator: { mediaDevices: { getUserMedia: () => Promise.reject(new Error('no device in the simulation')) } },
   customElements: {
     get: () => undefined,
     define: (name, cls) => { if (name === 'ig-doorbell-view') CardClass = cls; },

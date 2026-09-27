@@ -15,6 +15,11 @@ real cameras, no personal Home Assistant details. The doorbell's interface is de
 - **The card's version is the integration's** (`manifest.json` → `CARD_VERSION`): bump both in
   every build that reaches a device.
 
+- **Secure local connection (1.1.0)**: `https_manager.py` (listener handed to `hass.http.runner`,
+  public-name upkeep), `https_certs.py` (constrained local root, SNI), `https_cloud.py` (the ONLY
+  code that talks to our VPS, voucher + CSR, API_CONTRACT §4-ter), `https_views.py` + `frontend/
+  https-install.html` (install page). User docs: `docs/https.md`. The test image needs `segno`.
+
 Landmines already paid for:
 - **Never serve the card benches with a hand-started `python -m http.server`.** Old servers from
   earlier sessions were still serving the card's former repository on the same ports and paths;

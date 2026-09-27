@@ -6,8 +6,8 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.0.0';
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-26-ig-doorbell`;
+const CARD_VERSION = '1.1.0';
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -5552,7 +5552,73 @@ class IgDoorbellView extends HTMLElement {
       await this._stopTalk();
       return;
     }
+    // (1.1.0) A page opened over plain HTTP is not a secure context, and there the browser has NO
+    // microphone at all (`navigator.mediaDevices` is undefined). Until 1.0.x the tap requested
+    // the turn, getUserMedia threw, and the button just went back to off: a control that does
+    // nothing and says nothing. Now it explains why and leads to the fix, and the turn is not
+    // even requested (holding it without a microphone would silence the other clients).
+    if (!igMicPossible()) {
+      this._showMicNeedsHttps();
+      return;
+    }
     this._requestTalkTurn();
+  }
+
+  // The notice for a blocked microphone. Asks the integration whether its secure local
+  // connection is on (ig_doorbell/https_status) and points to the install page - or, if it is
+  // off, to the integration's option. Same overlay as the quick replies (.ev-panel).
+  async _showMicNeedsHttps() {
+    if (!this.content) return;
+    let st = null;
+    try {
+      st = await this._hass.connection.sendMessagePromise({ type: `${IG_DOMAIN}/https_status` });
+    } catch (err) {
+      console.warn('[ig-doorbell-card] https_status', err);
+    }
+    const T = (k) => igHttpsText(this._hass, k);
+    const esc = (v) => String(v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    let panel = this.content.querySelector('.ig-https-panel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'ev-panel ig-https-panel';
+      panel.style.cssText = 'overflow:auto;';
+      this.content.appendChild(panel);
+    }
+    const desktop = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') &&
+      !(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent || '')) &&
+      window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+    const btn = 'display:block;text-align:center;padding:12px 14px;border-radius:12px;font-weight:700;text-decoration:none;margin:4px 0;';
+    let body = `<p style="margin:0;color:var(--ig-muted);font-size:14px;line-height:1.45">${esc(T('why'))}</p>`;
+    if (st && st.running) {
+      const page = st.install_path || '/ig_doorbell/https';
+      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('setup'))}</p>` +
+        `<a href="${esc(page)}" target="_blank" rel="noopener" style="${btn}color:#fff;background:linear-gradient(135deg,var(--ig-blue),var(--ig-cyan))">${esc(T('open_page'))}</a>`;
+      if (desktop) {
+        body += `<div style="display:flex;gap:12px;align-items:center;margin-top:4px">` +
+          `<img src="${esc(page)}/qr.svg" alt="QR" style="width:120px;height:120px;background:#fff;border-radius:10px;padding:4px;flex:none">` +
+          `<span style="font-size:13px;color:var(--ig-muted)">${esc(T('qr'))}</span></div>`;
+      }
+      if (st.public_url) {
+        body += `<p style="margin:8px 0 0;color:var(--ig-muted);font-size:13px">${esc(T('public'))}</p>` +
+          `<a href="${esc(st.public_url)}" style="font-family:monospace;font-size:13px;color:var(--ig-cyan);word-break:break-all">${esc(st.public_url)}</a>`;
+      }
+    } else if (st && st.enabled) {
+      body += `<p style="margin:6px 0 0;color:var(--ig-amber);font-size:14px">${esc(T('down'))}</p>`;
+    } else {
+      body += `<p style="margin:6px 0 0;color:var(--ig-text);font-size:14px">${esc(T('off'))}</p>` +
+        `<a href="/config/integrations/integration/${IG_DOMAIN}" style="${btn}color:var(--ig-text);background:var(--ig-surf3)">${esc(T('open_integration'))}</a>`;
+    }
+    panel.innerHTML = `
+      <div class="ev-head">
+        <button type="button" class="ev-back ig-https-close" title="${esc(T('close'))}"><ha-icon icon="mdi:chevron-left"></ha-icon></button>
+        <div class="ev-title">${esc(T('title'))}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;padding:4px 6px">${body}</div>`;
+    panel.querySelector('.ig-https-close').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      panel.style.display = 'none';
+    });
+    panel.style.display = 'flex';
   }
 
   async _startTalk() {
@@ -5616,6 +5682,8 @@ class IgDoorbellView extends HTMLElement {
         this._updateMotionPill(); // rule: never visible with the mic active
       } catch (err) {
         console.warn('[ig-doorbell-card] could not activate the microphone', err);
+        // Any other path that reaches here without a secure context gets the same explanation.
+        if (!igMicPossible()) this._showMicNeedsHttps();
         this.talkActive = false;
         this.videoEl.muted = true;
         // Releasing the turn the device had just granted us: holding on to the reserved voice
@@ -6853,4 +6921,131 @@ if (!customElements.get(CARD_TAG)) {
   }
 } else {
   console.warn('[ig-doorbell-card] ig-doorbell-card was already registered (there are probably two resources of this card loaded at the same time, e.g. HACS + /local/) - this copy of the script will not activate');
+}
+
+// ==============================================================================
+// (1.1.0) Microphone and secure context. Browsers expose `navigator.mediaDevices` only to a
+// secure context (HTTPS, or localhost): on `http://<ip>:8123` there is no microphone to ask for.
+// The integration can serve Home Assistant over HTTPS on the home network (its "Secure local
+// connection" option); this notice is how a user who hits the wall finds it.
+// ==============================================================================
+function igMicPossible() {
+  return !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+const IG_HTTPS_TEXT = {
+  en: {
+    title: 'Microphone needs a secure connection',
+    why: 'Browsers only let a page use the microphone over a secure (HTTPS) connection. This page was opened over plain HTTP, so the microphone is blocked.',
+    setup: 'Set up this device once:',
+    open_page: 'Open the setup page',
+    qr: 'Or scan this with your phone to set it up there.',
+    public: 'Or open Home Assistant here, nothing to install:',
+    off: 'The secure local connection is turned off. An administrator can turn it on in Settings › Devices & services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS).',
+    open_integration: 'Open the integration',
+    down: 'The secure local connection is on but not running. See Settings › System › Repairs.',
+    close: 'Close',
+  },
+  es: {
+    title: 'El micrófono necesita una conexión segura',
+    why: 'Los navegadores solo dejan usar el micrófono con una conexión segura (HTTPS). Esta página se abrió por HTTP normal, así que el micrófono está bloqueado.',
+    setup: 'Configura este dispositivo una sola vez:',
+    open_page: 'Abrir la página de configuración',
+    qr: 'O escanea esto con tu teléfono para configurarlo allí.',
+    public: 'O abre Home Assistant aquí, sin instalar nada:',
+    off: 'La conexión local segura está desactivada. Un administrador puede activarla en Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS).',
+    open_integration: 'Abrir la integración',
+    down: 'La conexión local segura está activada pero no funciona. Mira Ajustes › Sistema › Reparaciones.',
+    close: 'Cerrar',
+  },
+  pt: {
+    title: 'O microfone precisa de uma ligação segura',
+    why: 'Os navegadores só deixam usar o microfone numa ligação segura (HTTPS). Esta página foi aberta por HTTP simples, por isso o microfone está bloqueado.',
+    setup: 'Configure este dispositivo uma única vez:',
+    open_page: 'Abrir a página de configuração',
+    qr: 'Ou leia isto com o telemóvel para o configurar lá.',
+    public: 'Ou abra o Home Assistant aqui, sem instalar nada:',
+    off: 'A ligação local segura está desligada. Um administrador pode ligá-la em Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS).',
+    open_integration: 'Abrir a integração',
+    down: 'A ligação local segura está ligada mas não está a funcionar. Veja Definições › Sistema › Reparações.',
+    close: 'Fechar',
+  },
+  de: {
+    title: 'Das Mikrofon braucht eine sichere Verbindung',
+    why: 'Browser erlauben das Mikrofon nur über eine sichere Verbindung (HTTPS). Diese Seite wurde über einfaches HTTP geöffnet, daher ist das Mikrofon gesperrt.',
+    setup: 'Richte dieses Gerät einmalig ein:',
+    open_page: 'Einrichtungsseite öffnen',
+    qr: 'Oder scanne das mit deinem Telefon, um es dort einzurichten.',
+    public: 'Oder öffne Home Assistant hier, ohne etwas zu installieren:',
+    off: 'Die sichere lokale Verbindung ist ausgeschaltet. Ein Administrator kann sie einschalten unter Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS).',
+    open_integration: 'Integration öffnen',
+    down: 'Die sichere lokale Verbindung ist eingeschaltet, läuft aber nicht. Siehe Einstellungen › System › Reparaturen.',
+    close: 'Schließen',
+  },
+  fr: {
+    title: 'Le micro a besoin d’une connexion sécurisée',
+    why: 'Les navigateurs n’autorisent le micro que sur une connexion sécurisée (HTTPS). Cette page a été ouverte en HTTP simple : le micro est donc bloqué.',
+    setup: 'Configurez cet appareil une seule fois :',
+    open_page: 'Ouvrir la page de configuration',
+    qr: 'Ou scannez ceci avec votre téléphone pour le configurer.',
+    public: 'Ou ouvrez Home Assistant ici, sans rien installer :',
+    off: 'La connexion locale sécurisée est désactivée. Un administrateur peut l’activer dans Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS).',
+    open_integration: 'Ouvrir l’intégration',
+    down: 'La connexion locale sécurisée est activée mais ne fonctionne pas. Voir Paramètres › Système › Réparations.',
+    close: 'Fermer',
+  },
+  ru: {
+    title: 'Микрофону нужно защищённое подключение',
+    why: 'Браузеры разрешают микрофон только по защищённому подключению (HTTPS). Эта страница открыта по обычному HTTP, поэтому микрофон заблокирован.',
+    setup: 'Настройте это устройство один раз:',
+    open_page: 'Открыть страницу настройки',
+    qr: 'Или отсканируйте это телефоном, чтобы настроить его.',
+    public: 'Или откройте Home Assistant здесь, ничего не устанавливая:',
+    off: 'Защищённое локальное подключение выключено. Администратор может включить его: Настройки › Устройства и службы › Islautopia Garage Doorbell › Настроить › Защищённое локальное подключение (HTTPS).',
+    open_integration: 'Открыть интеграцию',
+    down: 'Защищённое локальное подключение включено, но не работает. См. Настройки › Система › Исправления.',
+    close: 'Закрыть',
+  },
+  zh: {
+    title: '麦克风需要安全连接',
+    why: '浏览器只允许在安全连接（HTTPS）下使用麦克风。此页面是通过普通 HTTP 打开的，因此麦克风被阻止。',
+    setup: '只需在此设备上设置一次：',
+    open_page: '打开设置页面',
+    qr: '或用手机扫描此码，在手机上设置。',
+    public: '或在此打开 Home Assistant，无需安装：',
+    off: '本地安全连接已关闭。管理员可在 设置 › 设备与服务 › Islautopia Garage Doorbell › 配置 › 本地安全连接（HTTPS） 中开启。',
+    open_integration: '打开集成',
+    down: '本地安全连接已开启但未运行。请查看 设置 › 系统 › 修复。',
+    close: '关闭',
+  },
+  hi: {
+    title: 'माइक्रोफ़ोन को सुरक्षित कनेक्शन चाहिए',
+    why: 'ब्राउज़र माइक्रोफ़ोन केवल सुरक्षित (HTTPS) कनेक्शन पर देते हैं। यह पेज सामान्य HTTP से खुला है, इसलिए माइक्रोफ़ोन अवरुद्ध है।',
+    setup: 'इस डिवाइस को एक बार सेट करें:',
+    open_page: 'सेटअप पेज खोलें',
+    qr: 'या इसे वहाँ सेट करने के लिए अपने फ़ोन से स्कैन करें।',
+    public: 'या Home Assistant यहाँ खोलें, कुछ इंस्टॉल किए बिना:',
+    off: 'सुरक्षित लोकल कनेक्शन बंद है। एडमिनिस्ट्रेटर इसे सेटिंग्स › डिवाइस और सेवाएँ › Islautopia Garage Doorbell › कॉन्फ़िगर करें › सुरक्षित लोकल कनेक्शन (HTTPS) में चालू कर सकता है।',
+    open_integration: 'इंटीग्रेशन खोलें',
+    down: 'सुरक्षित लोकल कनेक्शन चालू है लेकिन चल नहीं रहा। सेटिंग्स › सिस्टम › मरम्मत देखें।',
+    close: 'बंद करें',
+  },
+  ar: {
+    title: 'يحتاج الميكروفون إلى اتصال آمن',
+    why: 'لا تسمح المتصفحات بالميكروفون إلا عبر اتصال آمن (HTTPS). فُتحت هذه الصفحة عبر HTTP عادي، لذا الميكروفون محظور.',
+    setup: 'جهّز هذا الجهاز مرة واحدة:',
+    open_page: 'افتح صفحة الإعداد',
+    qr: 'أو امسح هذا بهاتفك لإعداده عليه.',
+    public: 'أو افتح Home Assistant هنا دون تثبيت أي شيء:',
+    off: 'الاتصال المحلي الآمن متوقف. يمكن للمسؤول تفعيله من الإعدادات › الأجهزة والخدمات › Islautopia Garage Doorbell › تهيئة › اتصال محلي آمن (HTTPS).',
+    open_integration: 'افتح التكامل',
+    down: 'الاتصال المحلي الآمن مفعّل لكنه لا يعمل. راجع الإعدادات › النظام › الإصلاحات.',
+    close: 'إغلاق',
+  },
+};
+
+function igHttpsText(hass, key) {
+  const lang = (hass && hass.language) ? hass.language.substring(0, 2) : 'en';
+  const table = IG_HTTPS_TEXT[lang] || IG_HTTPS_TEXT.en;
+  return table[key] !== undefined ? table[key] : IG_HTTPS_TEXT.en[key];
 }

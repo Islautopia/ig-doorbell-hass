@@ -3,7 +3,8 @@
     "step": {
       "init": {
         "menu_options": {
-          "entities": "Entités que la sonnette peut actionner"
+          "entities": "Entités que la sonnette peut actionner",
+          "https": "Connexion locale sécurisée (HTTPS)"
         }
       },
       "entities": {
@@ -12,10 +13,27 @@
         "data": {
           "entities": "Entités"
         }
+      },
+      "https": {
+        "title": "Connexion locale sécurisée (HTTPS)",
+        "description": "Sert ce Home Assistant en HTTPS sur votre réseau domestique, sur un port à part, pour que les navigateurs autorisent la carte de la sonnette à utiliser le micro (audio bidirectionnel). Désactivée par défaut. Le port et les réglages propres de Home Assistant ne sont pas modifiés.\n\n**Ce n’est pas un accès à distance.** Cela ne remplace ni Home Assistant Cloud ni votre propre domaine avec un proxy inverse.\n\nDeux adresses :\n- **Nom public** – rien à installer sur vos appareils. Un certificat reconnu publiquement pour un nom comme `<id>.ha.doorbell.islautopia.com`. Nécessite une IG Doorbell appairée ici en administrateur et enregistrée auprès du cloud Islautopia : la sonnette se porte garante de ce Home Assistant. Le cloud n’est contacté que pour cela et ne reçoit jamais la clé privée du certificat. Nécessite internet pour trouver le nom.\n- **Adresse locale** (IP ou homeassistant.local) – fonctionne sans internet et sans sonnette. Le certificat vient de l’autorité de certification locale de cette intégration : installez son certificat racine une fois sur chaque appareil.\n\nConfigurez vos appareils : [page d’installation]({install_url}) · [Fonctionnement]({docs_url})",
+        "data": {
+          "enabled": "Activer HTTPS",
+          "port": "Port"
+        },
+        "data_description": {
+          "enabled": "Ouvre le port HTTPS et tient ses certificats à jour.",
+          "port": "8443 par défaut. Il doit être libre sur la machine Home Assistant."
+        }
       }
     },
     "error": {
-      "too_many": "Trop d'entités : choisissez-en {max} au maximum"
+      "too_many": "Trop d'entités : choisissez-en {max} au maximum",
+      "port_in_use": "Le port {port} est déjà utilisé par un autre programme. Choisissez-en un autre.",
+      "port_is_ha": "C’est le port de Home Assistant lui-même. Choisissez-en un autre."
+    },
+    "abort": {
+      "https_unavailable": "HTTPS n’est pas disponible dans ce Home Assistant."
     }
   },
   "entity": {
@@ -74,6 +92,39 @@
       "rec": {
         "name": "Enregistrement manuel"
       }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Connexion locale sécurisée : le port {port} est occupé",
+      "description": "Un autre programme utilise déjà le port {port} : la connexion locale sécurisée (HTTPS) n’a pas pu démarrer. Choisissez un autre port dans Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS). Rien d’autre n’est affecté."
+    },
+    "https_unsupported": {
+      "title": "Connexion locale sécurisée non prise en charge",
+      "description": "Cette version de Home Assistant ne permet pas à l’intégration de servir HTTPS comme elle en a besoin. La connexion locale sécurisée est désactivée ; tout le reste fonctionne. Mettez à jour Home Assistant ou l’intégration."
+    },
+    "https_public_name_admin_required": {
+      "title": "Nom public indisponible : appairage invité",
+      "description": "La sonnette ne se porte garante que d’un Home Assistant appairé en administrateur, et celui-ci est appairé en invité (user). L’adresse locale sécurisée fonctionne comme d’habitude : installez son certificat racine sur vos appareils depuis la page d’installation. Pour obtenir le nom public, réappairez avec un compte administrateur (Configurer › Réappairer)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Nom public indisponible : sonnette non enregistrée",
+      "description": "La sonnette n’est pas enregistrée auprès du cloud Islautopia : elle ne peut donc pas se porter garante de ce Home Assistant. L’adresse locale sécurisée fonctionne comme d’habitude : installez son certificat racine sur vos appareils depuis la page d’installation."
+    },
+    "https_public_name_taken": {
+      "title": "Le nom public de la sonnette appartient à un autre Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Déplacer le nom public ici ?",
+            "description": "Chaque sonnette a un seul nom public pour Home Assistant, et {hostname} est utilisé par un autre Home Assistant. S’il doit revenir à celui-ci (par exemple après une réinstallation), déplacez-le ici. L’autre continue de fonctionner jusqu’à l’expiration de son certificat, puis n’a plus que son adresse locale.\n\nLe nom public pointera vers ce Home Assistant et son certificat sera émis pour lui. L’autre Home Assistant ne pourra plus renouveler le sien."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Nom public indisponible",
+      "description": "Le nom public pour Home Assistant n’a pas pu être obtenu ({code}). L’adresse locale sécurisée n’est pas affectée. La documentation de l’intégration explique chaque code."
     }
   }
 }

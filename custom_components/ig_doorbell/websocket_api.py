@@ -9,7 +9,7 @@ user who opened a dashboard, and the card used it to talk to the doorbell's publ
 the cloud relay. The card now talks ONLY to this Home Assistant (signal_proxy.py,
 recordings_view.py), which adds the credential server-side and reaches the doorbell over the LAN.
 
-Three commands:
+Four commands:
   - ig_doorbell/get_connection_info: the device id and the entity ids the card reads
     (the live-view timeout `number` and the events `event`, so a ring can wake a paused card).
   - ig_doorbell/get_local_signal_url: a short-lived signed URL for the signalling proxy.
@@ -17,6 +17,8 @@ Three commands:
     fresh over the LAN each time - same "the card shows, the integration exposes" rule as the
     other two. The card plays one with the existing `play_sequence` service (services.py); this
     command only supplies the list, never a credential.
+  - ig_doorbell/https_status: whether local HTTPS is on and where its install page is, so the
+    card can explain a blocked microphone instead of failing silently.
 """
 from __future__ import annotations
 
@@ -41,6 +43,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_get_connection_info)
     websocket_api.async_register_command(hass, websocket_get_local_signal_url)
     websocket_api.async_register_command(hass, websocket_get_quick_replies)
+    websocket_api.async_register_command(hass, websocket_https_status)
 
 
 def _find_entry_data(hass: HomeAssistant, device_id: str) -> dict | None:
@@ -183,3 +186,29 @@ async def websocket_get_quick_replies(hass: HomeAssistant, connection, msg) -> N
         return
 
     connection.send_result(msg["id"], {"quick_replies": quick_replies})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "ig_doorbell/https_status"})
+@callback
+def websocket_https_status(hass: HomeAssistant, connection, msg) -> None:
+    """Whether the local HTTPS port is on, and where its install page is.
+
+    Asked by the card when the user taps the microphone on a page that is NOT a secure context:
+    instead of failing silently, the card explains why and points to the install page (or, if
+    HTTPS is off, to the integration's option). Nothing secret: no key, no credential.
+    """
+    from .https_manager import INSTALL_PATH, get_manager  # noqa: PLC0415
+
+    mgr = get_manager(hass)
+    status = mgr.status() if mgr is not None else {"enabled": False, "running": False}
+    connection.send_result(
+        msg["id"],
+        {
+            "enabled": bool(status.get("enabled")),
+            "running": bool(status.get("running")),
+            "port": status.get("port"),
+            "install_path": INSTALL_PATH,
+            "install_url": status.get("install_url"),
+            "public_url": (status.get("public") or {}).get("url"),
+        },
+    )

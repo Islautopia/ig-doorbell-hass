@@ -40,6 +40,7 @@ from urllib.parse import urlparse
 
 from homeassistant.components import network, persistent_notification
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -58,6 +59,8 @@ from .const import (
     MAX_ENTITIES,
 )
 from .card import async_register_card
+from .https_manager import async_setup_manager, get_manager
+from .https_views import async_register_https_views
 from .coordinator import DoorbellCoordinator
 from .recordings_view import async_register_recordings_view
 from .services import async_register_services
@@ -76,6 +79,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_signal_proxy(hass)
     async_register_recordings_view(hass)
     async_register_services(hass)
+    # Local HTTPS for Home Assistant (off by default; https_manager.py). Views first: the install
+    # page also explains how to turn it on when it is off.
+    async_register_https_views(hass)
+    mgr = await async_setup_manager(hass)
+
+    async def _stop(_event: Event) -> None:
+        await mgr.async_shutdown()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stop)
     return True
 
 
@@ -196,6 +208,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    if (mgr := get_manager(hass)) is not None:
+        # The first doorbell added at runtime starts HTTPS if it was left enabled.
+        hass.async_create_task(mgr.async_apply(), eager_start=False)
     return True
 
 
@@ -682,6 +697,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         # entry in `hass.data` any more, because unloading runs before this. Without this close,
         # every uninstall leaves behind an open connector and its resolution thread.
         await session.close()
+    # The last doorbell gone: HTTPS stops (the setting is kept for a doorbell added later).
+    if (mgr := get_manager(hass)) is not None:
+        await mgr.async_apply()
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

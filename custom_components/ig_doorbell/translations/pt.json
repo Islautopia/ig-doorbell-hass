@@ -3,7 +3,8 @@
     "step": {
       "init": {
         "menu_options": {
-          "entities": "Entidades que a campainha pode acionar"
+          "entities": "Entidades que a campainha pode acionar",
+          "https": "Ligação local segura (HTTPS)"
         }
       },
       "entities": {
@@ -12,10 +13,27 @@
         "data": {
           "entities": "Entidades"
         }
+      },
+      "https": {
+        "title": "Ligação local segura (HTTPS)",
+        "description": "Serve este Home Assistant por HTTPS na sua rede de casa, numa porta própria, para que os navegadores deixem o cartão da campainha usar o microfone (áudio bidirecional). Desligada por predefinição. A porta e as definições do próprio Home Assistant não são alteradas.\n\n**Isto não é acesso remoto.** Não substitui o Home Assistant Cloud nem o seu próprio domínio com proxy inverso.\n\nDá dois endereços:\n- **Nome público** – nada para instalar nos dispositivos. Um certificado de confiança pública para um nome como `<id>.ha.doorbell.islautopia.com`. Precisa de uma IG Doorbell emparelhada aqui como administrador e registada na nuvem da Islautopia: a campainha dá garantias por este Home Assistant. Só para isto a nuvem é contactada, e nunca recebe a chave privada do certificado. Precisa de internet para encontrar o nome.\n- **Endereço local** (IP ou homeassistant.local) – funciona sem internet e sem campainha. O certificado vem da autoridade de certificação local desta integração: instale o seu certificado raiz uma vez em cada dispositivo.\n\nConfigure os seus dispositivos: [página de instalação]({install_url}) · [Como funciona]({docs_url})",
+        "data": {
+          "enabled": "Ativar HTTPS",
+          "port": "Porta"
+        },
+        "data_description": {
+          "enabled": "Abre a porta HTTPS e mantém os seus certificados atualizados.",
+          "port": "Predefinição 8443. Tem de estar livre na máquina do Home Assistant."
+        }
       }
     },
     "error": {
-      "too_many": "Demasiadas entidades - escolha no máximo {max}"
+      "too_many": "Demasiadas entidades - escolha no máximo {max}",
+      "port_in_use": "A porta {port} já está a ser usada por outro programa. Escolha outra.",
+      "port_is_ha": "Essa é a porta do próprio Home Assistant. Escolha outra."
+    },
+    "abort": {
+      "https_unavailable": "O HTTPS não está disponível neste Home Assistant."
     }
   },
   "entity": {
@@ -74,6 +92,39 @@
       "rec": {
         "name": "Gravação manual"
       }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Ligação local segura: a porta {port} está ocupada",
+      "description": "Outro programa já usa a porta {port}, por isso a ligação local segura (HTTPS) não arrancou. Escolha outra porta em Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS). Nada mais é afetado."
+    },
+    "https_unsupported": {
+      "title": "Ligação local segura não suportada",
+      "description": "Esta versão do Home Assistant não permite à integração servir HTTPS como precisa. A ligação local segura está desligada; tudo o resto funciona. Atualize o Home Assistant ou a integração."
+    },
+    "https_public_name_admin_required": {
+      "title": "Nome público indisponível: emparelhamento de convidado",
+      "description": "A campainha só dá garantias por um Home Assistant emparelhado como administrador, e este está emparelhado como convidado (user). O endereço local seguro funciona como sempre: instale o seu certificado raiz nos dispositivos a partir da página de instalação. Para ter o nome público, volte a emparelhar com uma conta de administrador (Configurar › Voltar a emparelhar)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Nome público indisponível: campainha não registada",
+      "description": "A campainha não está registada na nuvem da Islautopia, por isso não pode dar garantias por este Home Assistant. O endereço local seguro funciona como sempre: instale o seu certificado raiz nos dispositivos a partir da página de instalação."
+    },
+    "https_public_name_taken": {
+      "title": "O nome público da campainha pertence a outro Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Trazer o nome público para aqui?",
+            "description": "Cada campainha tem um único nome público para o Home Assistant, e {hostname} está a ser usado por outro Home Assistant. Se pertence a este (por exemplo, depois de reinstalar), traga-o para aqui. O outro continua a funcionar até o seu certificado expirar e depois fica só com o endereço local.\n\nO nome público passará a apontar para este Home Assistant e o certificado será emitido para ele. O outro Home Assistant não poderá renovar o seu."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Nome público indisponível",
+      "description": "Não foi possível obter o nome público para o Home Assistant ({code}). O endereço local seguro não é afetado. A documentação da integração explica cada código."
     }
   }
 }

@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>IG Doorbell · Secure connection</title>
+<link rel="icon" href="/ig_doorbell/https/logo.png">
+<style>
+  :root {
+    --ig-lime:#78C800; --ig-cyan:#00C4D4; --ig-blue:#1976D2; --ig-blue-dark:#1565C0;
+    --ig-bg:#070D1A; --ig-surf1:#0D1B2E; --ig-surf2:#162336; --ig-surf3:#1D2D42;
+    --ig-text:#E8F0FE; --ig-muted:#94A3B8; --ig-dim:#64748B; --ig-faint:#334155;
+    --ig-green:#4CAF50; --ig-red:#EF5350; --ig-amber:#FFB300;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ig-bg); color: var(--ig-text); }
+  body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  header img { width: 52px; height: 52px; flex: none; }
+  header .brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ig-cyan); font-weight: 600; }
+  h1 { font-size: 24px; line-height: 1.25; margin: 2px 0 0; }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--ig-muted); margin: 12px 0 20px; }
+  .card { background: var(--ig-surf1); border: 1px solid var(--ig-faint); border-radius: 16px; padding: 18px; margin: 0 0 16px; }
+  .card.warn { border-color: var(--ig-amber); }
+  .card.bad { border-color: var(--ig-red); }
+  .muted { color: var(--ig-muted); font-size: 14px; }
+  .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; word-break: break-all;
+          background: var(--ig-surf2); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; display: block; color: var(--ig-text); text-decoration: none; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .tabs button { font: inherit; font-size: 14px; color: var(--ig-muted); background: var(--ig-surf2); border: 1px solid var(--ig-faint);
+                 border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { color: var(--ig-bg); background: var(--ig-cyan); border-color: var(--ig-cyan); font-weight: 600; }
+  .big { display: block; width: 100%; text-align: center; font: inherit; font-size: 17px; font-weight: 700; color: #fff;
+         background: linear-gradient(135deg, var(--ig-blue), var(--ig-cyan)); border: 0; border-radius: 14px; padding: 16px 18px;
+         text-decoration: none; cursor: pointer; margin: 6px 0 16px; }
+  .big.secondary { background: var(--ig-surf3); color: var(--ig-text); border: 1px solid var(--ig-faint); font-weight: 600; }
+  .big.check { background: linear-gradient(135deg, #5a9900, var(--ig-lime)); color: #0b1400; }
+  .big:disabled { opacity: .6; cursor: progress; }
+  ol { margin: 0 0 12px; padding-inline-start: 22px; }
+  ol li { margin: 0 0 10px; }
+  b { color: #fff; }
+  .result { display: none; border-radius: 12px; padding: 14px 16px; margin: 4px 0 0; }
+  .result.ok { display: block; background: rgba(76,175,80,.12); border: 1px solid var(--ig-green); }
+  .result.fail { display: block; background: rgba(239,83,80,.10); border: 1px solid var(--ig-red); }
+  .result h3 { margin: 0 0 6px; font-size: 17px; }
+  .qr { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .qr img { width: 168px; height: 168px; background: #fff; border-radius: 12px; padding: 6px; flex: none; }
+  .qr p { flex: 1 1 200px; margin: 0; }
+  details { margin-top: 8px; }
+  details summary { cursor: pointer; color: var(--ig-muted); font-size: 14px; }
+  details .fp { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; color: var(--ig-muted); }
+  dl { margin: 10px 0 0; font-size: 14px; }
+  dt { color: var(--ig-muted); margin-top: 8px; }
+  dd { margin: 2px 0 0; }
+  .note { border-inline-start: 3px solid var(--ig-cyan); padding: 2px 0 2px 12px; color: var(--ig-muted); font-size: 14px; margin: 0 0 12px; }
+  footer { color: var(--ig-dim); font-size: 12px; text-align: center; margin-top: 28px; }
+  select { font: inherit; font-size: 13px; background: var(--ig-surf2); color: var(--ig-muted); border: 1px solid var(--ig-faint); border-radius: 8px; padding: 2px 6px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 380px) { h1 { font-size: 21px; } .qr img { width: 140px; height: 140px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/ig_doorbell/https/logo.png" alt="">
+    <div>
+      <div class="brand">IG Doorbell</div>
+      <h1 data-t="title"></h1>
+    </div>
+  </header>
+  <p class="lead" data-t="lead"></p>
+
+  <div id="loading" class="card"><p class="muted" data-t="loading"></p></div>
+
+  <div id="off" class="card warn" hidden>
+    <h2 data-t="off_title"></h2>
+    <p data-t="off_body"></p>
+  </div>
+
+  <div id="down" class="card bad" hidden>
+    <h2 data-t="down_title"></h2>
+    <p id="down_body"></p>
+  </div>
+
+  <section id="public" class="card" hidden>
+    <h2 data-t="pub_title"></h2>
+    <p data-t="pub_body"></p>
+    <a id="pub_url" class="addr" href="#"></a>
+    <button id="pub_check" class="big secondary" type="button" data-t="check_btn"></button>
+    <div id="pub_result" class="result"></div>
+    <p class="note" data-t="pub_note"></p>
+  </section>
+
+  <section id="local" class="card" hidden>
+    <h2 id="local_title"></h2>
+    <p data-t="local_body"></p>
+
+    <div class="tabs" role="group">
+      <button type="button" data-dev="ios" data-t="dev_ios"></button>
+      <button type="button" data-dev="android" data-t="dev_android"></button>
+      <button type="button" data-dev="desktop" data-t="dev_desktop"></button>
+    </div>
+
+    <div id="qr" class="qr" hidden>
+      <img id="qr_img" alt="QR">
+      <p data-t="desktop_qr"></p>
+    </div>
+
+    <div data-for="ios" hidden>
+      <a class="big" href="/ig_doorbell/https/root.mobileconfig" data-t="btn_ios"></a>
+      <ol data-list="ios_steps"></ol>
+    </div>
+    <div data-for="android" hidden>
+      <a class="big" href="/ig_doorbell/https/root.crt" download="ig-doorbell-ha-root.crt" data-t="btn_download"></a>
+      <ol data-list="android_steps"></ol>
+      <p class="note" data-t="android_note"></p>
+    </div>
+    <div data-for="desktop" hidden>
+      <p style="margin-top:16px" data-t="desktop_this"></p>
+      <a class="big" href="/ig_doorbell/https/root.crt" download="ig-doorbell-ha-root.crt" data-t="btn_download"></a>
+      <div class="tabs" role="group">
+        <button type="button" data-os="win">Windows</button>
+        <button type="button" data-os="mac">macOS</button>
+        <button type="button" data-os="linux">Linux · ChromeOS</button>
+      </div>
+      <ol data-os-list="win" data-list="win_steps" hidden></ol>
+      <ol data-os-list="mac" data-list="mac_steps" hidden></ol>
+      <ol data-os-list="linux" data-list="linux_steps" hidden></ol>
+      <p class="note" data-t="firefox_note"></p>
+    </div>
+
+    <button id="check" class="big check" type="button" data-t="check_btn"></button>
+    <div id="result" class="result"></div>
+
+    <details>
+      <summary data-t="details"></summary>
+      <dl>
+        <dt data-t="d_addr"></dt><dd id="d_addr"></dd>
+        <dt data-t="d_name"></dt><dd id="d_name"></dd>
+        <dt data-t="d_fp"></dt><dd class="fp" id="d_fp"></dd>
+        <dt data-t="d_scope_t"></dt><dd id="d_scope"></dd>
+        <dt data-t="d_key_t"></dt><dd data-t="d_key"></dd>
+      </dl>
+    </details>
+  </section>
+
+  <p class="note" data-t="remote_note"></p>
+
+  <footer>
+    <span>IG Doorbell · Islautopia</span> ·
+    <select id="lang" aria-label="Language"></select>
+  </footer>
+</main>
+
+<script>
+'use strict';
+// Every string the owner reads is here, in each language the integration speaks. Technical
+// identifiers (fingerprint, addresses, "CA certificate" as the settings screens name it) are
+// shown as they are. Fallback is English, never the development language.
+const T = {
+en: {
+  _name: 'English',
+  title: 'Secure connection for Home Assistant',
+  lead: 'Browsers only let a page use the microphone when it is served securely (HTTPS). Do this once on each phone, tablet or computer you use to talk through the doorbell card.',
+  loading: 'Loading…',
+  off_title: 'Secure connection is turned off',
+  off_body: 'Turn it on in Home Assistant: <b>Settings › Devices &amp; services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS)</b>. Then reload this page.',
+  down_title: 'Secure connection is not running',
+  down_port: 'Port {port} is already used by another program. Choose another port in the integration options (Settings › Devices &amp; services › Islautopia Garage Doorbell › Configure).',
+  down_other: 'See <b>Settings › System › Repairs</b> in Home Assistant for the reason.',
+  pub_title: 'Easiest: nothing to install',
+  pub_body: 'Your doorbell vouched for this Home Assistant, so it has a certificate every device already trusts. Open Home Assistant at:',
+  pub_note: 'This address needs internet to look up the name. Some routers block names that point to a home address (“DNS rebinding protection”). If it does not open, use the local address below.',
+  pub_fail: 'This device could not open the public name: no internet right now, or your router blocks it (DNS rebinding protection). Use the local address below instead.',
+  local_title: 'Install the certificate on this device',
+  local_title_alt: 'Or: works even without internet',
+  local_body: 'Home Assistant has its own local certificate authority. Install its root certificate once on this device and the secure address works on your home network, even with no internet.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Computer',
+  btn_ios: 'Install on this iPhone or iPad',
+  btn_download: 'Download the certificate',
+  ios_steps: [
+    'Use <b>Safari</b> (other browsers cannot install profiles). Tap the button above, then <b>Allow</b>.',
+    'Open <b>Settings</b> and tap <b>Profile Downloaded</b> near the top (or <b>Settings › General › VPN &amp; Device Management</b>). Tap <b>Install</b> and enter your passcode.',
+    'The step everyone misses: <b>Settings › General › About › Certificate Trust Settings</b>. Turn on <b>{ca}</b> and confirm.',
+    'Come back here and tap <b>Check</b>.'],
+  android_steps: [
+    'Tap the button above to download the certificate.',
+    'Open <b>Settings › Security › Encryption &amp; credentials › Install a certificate › CA certificate</b>. On Samsung: <b>Settings › Security and privacy › More security settings › Install from device storage › CA certificate</b>. If your phone differs, search Settings for “CA certificate”.',
+    'Tap <b>Install anyway</b> and choose <b>ig-doorbell-ha-root.crt</b> from Downloads.',
+    'Come back here and tap <b>Check</b>.'],
+  android_note: 'Android will then show “Network may be monitored”. That is its standard notice for any certificate you install yourself.',
+  desktop_qr: 'Setting up a phone? Scan this code with its camera to open this page there.',
+  desktop_this: 'To set up <b>this computer</b>:',
+  win_steps: [
+    'Download the certificate and double-click it. Choose <b>Install Certificate…</b>',
+    'Choose <b>Current User</b>, then <b>Place all certificates in the following store › Browse › Trusted Root Certification Authorities</b>.',
+    '<b>Next › Finish</b>, and accept the security warning.',
+    'Close and reopen the browser, come back here and click <b>Check</b>.'],
+  mac_steps: [
+    'Download the certificate and double-click it. Keychain Access opens: add it to the <b>login</b> keychain.',
+    'Double-click <b>{ca}</b> in the list, open <b>Trust</b> and set <b>When using this certificate</b> to <b>Always Trust</b>. Close the window and enter your password.',
+    'Close and reopen the browser, come back here and click <b>Check</b>.'],
+  linux_steps: [
+    'Download the certificate.',
+    'In Chrome: <b>Settings › Privacy and security › Security › Manage certificates</b>, then <b>Authorities › Import</b>, pick the file and tick <b>Trust this certificate for identifying websites</b>.',
+    'Come back here and click <b>Check</b>.'],
+  firefox_note: 'Firefox keeps its own list: Settings › Privacy &amp; Security › Certificates › View Certificates › Authorities › Import.',
+  check_btn: 'Check',
+  checking: 'Checking…',
+  ok_title: 'Ready',
+  ok_body: 'This device trusts the secure connection. Open Home Assistant at this address and the doorbell card can use the microphone:',
+  ok_open: 'Open Home Assistant securely',
+  ok_here: 'You are already on the secure connection. The doorbell card can use the microphone here.',
+  fail_title: 'Not ready yet',
+  fail_ios: 'This iPhone or iPad does not trust the certificate yet. Usually the last step is missing: <b>Settings › General › About › Certificate Trust Settings</b> › turn on <b>{ca}</b>.',
+  fail_android: 'This device does not trust the certificate yet. Make sure you installed it as a <b>CA certificate</b> (not “VPN and app user certificate” or “Wi-Fi certificate”), then try again.',
+  fail_desktop: 'This computer does not trust the certificate yet. After installing it, close and reopen the browser completely, then try again.',
+  fail_port: 'If it still fails, port {port} may be blocked between this device and Home Assistant.',
+  details: 'Technical details',
+  d_addr: 'Secure addresses', d_name: 'Root certificate', d_fp: 'Fingerprint (SHA-256)',
+  d_scope_t: 'What it can vouch for',
+  d_scope: 'Only private network addresses, names ending in .local, and Home Assistant names under ha.doorbell.islautopia.com. It cannot vouch for any other website.',
+  d_scope_none: 'This root has no name restrictions: whoever holds its key could vouch for any website to the devices that trust it.',
+  d_key_t: 'Where its key lives',
+  d_key: 'In the Home Assistant configuration folder (ig_doorbell_https). Anything that can read that folder — backups, file-sharing or editor add-ons, other custom integrations — could use it to impersonate this Home Assistant on your devices. Keep your backups encrypted.',
+  remote_note: 'This is for your home network. It does not give you access from outside: for that you still need Home Assistant Cloud or your own remote access.'
+},
+es: {
+  _name: 'Español',
+  title: 'Conexión segura para Home Assistant',
+  lead: 'Los navegadores solo dejan usar el micrófono a una página servida de forma segura (HTTPS). Hazlo una vez en cada teléfono, tablet u ordenador con el que quieras hablar desde la tarjeta del portero.',
+  loading: 'Cargando…',
+  off_title: 'La conexión segura está desactivada',
+  off_body: 'Actívala en Home Assistant: <b>Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS)</b>. Luego recarga esta página.',
+  down_title: 'La conexión segura no está funcionando',
+  down_port: 'El puerto {port} ya lo usa otro programa. Elige otro puerto en las opciones de la integración (Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar).',
+  down_other: 'Mira el motivo en <b>Ajustes › Sistema › Reparaciones</b> de Home Assistant.',
+  pub_title: 'Lo más fácil: sin instalar nada',
+  pub_body: 'Tu portero ha avalado este Home Assistant, así que tiene un certificado en el que ya confían todos los dispositivos. Abre Home Assistant en:',
+  pub_note: 'Esta dirección necesita internet para buscar el nombre. Algunos routers bloquean nombres que apuntan a una dirección de casa («protección contra DNS rebinding»). Si no abre, usa la dirección local de abajo.',
+  pub_fail: 'Este dispositivo no pudo abrir el nombre público: ahora no hay internet, o tu router lo bloquea (protección contra DNS rebinding). Usa la dirección local de abajo.',
+  local_title: 'Instala el certificado en este dispositivo',
+  local_title_alt: 'O bien: funciona incluso sin internet',
+  local_body: 'Home Assistant tiene su propia autoridad de certificación local. Instala su certificado raíz una vez en este dispositivo y la dirección segura funcionará en tu red de casa, incluso sin internet.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Ordenador',
+  btn_ios: 'Instalar en este iPhone o iPad',
+  btn_download: 'Descargar el certificado',
+  ios_steps: [
+    'Usa <b>Safari</b> (otros navegadores no pueden instalar perfiles). Pulsa el botón de arriba y después <b>Permitir</b>.',
+    'Abre <b>Ajustes</b> y pulsa <b>Perfil descargado</b>, arriba del todo (o <b>Ajustes › General › VPN y gestión de dispositivos</b>). Pulsa <b>Instalar</b> e introduce tu código.',
+    'El paso que todo el mundo se salta: <b>Ajustes › General › Información › Ajustes de confianza de certificados</b>. Activa <b>{ca}</b> y confirma.',
+    'Vuelve aquí y pulsa <b>Comprobar</b>.'],
+  android_steps: [
+    'Pulsa el botón de arriba para descargar el certificado.',
+    'Abre <b>Ajustes › Seguridad › Cifrado y credenciales › Instalar un certificado › Certificado de CA</b>. En Samsung: <b>Ajustes › Seguridad y privacidad › Más ajustes de seguridad › Instalar desde almacenamiento del dispositivo › Certificado de CA</b>. Si tu teléfono es distinto, busca «certificado de CA» en Ajustes.',
+    'Pulsa <b>Instalar de todos modos</b> y elige <b>ig-doorbell-ha-root.crt</b> en Descargas.',
+    'Vuelve aquí y pulsa <b>Comprobar</b>.'],
+  android_note: 'Después Android mostrará «Es posible que la red esté supervisada». Es su aviso habitual para cualquier certificado que instales tú.',
+  desktop_qr: '¿Vas a configurar un teléfono? Escanea este código con su cámara para abrir esta página en él.',
+  desktop_this: 'Para configurar <b>este ordenador</b>:',
+  win_steps: [
+    'Descarga el certificado y haz doble clic. Elige <b>Instalar certificado…</b>',
+    'Elige <b>Usuario actual</b> y luego <b>Colocar todos los certificados en el siguiente almacén › Examinar › Entidades de certificación raíz de confianza</b>.',
+    '<b>Siguiente › Finalizar</b>, y acepta el aviso de seguridad.',
+    'Cierra y vuelve a abrir el navegador, vuelve aquí y pulsa <b>Comprobar</b>.'],
+  mac_steps: [
+    'Descarga el certificado y haz doble clic. Se abre Acceso a Llaveros: añádelo al llavero <b>Inicio de sesión</b>.',
+    'Haz doble clic en <b>{ca}</b>, abre <b>Confiar</b> y en <b>Al utilizar este certificado</b> elige <b>Confiar siempre</b>. Cierra la ventana e introduce tu contraseña.',
+    'Cierra y vuelve a abrir el navegador, vuelve aquí y pulsa <b>Comprobar</b>.'],
+  linux_steps: [
+    'Descarga el certificado.',
+    'En Chrome: <b>Configuración › Privacidad y seguridad › Seguridad › Gestionar certificados</b>, luego <b>Entidades emisoras › Importar</b>, elige el archivo y marca <b>Confiar en este certificado para identificar sitios web</b>.',
+    'Vuelve aquí y pulsa <b>Comprobar</b>.'],
+  firefox_note: 'Firefox tiene su propia lista: Ajustes › Privacidad y seguridad › Certificados › Ver certificados › Autoridades › Importar.',
+  check_btn: 'Comprobar',
+  checking: 'Comprobando…',
+  ok_title: 'Listo',
+  ok_body: 'Este dispositivo confía en la conexión segura. Abre Home Assistant en esta dirección y la tarjeta del portero podrá usar el micrófono:',
+  ok_open: 'Abrir Home Assistant de forma segura',
+  ok_here: 'Ya estás en la conexión segura. Aquí la tarjeta del portero puede usar el micrófono.',
+  fail_title: 'Todavía no',
+  fail_ios: 'Este iPhone o iPad aún no confía en el certificado. Casi siempre falta el último paso: <b>Ajustes › General › Información › Ajustes de confianza de certificados</b> › activa <b>{ca}</b>.',
+  fail_android: 'Este dispositivo aún no confía en el certificado. Comprueba que lo instalaste como <b>Certificado de CA</b> (no como «certificado de usuario de VPN y aplicaciones» ni «de Wi-Fi») y vuelve a probar.',
+  fail_desktop: 'Este ordenador aún no confía en el certificado. Después de instalarlo, cierra el navegador del todo, vuelve a abrirlo y prueba otra vez.',
+  fail_port: 'Si sigue fallando, puede que el puerto {port} esté bloqueado entre este dispositivo y Home Assistant.',
+  details: 'Detalles técnicos',
+  d_addr: 'Direcciones seguras', d_name: 'Certificado raíz', d_fp: 'Huella (SHA-256)',
+  d_scope_t: 'Para qué puede responder',
+  d_scope: 'Solo para direcciones de red privadas, nombres acabados en .local y nombres de Home Assistant bajo ha.doorbell.islautopia.com. No puede responder por ninguna otra web.',
+  d_scope_none: 'Esta raíz no tiene restricciones de nombre: quien tenga su clave podría responder por cualquier web ante los dispositivos que confían en ella.',
+  d_key_t: 'Dónde vive su clave',
+  d_key: 'En la carpeta de configuración de Home Assistant (ig_doorbell_https). Cualquier cosa que pueda leer esa carpeta —copias de seguridad, complementos para compartir o editar archivos, otras integraciones personalizadas— podría usarla para suplantar a este Home Assistant en tus dispositivos. Cifra tus copias de seguridad.',
+  remote_note: 'Esto es para tu red de casa. No te da acceso desde fuera: para eso sigues necesitando Home Assistant Cloud o tu propio acceso remoto.'
+},
+de: {
+  _name: 'Deutsch',
+  title: 'Sichere Verbindung für Home Assistant',
+  lead: 'Browser erlauben das Mikrofon nur auf sicher (per HTTPS) ausgelieferten Seiten. Richte das einmal auf jedem Telefon, Tablet oder Computer ein, mit dem du über die Türklingel-Karte sprechen willst.',
+  loading: 'Wird geladen…',
+  off_title: 'Die sichere Verbindung ist ausgeschaltet',
+  off_body: 'Schalte sie in Home Assistant ein: <b>Einstellungen › Geräte &amp; Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS)</b>. Lade diese Seite danach neu.',
+  down_title: 'Die sichere Verbindung läuft nicht',
+  down_port: 'Port {port} wird bereits von einem anderen Programm benutzt. Wähle in den Optionen der Integration einen anderen Port (Einstellungen › Geräte &amp; Dienste › Islautopia Garage Doorbell › Konfigurieren).',
+  down_other: 'Den Grund findest du in Home Assistant unter <b>Einstellungen › System › Reparaturen</b>.',
+  pub_title: 'Am einfachsten: nichts installieren',
+  pub_body: 'Deine Türklingel hat für diesen Home Assistant gebürgt, daher hat er ein Zertifikat, dem jedes Gerät bereits vertraut. Öffne Home Assistant unter:',
+  pub_note: 'Diese Adresse braucht Internet, um den Namen aufzulösen. Manche Router blockieren Namen, die auf eine Heimadresse zeigen („DNS-Rebind-Schutz“). Wenn sie nicht öffnet, nutze die lokale Adresse unten.',
+  pub_fail: 'Dieses Gerät konnte den öffentlichen Namen nicht öffnen: gerade kein Internet, oder dein Router blockiert ihn (DNS-Rebind-Schutz). Nutze stattdessen die lokale Adresse unten.',
+  local_title: 'Zertifikat auf diesem Gerät installieren',
+  local_title_alt: 'Oder: funktioniert sogar ohne Internet',
+  local_body: 'Home Assistant hat eine eigene lokale Zertifizierungsstelle. Installiere ihr Stammzertifikat einmal auf diesem Gerät, dann funktioniert die sichere Adresse in deinem Heimnetz – auch ohne Internet.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Computer',
+  btn_ios: 'Auf diesem iPhone oder iPad installieren',
+  btn_download: 'Zertifikat herunterladen',
+  ios_steps: [
+    'Nutze <b>Safari</b> (andere Browser können keine Profile installieren). Tippe auf die Schaltfläche oben und dann auf <b>Erlauben</b>.',
+    'Öffne <b>Einstellungen</b> und tippe oben auf <b>Profil geladen</b> (oder <b>Einstellungen › Allgemein › VPN und Geräteverwaltung</b>). Tippe auf <b>Installieren</b> und gib deinen Code ein.',
+    'Der Schritt, den alle übersehen: <b>Einstellungen › Allgemein › Info › Zertifikatsvertrauenseinstellungen</b>. Schalte <b>{ca}</b> ein und bestätige.',
+    'Komm hierher zurück und tippe auf <b>Prüfen</b>.'],
+  android_steps: [
+    'Tippe auf die Schaltfläche oben, um das Zertifikat herunterzuladen.',
+    'Öffne <b>Einstellungen › Sicherheit › Verschlüsselung &amp; Anmeldedaten › Zertifikat installieren › CA-Zertifikat</b>. Bei Samsung: <b>Einstellungen › Sicherheit und Datenschutz › Weitere Sicherheitseinstellungen › Vom Gerätespeicher installieren › CA-Zertifikat</b>. Wenn dein Telefon anders aussieht, suche in den Einstellungen nach „CA-Zertifikat“.',
+    'Tippe auf <b>Trotzdem installieren</b> und wähle <b>ig-doorbell-ha-root.crt</b> unter Downloads.',
+    'Komm hierher zurück und tippe auf <b>Prüfen</b>.'],
+  android_note: 'Android zeigt danach „Netzwerk wird eventuell überwacht“. Das ist der normale Hinweis für jedes selbst installierte Zertifikat.',
+  desktop_qr: 'Ein Telefon einrichten? Scanne diesen Code mit seiner Kamera, um diese Seite dort zu öffnen.',
+  desktop_this: 'Um <b>diesen Computer</b> einzurichten:',
+  win_steps: [
+    'Lade das Zertifikat herunter und doppelklicke es. Wähle <b>Zertifikat installieren…</b>',
+    'Wähle <b>Aktueller Benutzer</b>, dann <b>Alle Zertifikate in folgendem Speicher speichern › Durchsuchen › Vertrauenswürdige Stammzertifizierungsstellen</b>.',
+    '<b>Weiter › Fertig stellen</b> und die Sicherheitswarnung bestätigen.',
+    'Browser schließen und neu öffnen, hierher zurückkommen und auf <b>Prüfen</b> klicken.'],
+  mac_steps: [
+    'Lade das Zertifikat herunter und doppelklicke es. Die Schlüsselbundverwaltung öffnet sich: füge es zum Schlüsselbund <b>Anmeldung</b> hinzu.',
+    'Doppelklicke <b>{ca}</b>, öffne <b>Vertrauen</b> und setze <b>Bei Verwendung dieses Zertifikats</b> auf <b>Immer vertrauen</b>. Fenster schließen und Passwort eingeben.',
+    'Browser schließen und neu öffnen, hierher zurückkommen und auf <b>Prüfen</b> klicken.'],
+  linux_steps: [
+    'Lade das Zertifikat herunter.',
+    'In Chrome: <b>Einstellungen › Datenschutz und Sicherheit › Sicherheit › Zertifikate verwalten</b>, dann <b>Zertifizierungsstellen › Importieren</b>, Datei wählen und <b>Diesem Zertifikat zur Identifizierung von Websites vertrauen</b> ankreuzen.',
+    'Komm hierher zurück und klicke auf <b>Prüfen</b>.'],
+  firefox_note: 'Firefox hat eine eigene Liste: Einstellungen › Datenschutz &amp; Sicherheit › Zertifikate › Zertifikate anzeigen › Zertifizierungsstellen › Importieren.',
+  check_btn: 'Prüfen',
+  checking: 'Wird geprüft…',
+  ok_title: 'Bereit',
+  ok_body: 'Dieses Gerät vertraut der sicheren Verbindung. Öffne Home Assistant unter dieser Adresse, dann kann die Türklingel-Karte das Mikrofon nutzen:',
+  ok_open: 'Home Assistant sicher öffnen',
+  ok_here: 'Du bist bereits auf der sicheren Verbindung. Hier kann die Türklingel-Karte das Mikrofon nutzen.',
+  fail_title: 'Noch nicht bereit',
+  fail_ios: 'Dieses iPhone oder iPad vertraut dem Zertifikat noch nicht. Meist fehlt der letzte Schritt: <b>Einstellungen › Allgemein › Info › Zertifikatsvertrauenseinstellungen</b> › <b>{ca}</b> einschalten.',
+  fail_android: 'Dieses Gerät vertraut dem Zertifikat noch nicht. Prüfe, dass du es als <b>CA-Zertifikat</b> installiert hast (nicht als „VPN- und App-Nutzerzertifikat“ oder „WLAN-Zertifikat“), und versuche es erneut.',
+  fail_desktop: 'Dieser Computer vertraut dem Zertifikat noch nicht. Schließe den Browser nach der Installation vollständig, öffne ihn neu und versuche es erneut.',
+  fail_port: 'Wenn es weiterhin fehlschlägt, ist Port {port} zwischen diesem Gerät und Home Assistant eventuell blockiert.',
+  details: 'Technische Details',
+  d_addr: 'Sichere Adressen', d_name: 'Stammzertifikat', d_fp: 'Fingerabdruck (SHA-256)',
+  d_scope_t: 'Wofür es bürgen kann',
+  d_scope: 'Nur für private Netzwerkadressen, Namen auf .local und Home-Assistant-Namen unter ha.doorbell.islautopia.com. Für keine andere Website.',
+  d_scope_none: 'Dieses Stammzertifikat hat keine Namensbeschränkungen: Wer seinen Schlüssel hat, könnte gegenüber den Geräten, die ihm vertrauen, für jede Website bürgen.',
+  d_key_t: 'Wo sein Schlüssel liegt',
+  d_key: 'Im Konfigurationsordner von Home Assistant (ig_doorbell_https). Alles, was diesen Ordner lesen kann – Backups, Add-ons zum Teilen oder Bearbeiten von Dateien, andere benutzerdefinierte Integrationen –, könnte damit diesen Home Assistant auf deinen Geräten vortäuschen. Verschlüssle deine Backups.',
+  remote_note: 'Das ist für dein Heimnetz. Zugriff von unterwegs bekommst du damit nicht: dafür brauchst du weiterhin Home Assistant Cloud oder einen eigenen Fernzugriff.'
+},
+fr: {
+  _name: 'Français',
+  title: 'Connexion sécurisée pour Home Assistant',
+  lead: 'Les navigateurs n’autorisent le micro que sur une page servie de façon sécurisée (HTTPS). Faites-le une fois sur chaque téléphone, tablette ou ordinateur avec lequel vous voulez parler depuis la carte de la sonnette.',
+  loading: 'Chargement…',
+  off_title: 'La connexion sécurisée est désactivée',
+  off_body: 'Activez-la dans Home Assistant : <b>Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS)</b>. Puis rechargez cette page.',
+  down_title: 'La connexion sécurisée ne fonctionne pas',
+  down_port: 'Le port {port} est déjà utilisé par un autre programme. Choisissez un autre port dans les options de l’intégration (Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer).',
+  down_other: 'La raison est indiquée dans <b>Paramètres › Système › Réparations</b> de Home Assistant.',
+  pub_title: 'Le plus simple : rien à installer',
+  pub_body: 'Votre sonnette s’est portée garante de ce Home Assistant : il a donc un certificat auquel tous les appareils font déjà confiance. Ouvrez Home Assistant à :',
+  pub_note: 'Cette adresse a besoin d’internet pour trouver le nom. Certains routeurs bloquent les noms qui pointent vers une adresse de la maison (« protection contre le DNS rebinding »). Si elle ne s’ouvre pas, utilisez l’adresse locale ci-dessous.',
+  pub_fail: 'Cet appareil n’a pas pu ouvrir le nom public : pas d’internet en ce moment, ou votre routeur le bloque (protection contre le DNS rebinding). Utilisez plutôt l’adresse locale ci-dessous.',
+  local_title: 'Installer le certificat sur cet appareil',
+  local_title_alt: 'Ou : fonctionne même sans internet',
+  local_body: 'Home Assistant a sa propre autorité de certification locale. Installez son certificat racine une fois sur cet appareil et l’adresse sécurisée fonctionnera sur votre réseau domestique, même sans internet.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Ordinateur',
+  btn_ios: 'Installer sur cet iPhone ou iPad',
+  btn_download: 'Télécharger le certificat',
+  ios_steps: [
+    'Utilisez <b>Safari</b> (les autres navigateurs ne peuvent pas installer de profils). Touchez le bouton ci-dessus, puis <b>Autoriser</b>.',
+    'Ouvrez <b>Réglages</b> et touchez <b>Profil téléchargé</b> en haut (ou <b>Réglages › Général › VPN et gestion de l’appareil</b>). Touchez <b>Installer</b> et saisissez votre code.',
+    'L’étape que tout le monde oublie : <b>Réglages › Général › Informations › Réglages des certificats</b>. Activez <b>{ca}</b> et confirmez.',
+    'Revenez ici et touchez <b>Vérifier</b>.'],
+  android_steps: [
+    'Touchez le bouton ci-dessus pour télécharger le certificat.',
+    'Ouvrez <b>Paramètres › Sécurité › Chiffrement et identifiants › Installer un certificat › Certificat CA</b>. Sur Samsung : <b>Paramètres › Sécurité et confidentialité › Autres paramètres de sécurité › Installer depuis le stockage › Certificat CA</b>. Si votre téléphone diffère, cherchez « certificat CA » dans les Paramètres.',
+    'Touchez <b>Installer quand même</b> et choisissez <b>ig-doorbell-ha-root.crt</b> dans Téléchargements.',
+    'Revenez ici et touchez <b>Vérifier</b>.'],
+  android_note: 'Android affichera ensuite « Le réseau peut être surveillé ». C’est son avertissement habituel pour tout certificat installé par vous-même.',
+  desktop_qr: 'Vous configurez un téléphone ? Scannez ce code avec son appareil photo pour y ouvrir cette page.',
+  desktop_this: 'Pour configurer <b>cet ordinateur</b> :',
+  win_steps: [
+    'Téléchargez le certificat et double-cliquez dessus. Choisissez <b>Installer le certificat…</b>',
+    'Choisissez <b>Utilisateur actuel</b>, puis <b>Placer tous les certificats dans le magasin suivant › Parcourir › Autorités de certification racines de confiance</b>.',
+    '<b>Suivant › Terminer</b>, et acceptez l’avertissement de sécurité.',
+    'Fermez et rouvrez le navigateur, revenez ici et cliquez sur <b>Vérifier</b>.'],
+  mac_steps: [
+    'Téléchargez le certificat et double-cliquez dessus. Trousseaux d’accès s’ouvre : ajoutez-le au trousseau <b>session</b>.',
+    'Double-cliquez sur <b>{ca}</b>, ouvrez <b>Se fier</b> et réglez <b>Lors de l’utilisation de ce certificat</b> sur <b>Toujours approuver</b>. Fermez la fenêtre et saisissez votre mot de passe.',
+    'Fermez et rouvrez le navigateur, revenez ici et cliquez sur <b>Vérifier</b>.'],
+  linux_steps: [
+    'Téléchargez le certificat.',
+    'Dans Chrome : <b>Paramètres › Confidentialité et sécurité › Sécurité › Gérer les certificats</b>, puis <b>Autorités › Importer</b>, choisissez le fichier et cochez <b>Faire confiance à ce certificat pour identifier les sites web</b>.',
+    'Revenez ici et cliquez sur <b>Vérifier</b>.'],
+  firefox_note: 'Firefox a sa propre liste : Paramètres › Vie privée et sécurité › Certificats › Afficher les certificats › Autorités › Importer.',
+  check_btn: 'Vérifier',
+  checking: 'Vérification…',
+  ok_title: 'Prêt',
+  ok_body: 'Cet appareil fait confiance à la connexion sécurisée. Ouvrez Home Assistant à cette adresse et la carte de la sonnette pourra utiliser le micro :',
+  ok_open: 'Ouvrir Home Assistant en sécurité',
+  ok_here: 'Vous êtes déjà sur la connexion sécurisée. Ici, la carte de la sonnette peut utiliser le micro.',
+  fail_title: 'Pas encore prêt',
+  fail_ios: 'Cet iPhone ou iPad ne fait pas encore confiance au certificat. Il manque souvent la dernière étape : <b>Réglages › Général › Informations › Réglages des certificats</b> › activez <b>{ca}</b>.',
+  fail_android: 'Cet appareil ne fait pas encore confiance au certificat. Vérifiez que vous l’avez installé comme <b>Certificat CA</b> (pas « certificat utilisateur VPN et applis » ni « certificat Wi-Fi »), puis réessayez.',
+  fail_desktop: 'Cet ordinateur ne fait pas encore confiance au certificat. Après l’installation, fermez complètement le navigateur, rouvrez-le et réessayez.',
+  fail_port: 'Si cela échoue encore, le port {port} est peut-être bloqué entre cet appareil et Home Assistant.',
+  details: 'Détails techniques',
+  d_addr: 'Adresses sécurisées', d_name: 'Certificat racine', d_fp: 'Empreinte (SHA-256)',
+  d_scope_t: 'Ce qu’il peut garantir',
+  d_scope: 'Uniquement les adresses de réseau privé, les noms en .local et les noms Home Assistant sous ha.doorbell.islautopia.com. Aucun autre site web.',
+  d_scope_none: 'Cette racine n’a aucune restriction de nom : quiconque détient sa clé pourrait garantir n’importe quel site web auprès des appareils qui lui font confiance.',
+  d_key_t: 'Où se trouve sa clé',
+  d_key: 'Dans le dossier de configuration de Home Assistant (ig_doorbell_https). Tout ce qui peut lire ce dossier — sauvegardes, modules de partage ou d’édition de fichiers, autres intégrations personnalisées — pourrait s’en servir pour usurper ce Home Assistant sur vos appareils. Chiffrez vos sauvegardes.',
+  remote_note: 'C’est pour votre réseau domestique. Cela ne donne pas d’accès depuis l’extérieur : pour cela, il vous faut toujours Home Assistant Cloud ou votre propre accès à distance.'
+},
+pt: {
+  _name: 'Português',
+  title: 'Ligação segura para o Home Assistant',
+  lead: 'Os navegadores só deixam usar o microfone numa página servida de forma segura (HTTPS). Faça isto uma vez em cada telemóvel, tablet ou computador com que quer falar pelo cartão da campainha.',
+  loading: 'A carregar…',
+  off_title: 'A ligação segura está desligada',
+  off_body: 'Ligue-a no Home Assistant: <b>Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS)</b>. Depois recarregue esta página.',
+  down_title: 'A ligação segura não está a funcionar',
+  down_port: 'A porta {port} já está a ser usada por outro programa. Escolha outra porta nas opções da integração (Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar).',
+  down_other: 'Veja o motivo em <b>Definições › Sistema › Reparações</b> do Home Assistant.',
+  pub_title: 'O mais fácil: nada para instalar',
+  pub_body: 'A sua campainha deu garantias por este Home Assistant, por isso ele tem um certificado em que todos os dispositivos já confiam. Abra o Home Assistant em:',
+  pub_note: 'Este endereço precisa de internet para encontrar o nome. Alguns routers bloqueiam nomes que apontam para um endereço da casa («proteção contra DNS rebinding»). Se não abrir, use o endereço local abaixo.',
+  pub_fail: 'Este dispositivo não conseguiu abrir o nome público: sem internet agora, ou o router bloqueia-o (proteção contra DNS rebinding). Use antes o endereço local abaixo.',
+  local_title: 'Instalar o certificado neste dispositivo',
+  local_title_alt: 'Ou: funciona mesmo sem internet',
+  local_body: 'O Home Assistant tem a sua própria autoridade de certificação local. Instale o certificado raiz uma vez neste dispositivo e o endereço seguro funciona na rede de casa, mesmo sem internet.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Computador',
+  btn_ios: 'Instalar neste iPhone ou iPad',
+  btn_download: 'Descarregar o certificado',
+  ios_steps: [
+    'Use o <b>Safari</b> (outros navegadores não instalam perfis). Toque no botão acima e depois em <b>Permitir</b>.',
+    'Abra <b>Definições</b> e toque em <b>Perfil descarregado</b>, no topo (ou <b>Definições › Geral › VPN e gestão de dispositivos</b>). Toque em <b>Instalar</b> e introduza o código.',
+    'O passo que todos esquecem: <b>Definições › Geral › Informações › Definições de confiança de certificados</b>. Ative <b>{ca}</b> e confirme.',
+    'Volte aqui e toque em <b>Verificar</b>.'],
+  android_steps: [
+    'Toque no botão acima para descarregar o certificado.',
+    'Abra <b>Definições › Segurança › Encriptação e credenciais › Instalar um certificado › Certificado CA</b>. Na Samsung: <b>Definições › Segurança e privacidade › Mais definições de segurança › Instalar do armazenamento do dispositivo › Certificado CA</b>. Se o seu telemóvel for diferente, procure «certificado CA» nas Definições.',
+    'Toque em <b>Instalar mesmo assim</b> e escolha <b>ig-doorbell-ha-root.crt</b> em Transferências.',
+    'Volte aqui e toque em <b>Verificar</b>.'],
+  android_note: 'O Android mostrará depois «A rede pode estar a ser monitorizada». É o aviso normal para qualquer certificado que instale por si.',
+  desktop_qr: 'Vai configurar um telemóvel? Leia este código com a câmara para abrir esta página nele.',
+  desktop_this: 'Para configurar <b>este computador</b>:',
+  win_steps: [
+    'Descarregue o certificado e faça duplo clique. Escolha <b>Instalar certificado…</b>',
+    'Escolha <b>Utilizador atual</b> e depois <b>Colocar todos os certificados no seguinte arquivo › Procurar › Autoridades de certificação de raiz fidedignas</b>.',
+    '<b>Seguinte › Concluir</b>, e aceite o aviso de segurança.',
+    'Feche e volte a abrir o navegador, volte aqui e clique em <b>Verificar</b>.'],
+  mac_steps: [
+    'Descarregue o certificado e faça duplo clique. Abre-se o Acesso a Porta-chaves: adicione-o ao porta-chaves <b>início de sessão</b>.',
+    'Faça duplo clique em <b>{ca}</b>, abra <b>Confiança</b> e em <b>Ao utilizar este certificado</b> escolha <b>Confiar sempre</b>. Feche a janela e introduza a palavra-passe.',
+    'Feche e volte a abrir o navegador, volte aqui e clique em <b>Verificar</b>.'],
+  linux_steps: [
+    'Descarregue o certificado.',
+    'No Chrome: <b>Definições › Privacidade e segurança › Segurança › Gerir certificados</b>, depois <b>Autoridades › Importar</b>, escolha o ficheiro e marque <b>Confiar neste certificado para identificar sites</b>.',
+    'Volte aqui e clique em <b>Verificar</b>.'],
+  firefox_note: 'O Firefox tem a sua própria lista: Definições › Privacidade e segurança › Certificados › Ver certificados › Autoridades › Importar.',
+  check_btn: 'Verificar',
+  checking: 'A verificar…',
+  ok_title: 'Pronto',
+  ok_body: 'Este dispositivo confia na ligação segura. Abra o Home Assistant neste endereço e o cartão da campainha poderá usar o microfone:',
+  ok_open: 'Abrir o Home Assistant em segurança',
+  ok_here: 'Já está na ligação segura. Aqui o cartão da campainha pode usar o microfone.',
+  fail_title: 'Ainda não',
+  fail_ios: 'Este iPhone ou iPad ainda não confia no certificado. Normalmente falta o último passo: <b>Definições › Geral › Informações › Definições de confiança de certificados</b> › ative <b>{ca}</b>.',
+  fail_android: 'Este dispositivo ainda não confia no certificado. Confirme que o instalou como <b>Certificado CA</b> (não como «certificado de utilizador de VPN e apps» nem «de Wi-Fi») e tente outra vez.',
+  fail_desktop: 'Este computador ainda não confia no certificado. Depois de o instalar, feche completamente o navegador, volte a abri-lo e tente outra vez.',
+  fail_port: 'Se continuar a falhar, a porta {port} pode estar bloqueada entre este dispositivo e o Home Assistant.',
+  details: 'Detalhes técnicos',
+  d_addr: 'Endereços seguros', d_name: 'Certificado raiz', d_fp: 'Impressão digital (SHA-256)',
+  d_scope_t: 'Pelo que pode responder',
+  d_scope: 'Apenas endereços de rede privados, nomes terminados em .local e nomes do Home Assistant em ha.doorbell.islautopia.com. Nenhum outro site.',
+  d_scope_none: 'Esta raiz não tem restrições de nome: quem tiver a sua chave poderia responder por qualquer site perante os dispositivos que confiam nela.',
+  d_key_t: 'Onde está a sua chave',
+  d_key: 'Na pasta de configuração do Home Assistant (ig_doorbell_https). Tudo o que consiga ler essa pasta — cópias de segurança, extras de partilha ou edição de ficheiros, outras integrações personalizadas — poderia usá-la para se fazer passar por este Home Assistant nos seus dispositivos. Encripte as suas cópias de segurança.',
+  remote_note: 'Isto é para a sua rede de casa. Não dá acesso a partir de fora: para isso continua a precisar do Home Assistant Cloud ou do seu próprio acesso remoto.'
+},
+ru: {
+  _name: 'Русский',
+  title: 'Защищённое подключение к Home Assistant',
+  lead: 'Браузеры разрешают микрофон только на страницах, открытых по защищённому соединению (HTTPS). Сделайте это один раз на каждом телефоне, планшете или компьютере, с которого хотите говорить через карточку дверного звонка.',
+  loading: 'Загрузка…',
+  off_title: 'Защищённое подключение выключено',
+  off_body: 'Включите его в Home Assistant: <b>Настройки › Устройства и службы › Islautopia Garage Doorbell › Настроить › Защищённое локальное подключение (HTTPS)</b>. Затем обновите эту страницу.',
+  down_title: 'Защищённое подключение не работает',
+  down_port: 'Порт {port} уже занят другой программой. Выберите другой порт в параметрах интеграции (Настройки › Устройства и службы › Islautopia Garage Doorbell › Настроить).',
+  down_other: 'Причина указана в разделе <b>Настройки › Система › Исправления</b> Home Assistant.',
+  pub_title: 'Проще всего: ничего не устанавливать',
+  pub_body: 'Ваш дверной звонок поручился за этот Home Assistant, поэтому у него есть сертификат, которому уже доверяют все устройства. Откройте Home Assistant по адресу:',
+  pub_note: 'Для этого адреса нужен интернет, чтобы найти имя. Некоторые роутеры блокируют имена, указывающие на домашний адрес («защита от DNS rebinding»). Если не открывается, используйте локальный адрес ниже.',
+  pub_fail: 'Это устройство не смогло открыть публичное имя: сейчас нет интернета, или роутер его блокирует (защита от DNS rebinding). Используйте локальный адрес ниже.',
+  local_title: 'Установите сертификат на это устройство',
+  local_title_alt: 'Или: работает даже без интернета',
+  local_body: 'У Home Assistant есть собственный локальный центр сертификации. Установите его корневой сертификат один раз на это устройство, и защищённый адрес будет работать в домашней сети даже без интернета.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'Компьютер',
+  btn_ios: 'Установить на этот iPhone или iPad',
+  btn_download: 'Скачать сертификат',
+  ios_steps: [
+    'Используйте <b>Safari</b> (другие браузеры не устанавливают профили). Нажмите кнопку выше, затем <b>Разрешить</b>.',
+    'Откройте <b>Настройки</b> и нажмите <b>Профиль загружен</b> вверху (или <b>Настройки › Основные › VPN и управление устройством</b>). Нажмите <b>Установить</b> и введите код-пароль.',
+    'Шаг, который все пропускают: <b>Настройки › Основные › Об этом устройстве › Доверие сертификатам</b>. Включите <b>{ca}</b> и подтвердите.',
+    'Вернитесь сюда и нажмите <b>Проверить</b>.'],
+  android_steps: [
+    'Нажмите кнопку выше, чтобы скачать сертификат.',
+    'Откройте <b>Настройки › Безопасность › Шифрование и учётные данные › Установить сертификат › Сертификат ЦС</b>. На Samsung: <b>Настройки › Безопасность и конфиденциальность › Другие параметры безопасности › Установить из памяти устройства › Сертификат ЦС</b>. Если у вас иначе, найдите в настройках «сертификат ЦС».',
+    'Нажмите <b>Всё равно установить</b> и выберите <b>ig-doorbell-ha-root.crt</b> в Загрузках.',
+    'Вернитесь сюда и нажмите <b>Проверить</b>.'],
+  android_note: 'После этого Android покажет «Сеть может отслеживаться». Это его обычное уведомление для любого сертификата, установленного вами.',
+  desktop_qr: 'Настраиваете телефон? Отсканируйте этот код его камерой, чтобы открыть там эту страницу.',
+  desktop_this: 'Чтобы настроить <b>этот компьютер</b>:',
+  win_steps: [
+    'Скачайте сертификат и дважды щёлкните его. Выберите <b>Установить сертификат…</b>',
+    'Выберите <b>Текущий пользователь</b>, затем <b>Поместить все сертификаты в следующее хранилище › Обзор › Доверенные корневые центры сертификации</b>.',
+    '<b>Далее › Готово</b> и примите предупреждение безопасности.',
+    'Закройте и снова откройте браузер, вернитесь сюда и нажмите <b>Проверить</b>.'],
+  mac_steps: [
+    'Скачайте сертификат и дважды щёлкните его. Откроется «Связка ключей»: добавьте его в связку <b>вход</b>.',
+    'Дважды щёлкните <b>{ca}</b>, откройте <b>Доверие</b> и для <b>При использовании этого сертификата</b> выберите <b>Всегда доверять</b>. Закройте окно и введите пароль.',
+    'Закройте и снова откройте браузер, вернитесь сюда и нажмите <b>Проверить</b>.'],
+  linux_steps: [
+    'Скачайте сертификат.',
+    'В Chrome: <b>Настройки › Конфиденциальность и безопасность › Безопасность › Настроить сертификаты</b>, затем <b>Центры сертификации › Импорт</b>, выберите файл и отметьте <b>Доверять этому сертификату при идентификации сайтов</b>.',
+    'Вернитесь сюда и нажмите <b>Проверить</b>.'],
+  firefox_note: 'У Firefox свой список: Настройки › Приватность и защита › Сертификаты › Просмотр сертификатов › Центры сертификации › Импортировать.',
+  check_btn: 'Проверить',
+  checking: 'Проверка…',
+  ok_title: 'Готово',
+  ok_body: 'Это устройство доверяет защищённому подключению. Откройте Home Assistant по этому адресу, и карточка звонка сможет использовать микрофон:',
+  ok_open: 'Открыть Home Assistant защищённо',
+  ok_here: 'Вы уже на защищённом подключении. Здесь карточка звонка может использовать микрофон.',
+  fail_title: 'Пока не готово',
+  fail_ios: 'Этот iPhone или iPad пока не доверяет сертификату. Обычно не хватает последнего шага: <b>Настройки › Основные › Об этом устройстве › Доверие сертификатам</b> › включите <b>{ca}</b>.',
+  fail_android: 'Это устройство пока не доверяет сертификату. Убедитесь, что установили его как <b>Сертификат ЦС</b> (а не «сертификат пользователя VPN и приложений» или «сертификат Wi-Fi»), и попробуйте снова.',
+  fail_desktop: 'Этот компьютер пока не доверяет сертификату. После установки полностью закройте браузер, откройте его снова и повторите попытку.',
+  fail_port: 'Если снова не получится, возможно, порт {port} заблокирован между этим устройством и Home Assistant.',
+  details: 'Технические подробности',
+  d_addr: 'Защищённые адреса', d_name: 'Корневой сертификат', d_fp: 'Отпечаток (SHA-256)',
+  d_scope_t: 'За что он может ручаться',
+  d_scope: 'Только за частные сетевые адреса, имена на .local и имена Home Assistant в ha.doorbell.islautopia.com. Ни за какой другой сайт.',
+  d_scope_none: 'У этого корневого сертификата нет ограничений имён: владелец его ключа мог бы поручиться за любой сайт перед устройствами, которые ему доверяют.',
+  d_key_t: 'Где хранится его ключ',
+  d_key: 'В папке конфигурации Home Assistant (ig_doorbell_https). Всё, что может читать эту папку, — резервные копии, дополнения для общего доступа или редактирования файлов, другие пользовательские интеграции — могло бы использовать его, чтобы выдавать себя за этот Home Assistant на ваших устройствах. Шифруйте резервные копии.',
+  remote_note: 'Это для вашей домашней сети. Доступа извне это не даёт: для этого по-прежнему нужен Home Assistant Cloud или собственный удалённый доступ.'
+},
+zh: {
+  _name: '中文',
+  title: 'Home Assistant 安全连接',
+  lead: '浏览器只允许通过安全连接（HTTPS）打开的页面使用麦克风。请在每部要通过门铃卡片通话的手机、平板或电脑上完成一次设置。',
+  loading: '正在加载…',
+  off_title: '安全连接已关闭',
+  off_body: '请在 Home Assistant 中开启：<b>设置 › 设备与服务 › Islautopia Garage Doorbell › 配置 › 本地安全连接（HTTPS）</b>。然后刷新此页面。',
+  down_title: '安全连接未在运行',
+  down_port: '端口 {port} 已被其他程序占用。请在集成选项中选择其他端口（设置 › 设备与服务 › Islautopia Garage Doorbell › 配置）。',
+  down_other: '原因见 Home Assistant 的 <b>设置 › 系统 › 修复</b>。',
+  pub_title: '最简单：无需安装',
+  pub_body: '您的门铃为这台 Home Assistant 作了担保，因此它拥有所有设备都已信任的证书。请在以下地址打开 Home Assistant：',
+  pub_note: '此地址需要联网来解析名称。有些路由器会拦截指向家庭内网地址的名称（“DNS 重绑定保护”）。如果打不开，请使用下面的本地地址。',
+  pub_fail: '此设备无法打开公共名称：当前没有网络，或路由器拦截了它（DNS 重绑定保护）。请改用下面的本地地址。',
+  local_title: '在此设备上安装证书',
+  local_title_alt: '或者：无网络也能用',
+  local_body: 'Home Assistant 有自己的本地证书颁发机构。在此设备上安装一次它的根证书，安全地址就能在家庭网络中使用，即使没有网络。',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: '电脑',
+  btn_ios: '安装到此 iPhone 或 iPad',
+  btn_download: '下载证书',
+  ios_steps: [
+    '请使用 <b>Safari</b>（其他浏览器无法安装描述文件）。点按上方按钮，然后点按<b>允许</b>。',
+    '打开<b>设置</b>，点按顶部的<b>已下载描述文件</b>（或<b>设置 › 通用 › VPN 与设备管理</b>）。点按<b>安装</b>并输入密码。',
+    '大家最容易漏掉的一步：<b>设置 › 通用 › 关于本机 › 证书信任设置</b>。打开 <b>{ca}</b> 并确认。',
+    '回到这里，点按<b>检查</b>。'],
+  android_steps: [
+    '点按上方按钮下载证书。',
+    '打开<b>设置 › 安全 › 加密与凭据 › 安装证书 › CA 证书</b>。三星：<b>设置 › 安全和隐私 › 更多安全设置 › 从设备存储安装 › CA 证书</b>。如果您的手机不同，请在设置中搜索“CA 证书”。',
+    '点按<b>仍然安装</b>，在“下载”中选择 <b>ig-doorbell-ha-root.crt</b>。',
+    '回到这里，点按<b>检查</b>。'],
+  android_note: '之后 Android 会显示“网络可能受到监控”。这是它对任何自行安装的证书的常规提示。',
+  desktop_qr: '要设置手机？用手机相机扫描此码，在手机上打开本页面。',
+  desktop_this: '设置<b>这台电脑</b>：',
+  win_steps: [
+    '下载证书并双击。选择<b>安装证书…</b>',
+    '选择<b>当前用户</b>，然后选择<b>将所有的证书都放入下列存储 › 浏览 › 受信任的根证书颁发机构</b>。',
+    '<b>下一步 › 完成</b>，并接受安全警告。',
+    '关闭并重新打开浏览器，回到这里点击<b>检查</b>。'],
+  mac_steps: [
+    '下载证书并双击。“钥匙串访问”会打开：将其添加到<b>登录</b>钥匙串。',
+    '双击 <b>{ca}</b>，展开<b>信任</b>，将<b>使用此证书时</b>设为<b>始终信任</b>。关闭窗口并输入密码。',
+    '关闭并重新打开浏览器，回到这里点击<b>检查</b>。'],
+  linux_steps: [
+    '下载证书。',
+    '在 Chrome 中：<b>设置 › 隐私和安全 › 安全 › 管理证书</b>，然后<b>授权机构 › 导入</b>，选择文件并勾选<b>信任该证书，以标识网站的身份</b>。',
+    '回到这里点击<b>检查</b>。'],
+  firefox_note: 'Firefox 使用自己的列表：设置 › 隐私与安全 › 证书 › 查看证书 › 证书颁发机构 › 导入。',
+  check_btn: '检查',
+  checking: '正在检查…',
+  ok_title: '已就绪',
+  ok_body: '此设备已信任安全连接。在此地址打开 Home Assistant，门铃卡片即可使用麦克风：',
+  ok_open: '安全地打开 Home Assistant',
+  ok_here: '您已在安全连接上。门铃卡片在这里可以使用麦克风。',
+  fail_title: '尚未就绪',
+  fail_ios: '此 iPhone 或 iPad 还不信任该证书。通常是漏了最后一步：<b>设置 › 通用 › 关于本机 › 证书信任设置</b> › 打开 <b>{ca}</b>。',
+  fail_android: '此设备还不信任该证书。请确认是以 <b>CA 证书</b>安装的（不是“VPN 和应用用户证书”或“WLAN 证书”），然后重试。',
+  fail_desktop: '这台电脑还不信任该证书。安装后请完全关闭浏览器，再重新打开并重试。',
+  fail_port: '如果仍然失败，可能是此设备与 Home Assistant 之间的端口 {port} 被阻止了。',
+  details: '技术细节',
+  d_addr: '安全地址', d_name: '根证书', d_fp: '指纹（SHA-256）',
+  d_scope_t: '它能担保什么',
+  d_scope: '只能担保私有网络地址、以 .local 结尾的名称，以及 ha.doorbell.islautopia.com 下的 Home Assistant 名称。不能担保任何其他网站。',
+  d_scope_none: '此根证书没有名称限制：持有其密钥的人可以向信任它的设备担保任何网站。',
+  d_key_t: '其密钥存放位置',
+  d_key: '在 Home Assistant 的配置文件夹中（ig_doorbell_https）。任何能读取该文件夹的东西——备份、文件共享或编辑加载项、其他自定义集成——都可能用它在您的设备上冒充这台 Home Assistant。请加密您的备份。',
+  remote_note: '这仅用于家庭网络，不提供外网访问：外网访问仍需要 Home Assistant Cloud 或您自己的远程访问方案。'
+},
+hi: {
+  _name: 'हिन्दी',
+  title: 'Home Assistant के लिए सुरक्षित कनेक्शन',
+  lead: 'ब्राउज़र माइक्रोफ़ोन केवल उसी पेज को देते हैं जो सुरक्षित (HTTPS) तरीके से खुला हो। डोरबेल कार्ड से बात करने वाले हर फ़ोन, टैबलेट या कंप्यूटर पर यह एक बार करें।',
+  loading: 'लोड हो रहा है…',
+  off_title: 'सुरक्षित कनेक्शन बंद है',
+  off_body: 'इसे Home Assistant में चालू करें: <b>सेटिंग्स › डिवाइस और सेवाएँ › Islautopia Garage Doorbell › कॉन्फ़िगर करें › सुरक्षित लोकल कनेक्शन (HTTPS)</b>। फिर यह पेज दोबारा लोड करें।',
+  down_title: 'सुरक्षित कनेक्शन नहीं चल रहा है',
+  down_port: 'पोर्ट {port} पहले से किसी दूसरे प्रोग्राम के उपयोग में है। इंटीग्रेशन के विकल्पों में दूसरा पोर्ट चुनें (सेटिंग्स › डिवाइस और सेवाएँ › Islautopia Garage Doorbell › कॉन्फ़िगर करें)।',
+  down_other: 'कारण Home Assistant में <b>सेटिंग्स › सिस्टम › मरम्मत</b> में देखें।',
+  pub_title: 'सबसे आसान: कुछ भी इंस्टॉल नहीं करना',
+  pub_body: 'आपकी डोरबेल ने इस Home Assistant की गारंटी दी है, इसलिए इसके पास ऐसा सर्टिफ़िकेट है जिस पर हर डिवाइस पहले से भरोसा करता है। Home Assistant यहाँ खोलें:',
+  pub_note: 'इस पते को नाम खोजने के लिए इंटरनेट चाहिए। कुछ राउटर घर के पते की ओर इशारा करने वाले नामों को रोकते हैं („DNS rebinding सुरक्षा“)। अगर यह न खुले, तो नीचे वाला लोकल पता इस्तेमाल करें।',
+  pub_fail: 'यह डिवाइस सार्वजनिक नाम नहीं खोल सका: अभी इंटरनेट नहीं है, या आपका राउटर इसे रोकता है (DNS rebinding सुरक्षा)। इसके बजाय नीचे वाला लोकल पता इस्तेमाल करें।',
+  local_title: 'इस डिवाइस पर सर्टिफ़िकेट इंस्टॉल करें',
+  local_title_alt: 'या: इंटरनेट के बिना भी काम करता है',
+  local_body: 'Home Assistant की अपनी लोकल सर्टिफ़िकेट अथॉरिटी है। इसका रूट सर्टिफ़िकेट इस डिवाइस पर एक बार इंस्टॉल करें, फिर सुरक्षित पता आपके घर के नेटवर्क पर इंटरनेट के बिना भी काम करेगा।',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'कंप्यूटर',
+  btn_ios: 'इस iPhone या iPad पर इंस्टॉल करें',
+  btn_download: 'सर्टिफ़िकेट डाउनलोड करें',
+  ios_steps: [
+    '<b>Safari</b> इस्तेमाल करें (दूसरे ब्राउज़र प्रोफ़ाइल इंस्टॉल नहीं कर सकते)। ऊपर वाला बटन टैप करें, फिर <b>अनुमति दें</b>।',
+    '<b>सेटिंग्स</b> खोलें और ऊपर <b>प्रोफ़ाइल डाउनलोड हुई</b> टैप करें (या <b>सेटिंग्स › सामान्य › VPN और डिवाइस प्रबंधन</b>)। <b>इंस्टॉल करें</b> टैप करें और पासकोड डालें।',
+    'वह चरण जो सब भूल जाते हैं: <b>सेटिंग्स › सामान्य › परिचय › सर्टिफ़िकेट ट्रस्ट सेटिंग्स</b>। <b>{ca}</b> चालू करें और पुष्टि करें।',
+    'यहाँ वापस आएँ और <b>जाँचें</b> टैप करें।'],
+  android_steps: [
+    'सर्टिफ़िकेट डाउनलोड करने के लिए ऊपर वाला बटन टैप करें।',
+    '<b>सेटिंग्स › सुरक्षा › एन्क्रिप्शन और क्रेडेंशियल › सर्टिफ़िकेट इंस्टॉल करें › CA सर्टिफ़िकेट</b> खोलें। Samsung पर: <b>सेटिंग्स › सुरक्षा और गोपनीयता › अधिक सुरक्षा सेटिंग्स › डिवाइस स्टोरेज से इंस्टॉल करें › CA सर्टिफ़िकेट</b>। अगर आपका फ़ोन अलग है, तो सेटिंग्स में „CA सर्टिफ़िकेट“ खोजें।',
+    '<b>फिर भी इंस्टॉल करें</b> टैप करें और डाउनलोड में से <b>ig-doorbell-ha-root.crt</b> चुनें।',
+    'यहाँ वापस आएँ और <b>जाँचें</b> टैप करें।'],
+  android_note: 'इसके बाद Android „नेटवर्क की निगरानी हो सकती है“ दिखाएगा। यह आपके द्वारा इंस्टॉल किए गए किसी भी सर्टिफ़िकेट के लिए उसकी सामान्य सूचना है।',
+  desktop_qr: 'फ़ोन सेट कर रहे हैं? यह पेज वहाँ खोलने के लिए इस कोड को उसके कैमरे से स्कैन करें।',
+  desktop_this: '<b>इस कंप्यूटर</b> को सेट करने के लिए:',
+  win_steps: [
+    'सर्टिफ़िकेट डाउनलोड करें और उस पर डबल-क्लिक करें। <b>Install Certificate…</b> चुनें',
+    '<b>Current User</b> चुनें, फिर <b>Place all certificates in the following store › Browse › Trusted Root Certification Authorities</b>।',
+    '<b>Next › Finish</b>, और सुरक्षा चेतावनी स्वीकार करें।',
+    'ब्राउज़र बंद करके फिर खोलें, यहाँ वापस आएँ और <b>जाँचें</b> पर क्लिक करें।'],
+  mac_steps: [
+    'सर्टिफ़िकेट डाउनलोड करें और डबल-क्लिक करें। Keychain Access खुलेगा: इसे <b>login</b> कीचेन में जोड़ें।',
+    'सूची में <b>{ca}</b> पर डबल-क्लिक करें, <b>Trust</b> खोलें और <b>When using this certificate</b> को <b>Always Trust</b> पर सेट करें। विंडो बंद करें और पासवर्ड डालें।',
+    'ब्राउज़र बंद करके फिर खोलें, यहाँ वापस आएँ और <b>जाँचें</b> पर क्लिक करें।'],
+  linux_steps: [
+    'सर्टिफ़िकेट डाउनलोड करें।',
+    'Chrome में: <b>सेटिंग्स › निजता और सुरक्षा › सुरक्षा › सर्टिफ़िकेट प्रबंधित करें</b>, फिर <b>Authorities › Import</b>, फ़ाइल चुनें और <b>वेबसाइटों की पहचान के लिए इस सर्टिफ़िकेट पर भरोसा करें</b> पर टिक करें।',
+    'यहाँ वापस आएँ और <b>जाँचें</b> पर क्लिक करें।'],
+  firefox_note: 'Firefox की अपनी सूची है: सेटिंग्स › निजता और सुरक्षा › सर्टिफ़िकेट › सर्टिफ़िकेट देखें › Authorities › Import।',
+  check_btn: 'जाँचें',
+  checking: 'जाँच हो रही है…',
+  ok_title: 'तैयार',
+  ok_body: 'यह डिवाइस सुरक्षित कनेक्शन पर भरोसा करता है। इस पते पर Home Assistant खोलें और डोरबेल कार्ड माइक्रोफ़ोन इस्तेमाल कर सकेगा:',
+  ok_open: 'Home Assistant सुरक्षित रूप से खोलें',
+  ok_here: 'आप पहले से सुरक्षित कनेक्शन पर हैं। यहाँ डोरबेल कार्ड माइक्रोफ़ोन इस्तेमाल कर सकता है।',
+  fail_title: 'अभी तैयार नहीं',
+  fail_ios: 'यह iPhone या iPad अभी सर्टिफ़िकेट पर भरोसा नहीं करता। अक्सर आख़िरी चरण छूट जाता है: <b>सेटिंग्स › सामान्य › परिचय › सर्टिफ़िकेट ट्रस्ट सेटिंग्स</b> › <b>{ca}</b> चालू करें।',
+  fail_android: 'यह डिवाइस अभी सर्टिफ़िकेट पर भरोसा नहीं करता। पक्का करें कि आपने इसे <b>CA सर्टिफ़िकेट</b> के रूप में इंस्टॉल किया है („VPN और ऐप उपयोगकर्ता सर्टिफ़िकेट“ या „Wi-Fi सर्टिफ़िकेट“ नहीं), फिर दोबारा कोशिश करें।',
+  fail_desktop: 'यह कंप्यूटर अभी सर्टिफ़िकेट पर भरोसा नहीं करता। इंस्टॉल करने के बाद ब्राउज़र पूरी तरह बंद करें, फिर खोलें और दोबारा कोशिश करें।',
+  fail_port: 'अगर फिर भी विफल हो, तो हो सकता है कि इस डिवाइस और Home Assistant के बीच पोर्ट {port} ब्लॉक हो।',
+  details: 'तकनीकी विवरण',
+  d_addr: 'सुरक्षित पते', d_name: 'रूट सर्टिफ़िकेट', d_fp: 'फ़िंगरप्रिंट (SHA-256)',
+  d_scope_t: 'यह किसकी गारंटी दे सकता है',
+  d_scope: 'केवल निजी नेटवर्क पतों, .local पर ख़त्म होने वाले नामों और ha.doorbell.islautopia.com के अंतर्गत Home Assistant नामों की। किसी और वेबसाइट की नहीं।',
+  d_scope_none: 'इस रूट पर नाम की कोई पाबंदी नहीं है: जिसके पास इसकी कुंजी है, वह इस पर भरोसा करने वाले डिवाइसों के सामने किसी भी वेबसाइट की गारंटी दे सकता है।',
+  d_key_t: 'इसकी कुंजी कहाँ रहती है',
+  d_key: 'Home Assistant के कॉन्फ़िगरेशन फ़ोल्डर में (ig_doorbell_https)। जो भी उस फ़ोल्डर को पढ़ सकता है — बैकअप, फ़ाइल शेयरिंग या एडिटर ऐड-ऑन, दूसरे कस्टम इंटीग्रेशन — वह इसका इस्तेमाल करके आपके डिवाइसों पर इस Home Assistant का रूप धर सकता है। अपने बैकअप एन्क्रिप्ट रखें।',
+  remote_note: 'यह आपके घर के नेटवर्क के लिए है। इससे बाहर से एक्सेस नहीं मिलता: उसके लिए अब भी Home Assistant Cloud या आपका अपना रिमोट एक्सेस चाहिए।'
+},
+ar: {
+  _name: 'العربية',
+  title: 'اتصال آمن لـ Home Assistant',
+  lead: 'لا تسمح المتصفحات باستخدام الميكروفون إلا لصفحة مفتوحة عبر اتصال آمن (HTTPS). نفّذ هذا مرة واحدة على كل هاتف أو جهاز لوحي أو حاسوب تريد التحدث منه عبر بطاقة جرس الباب.',
+  loading: 'جارٍ التحميل…',
+  off_title: 'الاتصال الآمن متوقف',
+  off_body: 'فعّله في Home Assistant: <b>الإعدادات › الأجهزة والخدمات › Islautopia Garage Doorbell › تهيئة › اتصال محلي آمن (HTTPS)</b>. ثم أعد تحميل هذه الصفحة.',
+  down_title: 'الاتصال الآمن لا يعمل',
+  down_port: 'المنفذ {port} يستخدمه برنامج آخر. اختر منفذًا آخر في خيارات التكامل (الإعدادات › الأجهزة والخدمات › Islautopia Garage Doorbell › تهيئة).',
+  down_other: 'السبب موضّح في <b>الإعدادات › النظام › الإصلاحات</b> في Home Assistant.',
+  pub_title: 'الأسهل: لا شيء لتثبيته',
+  pub_body: 'كفل جرس الباب هذا الـ Home Assistant، لذا لديه شهادة تثق بها كل الأجهزة مسبقًا. افتح Home Assistant على:',
+  pub_note: 'يحتاج هذا العنوان إلى الإنترنت للعثور على الاسم. بعض أجهزة التوجيه تحجب الأسماء التي تشير إلى عنوان منزلي («الحماية من DNS rebinding»). إن لم يفتح، فاستخدم العنوان المحلي أدناه.',
+  pub_fail: 'تعذّر على هذا الجهاز فتح الاسم العام: لا يوجد إنترنت الآن، أو جهاز التوجيه يحجبه (الحماية من DNS rebinding). استخدم العنوان المحلي أدناه بدلًا منه.',
+  local_title: 'ثبّت الشهادة على هذا الجهاز',
+  local_title_alt: 'أو: يعمل حتى بدون إنترنت',
+  local_body: 'لدى Home Assistant جهة إصدار شهادات محلية خاصة به. ثبّت شهادتها الجذرية مرة واحدة على هذا الجهاز وسيعمل العنوان الآمن في شبكة منزلك حتى بدون إنترنت.',
+  dev_ios: 'iPhone · iPad', dev_android: 'Android', dev_desktop: 'حاسوب',
+  btn_ios: 'التثبيت على هذا الـ iPhone أو iPad',
+  btn_download: 'تنزيل الشهادة',
+  ios_steps: [
+    'استخدم <b>Safari</b> (لا تستطيع المتصفحات الأخرى تثبيت ملفات التعريف). اضغط الزر أعلاه ثم <b>السماح</b>.',
+    'افتح <b>الإعدادات</b> واضغط <b>تم تنزيل ملف التعريف</b> في الأعلى (أو <b>الإعدادات › عام › VPN وإدارة الجهاز</b>). اضغط <b>تثبيت</b> وأدخل رمز الدخول.',
+    'الخطوة التي ينساها الجميع: <b>الإعدادات › عام › حول › إعدادات الثقة بالشهادات</b>. فعّل <b>{ca}</b> وأكّد.',
+    'عُد إلى هنا واضغط <b>تحقّق</b>.'],
+  android_steps: [
+    'اضغط الزر أعلاه لتنزيل الشهادة.',
+    'افتح <b>الإعدادات › الأمان › التشفير وبيانات الاعتماد › تثبيت شهادة › شهادة CA</b>. في Samsung: <b>الإعدادات › الأمان والخصوصية › إعدادات أمان إضافية › التثبيت من ذاكرة الجهاز › شهادة CA</b>. إن اختلف هاتفك، فابحث في الإعدادات عن «شهادة CA».',
+    'اضغط <b>التثبيت على أي حال</b> واختر <b>ig-doorbell-ha-root.crt</b> من التنزيلات.',
+    'عُد إلى هنا واضغط <b>تحقّق</b>.'],
+  android_note: 'سيعرض Android بعدها «قد تتم مراقبة الشبكة». هذا تنبيهه المعتاد لأي شهادة تثبّتها بنفسك.',
+  desktop_qr: 'تُعدّ هاتفًا؟ امسح هذا الرمز بكاميرته لفتح هذه الصفحة عليه.',
+  desktop_this: 'لإعداد <b>هذا الحاسوب</b>:',
+  win_steps: [
+    'نزّل الشهادة وانقر عليها نقرًا مزدوجًا. اختر <b>Install Certificate…</b>',
+    'اختر <b>Current User</b>، ثم <b>Place all certificates in the following store › Browse › Trusted Root Certification Authorities</b>.',
+    '<b>Next › Finish</b>، واقبل التحذير الأمني.',
+    'أغلق المتصفح وأعد فتحه، ثم عُد إلى هنا وانقر <b>تحقّق</b>.'],
+  mac_steps: [
+    'نزّل الشهادة وانقر عليها نقرًا مزدوجًا. سيفتح «الوصول إلى سلسلة المفاتيح»: أضفها إلى سلسلة <b>تسجيل الدخول</b>.',
+    'انقر نقرًا مزدوجًا على <b>{ca}</b>، وافتح <b>الثقة</b> واضبط <b>عند استخدام هذه الشهادة</b> على <b>الثقة دائمًا</b>. أغلق النافذة وأدخل كلمة السر.',
+    'أغلق المتصفح وأعد فتحه، ثم عُد إلى هنا وانقر <b>تحقّق</b>.'],
+  linux_steps: [
+    'نزّل الشهادة.',
+    'في Chrome: <b>الإعدادات › الخصوصية والأمان › الأمان › إدارة الشهادات</b>، ثم <b>Authorities › Import</b>، واختر الملف وحدّد <b>الثقة بهذه الشهادة لتعريف المواقع</b>.',
+    'عُد إلى هنا وانقر <b>تحقّق</b>.'],
+  firefox_note: 'لدى Firefox قائمته الخاصة: الإعدادات › الخصوصية والأمان › الشهادات › عرض الشهادات › Authorities › Import.',
+  check_btn: 'تحقّق',
+  checking: 'جارٍ التحقق…',
+  ok_title: 'جاهز',
+  ok_body: 'هذا الجهاز يثق بالاتصال الآمن. افتح Home Assistant على هذا العنوان وستتمكن بطاقة جرس الباب من استخدام الميكروفون:',
+  ok_open: 'افتح Home Assistant بأمان',
+  ok_here: 'أنت على الاتصال الآمن بالفعل. هنا تستطيع بطاقة جرس الباب استخدام الميكروفون.',
+  fail_title: 'ليس جاهزًا بعد',
+  fail_ios: 'هذا الـ iPhone أو iPad لا يثق بالشهادة بعد. غالبًا تنقص الخطوة الأخيرة: <b>الإعدادات › عام › حول › إعدادات الثقة بالشهادات</b> › فعّل <b>{ca}</b>.',
+  fail_android: 'هذا الجهاز لا يثق بالشهادة بعد. تأكد من تثبيتها بوصفها <b>شهادة CA</b> (لا «شهادة مستخدم VPN والتطبيقات» ولا «شهادة Wi-Fi»)، ثم حاول مجددًا.',
+  fail_desktop: 'هذا الحاسوب لا يثق بالشهادة بعد. بعد تثبيتها، أغلق المتصفح تمامًا وأعد فتحه وحاول مجددًا.',
+  fail_port: 'إذا استمر الفشل، فقد يكون المنفذ {port} محجوبًا بين هذا الجهاز و Home Assistant.',
+  details: 'تفاصيل تقنية',
+  d_addr: 'العناوين الآمنة', d_name: 'الشهادة الجذرية', d_fp: 'البصمة (SHA-256)',
+  d_scope_t: 'ما الذي يمكنها كفالته',
+  d_scope: 'عناوين الشبكات الخاصة فقط، والأسماء المنتهية بـ .local، وأسماء Home Assistant تحت ha.doorbell.islautopia.com. لا يمكنها كفالة أي موقع آخر.',
+  d_scope_none: 'لا توجد قيود أسماء على هذه الشهادة الجذرية: من يملك مفتاحها يمكنه كفالة أي موقع أمام الأجهزة التي تثق بها.',
+  d_key_t: 'أين يوجد مفتاحها',
+  d_key: 'في مجلد إعدادات Home Assistant (ig_doorbell_https). أي شيء يستطيع قراءة ذلك المجلد — النسخ الاحتياطية، إضافات مشاركة الملفات أو تحريرها، التكاملات المخصصة الأخرى — قد يستخدمه لانتحال هذا الـ Home Assistant على أجهزتك. أبقِ نسخك الاحتياطية مشفّرة.',
+  remote_note: 'هذا لشبكة منزلك. لا يمنحك وصولًا من الخارج: لذلك ما زلت تحتاج إلى Home Assistant Cloud أو وسيلة وصول عن بُعد خاصة بك.'
+}
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let lang = 'en', S = null, device = 'desktop', os = 'win';
+
+function pickLang() {
+  const q = new URLSearchParams(location.search).get('lang');
+  const wanted = [q, ...(navigator.languages || [navigator.language])].filter(Boolean);
+  for (const w of wanted) { const k = w.toLowerCase().slice(0, 2); if (T[k]) return k; }
+  return 'en';
+}
+function t(key, vars) {
+  let v = (T[lang] && T[lang][key] !== undefined) ? T[lang][key] : T.en[key];
+  if (typeof v === 'string' && vars) for (const [k, x] of Object.entries(vars)) v = v.split('{' + k + '}').join(esc(x));
+  return v;
+}
+function vars() { return { ca: (S && S.ca_name) || 'IG Doorbell Home Assistant Local CA', port: (S && S.port) || 8443 }; }
+
+function detect() {
+  const ua = navigator.userAgent || '';
+  const iPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  if (/iPhone|iPad|iPod/.test(ua) || iPadOS) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'desktop';
+}
+function detectOs() {
+  const p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent;
+  if (/Mac/i.test(p)) return 'mac';
+  if (/Linux|CrOS|X11/i.test(p)) return 'linux';
+  return 'win';
+}
+
+function render() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const v = vars();
+  document.querySelectorAll('[data-t]').forEach((el) => { el.innerHTML = t(el.dataset.t, v); });
+  document.querySelectorAll('[data-list]').forEach((ol) => {
+    ol.innerHTML = (t(ol.dataset.list) || []).map((s) => '<li>' + s.split('{ca}').join(esc(v.ca)) + '</li>').join('');
+  });
+  document.querySelectorAll('.tabs [data-dev]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dev === device)));
+  document.querySelectorAll('[data-for]').forEach((d) => { d.hidden = d.dataset.for !== device; });
+  document.querySelectorAll('.tabs [data-os]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.os === os)));
+  document.querySelectorAll('[data-os-list]').forEach((d) => { d.hidden = d.dataset.osList !== os; });
+  $('qr').hidden = device !== 'desktop';
+  if (S) fill();
+}
+
+function fill() {
+  const v = vars();
+  $('loading').hidden = true;
+  $('off').hidden = !!S.enabled;
+  $('down').hidden = !(S.enabled && !S.running);
+  if (S.enabled && !S.running) $('down_body').innerHTML = S.error === 'port_in_use' ? t('down_port', v) : t('down_other', v);
+  const pubOk = S.running && S.public && S.public.url;
+  $('public').hidden = !pubOk;
+  if (pubOk) { $('pub_url').textContent = S.public.url; $('pub_url').href = S.public.url; }
+  $('local').hidden = !S.running;
+  $('local_title').textContent = pubOk ? t('local_title_alt') : t('local_title');
+  $('d_addr').innerHTML = (S.local_urls || []).map(esc).join('<br>');
+  $('d_name').textContent = S.ca_name || '';
+  $('d_fp').textContent = S.fingerprint || '';
+  $('d_scope').textContent = S.constrained === false ? t('d_scope_none') : t('d_scope');
+  if (!$('qr_img').src) $('qr_img').src = '/ig_doorbell/https/qr.svg';
+}
+
+// The address to test is the one THIS device would use: the host it opened this page with, on
+// the HTTPS port. A device that reached Home Assistant as homeassistant.local tests that name.
+function localTarget() {
+  const host = location.hostname;
+  const port = S.port;
+  const h = host.includes(':') ? '[' + host + ']' : host;
+  return 'https://' + h + ':' + port;
+}
+
+async function probe(base) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(base + '/ig_doorbell/https/check', { cache: 'no-store', mode: 'cors', signal: ctl.signal });
+    const j = await r.json();
+    return !!(j && j.ok && j.secure);
+  } catch (e) {
+    return false;
+  } finally { clearTimeout(timer); }
+}
+
+function showResult(box, ok, url, failHtml) {
+  box.className = 'result ' + (ok ? 'ok' : 'fail');
+  if (ok) {
+    box.innerHTML = '<h3>' + esc(t('ok_title')) + '</h3><p>' + t('ok_body') + '</p><a class="addr" href="' + esc(url) + '">' + esc(url) + '</a>' +
+      '<a class="big" href="' + esc(url) + '">' + esc(t('ok_open')) + '</a>';
+  } else {
+    box.innerHTML = '<h3>' + esc(t('fail_title')) + '</h3><p>' + failHtml + '</p>';
+  }
+}
+
+async function runCheck() {
+  const btn = $('check'); btn.disabled = true; btn.textContent = t('checking');
+  const url = localTarget();
+  const ok = await probe(url);
+  btn.disabled = false; btn.textContent = t('check_btn');
+  if (ok && location.protocol === 'https:' && window.isSecureContext && location.port === String(S.port)) {
+    const box = $('result'); box.className = 'result ok';
+    box.innerHTML = '<h3>' + esc(t('ok_title')) + '</h3><p>' + esc(t('ok_here')) + '</p>';
+    return;
+  }
+  const v = vars();
+  const why = device === 'ios' ? t('fail_ios', v) : device === 'android' ? t('fail_android', v) : t('fail_desktop', v);
+  showResult($('result'), ok, url, why + '</p><p class="muted">' + t('fail_port', v));
+}
+
+async function runPubCheck() {
+  const btn = $('pub_check'); btn.disabled = true; btn.textContent = t('checking');
+  const ok = await probe(S.public.url);
+  btn.disabled = false; btn.textContent = t('check_btn');
+  showResult($('pub_result'), ok, S.public.url, t('pub_fail'));
+}
+
+async function load() {
+  try {
+    const r = await fetch('/ig_doorbell/https/status', { cache: 'no-store' });
+    S = await r.json();
+  } catch (e) { S = { enabled: false, running: false }; }
+  render();
+}
+
+lang = pickLang(); device = detect(); os = detectOs();
+const sel = $('lang');
+sel.innerHTML = Object.entries(T).map(([k, v]) => '<option value="' + k + '"' + (k === lang ? ' selected' : '') + '>' + esc(v._name) + '</option>').join('');
+sel.addEventListener('change', () => { lang = sel.value; render(); });
+document.querySelectorAll('.tabs [data-dev]').forEach((b) => b.addEventListener('click', () => { device = b.dataset.dev; render(); }));
+document.querySelectorAll('.tabs [data-os]').forEach((b) => b.addEventListener('click', () => { os = b.dataset.os; render(); }));
+$('check').addEventListener('click', runCheck);
+$('pub_check').addEventListener('click', runPubCheck);
+render();
+load();
+</script>
+</body>
+</html>

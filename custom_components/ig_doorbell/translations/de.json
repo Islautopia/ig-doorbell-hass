@@ -3,7 +3,8 @@
     "step": {
       "init": {
         "menu_options": {
-          "entities": "Entitäten, die die Türklingel steuern kann"
+          "entities": "Entitäten, die die Türklingel steuern kann",
+          "https": "Sichere lokale Verbindung (HTTPS)"
         }
       },
       "entities": {
@@ -12,10 +13,27 @@
         "data": {
           "entities": "Entitäten"
         }
+      },
+      "https": {
+        "title": "Sichere lokale Verbindung (HTTPS)",
+        "description": "Stellt diesen Home Assistant in deinem Heimnetz über HTTPS bereit, auf einem eigenen Port, damit Browser der Türklingel-Karte das Mikrofon erlauben (Gegensprechen). Standardmäßig aus. Port und Einstellungen von Home Assistant selbst bleiben unverändert.\n\n**Das ist kein Fernzugriff.** Es ersetzt weder Home Assistant Cloud noch deine eigene Domain mit Reverse Proxy.\n\nEs gibt zwei Adressen:\n- **Öffentlicher Name** – auf deinen Geräten ist nichts zu installieren. Ein öffentlich vertrauenswürdiges Zertifikat für einen Namen wie `<id>.ha.doorbell.islautopia.com`. Braucht eine IG Doorbell, die hier als Administrator gekoppelt und bei der Islautopia-Cloud registriert ist: die Türklingel bürgt für diesen Home Assistant. Nur dafür wird die Cloud kontaktiert, und sie erhält nie den privaten Schlüssel des Zertifikats. Braucht Internet, um den Namen aufzulösen.\n- **Lokale Adresse** (IP oder homeassistant.local) – funktioniert ohne Internet und ohne Türklingel. Das Zertifikat stammt von der eigenen lokalen Zertifizierungsstelle dieser Integration: installiere ihr Stammzertifikat einmal auf jedem Gerät.\n\nGeräte einrichten: [Installationsseite]({install_url}) · [So funktioniert es]({docs_url})",
+        "data": {
+          "enabled": "HTTPS aktivieren",
+          "port": "Port"
+        },
+        "data_description": {
+          "enabled": "Öffnet den HTTPS-Port und hält seine Zertifikate aktuell.",
+          "port": "Standard 8443. Er muss auf dem Home-Assistant-Rechner frei sein."
+        }
       }
     },
     "error": {
-      "too_many": "Zu viele Entitäten – wähle höchstens {max} aus"
+      "too_many": "Zu viele Entitäten – wähle höchstens {max} aus",
+      "port_in_use": "Port {port} wird bereits von einem anderen Programm benutzt. Wähle einen anderen.",
+      "port_is_ha": "Das ist der Port von Home Assistant selbst. Wähle einen anderen."
+    },
+    "abort": {
+      "https_unavailable": "HTTPS ist in diesem Home Assistant nicht verfügbar."
     }
   },
   "entity": {
@@ -74,6 +92,39 @@
       "rec": {
         "name": "Manuelle Aufnahme"
       }
+    }
+  },
+  "issues": {
+    "https_port_in_use": {
+      "title": "Sichere lokale Verbindung: Port {port} ist belegt",
+      "description": "Ein anderes Programm benutzt bereits Port {port}, daher konnte die sichere lokale Verbindung (HTTPS) nicht starten. Wähle einen anderen Port unter Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS). Sonst ist nichts betroffen."
+    },
+    "https_unsupported": {
+      "title": "Sichere lokale Verbindung nicht unterstützt",
+      "description": "Diese Home-Assistant-Version erlaubt der Integration nicht, HTTPS so bereitzustellen, wie sie es braucht. Die sichere lokale Verbindung ist aus; alles andere funktioniert. Aktualisiere Home Assistant oder die Integration."
+    },
+    "https_public_name_admin_required": {
+      "title": "Öffentlicher Name nicht verfügbar: Gast-Kopplung",
+      "description": "Die Türklingel bürgt nur für einen als Administrator gekoppelten Home Assistant, und dieser ist als Gast (user) gekoppelt. Die sichere lokale Adresse funktioniert wie gewohnt: installiere ihr Stammzertifikat über die Installationsseite auf deinen Geräten. Für den öffentlichen Namen neu mit einem Administratorkonto koppeln (Konfigurieren › Neu koppeln)."
+    },
+    "https_public_name_not_registered": {
+      "title": "Öffentlicher Name nicht verfügbar: Türklingel nicht registriert",
+      "description": "Die Türklingel ist nicht bei der Islautopia-Cloud registriert und kann daher nicht für diesen Home Assistant bürgen. Die sichere lokale Adresse funktioniert wie gewohnt: installiere ihr Stammzertifikat über die Installationsseite auf deinen Geräten."
+    },
+    "https_public_name_taken": {
+      "title": "Der öffentliche Name der Türklingel gehört einem anderen Home Assistant",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Öffentlichen Namen hierher holen?",
+            "description": "Jede Türklingel hat einen einzigen öffentlichen Namen für Home Assistant, und {hostname} wird gerade von einem anderen Home Assistant benutzt. Wenn er zu diesem gehört (zum Beispiel nach einer Neuinstallation), hole ihn hierher. Der andere funktioniert weiter, bis sein Zertifikat abläuft, und hat danach nur noch seine lokale Adresse.\n\nDer öffentliche Name zeigt dann auf diesen Home Assistant und sein Zertifikat wird für ihn ausgestellt. Der andere Home Assistant kann sein Zertifikat nicht mehr erneuern."
+          }
+        }
+      }
+    },
+    "https_public_name_failed": {
+      "title": "Öffentlicher Name nicht verfügbar",
+      "description": "Der öffentliche Name für Home Assistant konnte nicht bezogen werden ({code}). Die sichere lokale Adresse ist nicht betroffen. Die Dokumentation der Integration erklärt jeden Code."
     }
   }
 }
