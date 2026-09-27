@@ -111,7 +111,7 @@ const RESCUE_NEW_SESSION_MS = 24000;
 
 console.log(`[ig-doorbell-card] module loaded - build=${CARD_BUILD_ID} (compare this value against CARD_BUILD_ID in the repo if you're unsure whether the browser is serving a stale cached copy)`);
 
-// Global translation dictionary for Card and Editor (Top 9 Languages + HA Community)
+// Global translation dictionary for Card and Editor: the product languages (es, en, fr, it, de, pt)
 const igLocales = {
   es: { // Spanish
     connecting: "Conectando...", live: "En directo", open: "Comms Abiertas", error_cam: "Error", no_lock: "Sin cerradura configurada",

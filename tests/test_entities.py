@@ -21,7 +21,7 @@ from custom_components.ig_doorbell.const import (
 from .conftest import CREDENTIAL, DEVICE_ID, LAN_IP
 
 ROOT = pathlib.Path(const.__file__).parent
-LANGUAGES = ["en", "es", "pt", "de", "fr", "ru", "zh-Hans", "hi", "ar"]
+LANGUAGES = ["en", "es", "fr", "it", "de", "pt"]
 
 
 async def _setup(hass):

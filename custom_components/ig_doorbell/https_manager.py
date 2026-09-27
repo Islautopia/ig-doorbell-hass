@@ -600,6 +600,9 @@ class HttpsManager:
         ):
             # Weather, not a fault: no repair issue for a line that is down for a while. After
             # PUBLIC_REPAIR_AFTER of failing it is not weather any more, and the user is told.
+            # `issuance_limited` is left out ON PURPOSE: it is retried like the others, but the
+            # cloud's quota (3 certificates per name per 7 days) can hold for days, so the
+            # repair appears at once (docs/https.md, "Repairs you may see").
             return
         for other in PUBLIC_ISSUES:
             if other != issue:
