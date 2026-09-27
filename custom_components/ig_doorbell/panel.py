@@ -10,6 +10,7 @@ view for the doorbell experience to work.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from pathlib import Path
@@ -32,10 +33,24 @@ def _digest(path: Path) -> str:
 
 
 async def async_register_call_page(hass: HomeAssistant) -> None:
-    """Serve the panel module and (re-)register the page with the current doorbell list."""
+    """Serve the panel module and (re-)register the page with the current doorbell list.
+
+    ⚠️ UNDER A LOCK, and it is not decoration. Home Assistant sets up the config entries of one
+    integration CONCURRENTLY, so with two doorbells both passed the "not registered yet" check
+    before either had registered the static route, and the second one failed with aiohttp's
+    "method GET is already registered" - its whole entry in `setup_error`, which Home Assistant does
+    not retry. Lived on a real installation on 2026-09-27: the doorbell that lost the race stopped
+    reaching Home Assistant until the entry was reloaded by hand.
+    """
     if "frontend" not in hass.config.components:
         _LOGGER.warning("The frontend is not loaded: no call page")
         return
+    lock = hass.data.setdefault(f"{DATA_PANEL}_lock", asyncio.Lock())
+    async with lock:
+        await _async_register_locked(hass)
+
+
+async def _async_register_locked(hass: HomeAssistant) -> None:
     from homeassistant.components import frontend, panel_custom
 
     if DATA_PANEL not in hass.data:

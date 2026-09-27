@@ -182,6 +182,15 @@ internet (local push / persistent connection). Phones: see above.
   arrive for over a minute**: the phone, lying still, was in Doze (`deviceidle` mState=IDLE), and those
   two went as normal-priority pushes, which Firebase holds for a maintenance window. Fixed: every
   Android message goes `priority: high`, `ttl: 0` (`ANDROID_NOW`, with its reason next to it).
+- **After the Doze fix, same phone, still in Doze**: the missed-call replacement arrived ~17 s
+  after the ring (the ring runs 15 s), and the clear arrived ~2 s after the call was answered. The
+  call page opened in the companion app showed the doorbell live, and *Close* went back to the
+  default dashboard.
+- **Startup race, fixed**: at a real restart with two doorbells, the second entry to register the
+  call page's static route died with "method GET is already registered" (`setup_error`, not
+  retried). The registration now runs under a lock, and a failure there can no longer take the entry
+  down. Covered by a startup test with both entries in both orders. Control: without both defences,
+  that test fails with the exact error seen on the installation.
 - **Fixed on the way**: the missed-call time now uses the doorbell's `tz_name`, not HA's zone (the
   Docker HA was on UTC and showed the wrong hour).
 

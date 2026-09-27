@@ -459,3 +459,61 @@ async def test_entry_loads_when_the_doorbell_times_out_at_startup(hass):
         assert entry.state is ConfigEntryState.LOADED
         await hass.config_entries.async_unload(entry.entry_id)
         await hass.async_block_till_done()
+
+
+async def test_two_doorbells_setting_up_at_once_register_the_call_page_once(hass):
+    """Home Assistant sets up the entries of one integration concurrently. Without the lock both
+    registered the static route and the second died with "method GET is already registered" (its
+    entry in setup_error) - lived on a real installation, 2026-09-27."""
+    import asyncio
+
+    hass.config.components.add("frontend")
+    await async_setup_component(hass, "http", {})
+    with patch("homeassistant.components.frontend.async_remove_panel"),          patch("homeassistant.components.panel_custom.async_register_panel", AsyncMock()):
+        await asyncio.gather(panel.async_register_call_page(hass), panel.async_register_call_page(hass))
+
+
+async def test_a_failing_call_page_does_not_take_the_entry_down(hass):
+    from homeassistant.config_entries import ConfigEntryState
+
+    with patch.object(panel, "async_register_call_page", AsyncMock(side_effect=RuntimeError("boom"))),          patch("custom_components.ig_doorbell.async_register_call_page",
+               AsyncMock(side_effect=RuntimeError("boom"))):
+        entry, _, _, patches = await _setup(hass)
+    assert entry.state is ConfigEntryState.LOADED
+    for p in patches:
+        p.stop()
+
+
+@pytest.mark.parametrize("order", [("A", "B"), ("B", "A")])
+async def test_two_doorbells_start_together_and_both_load(hass, order):
+    """The startup that put a real doorbell's entry in setup_error (2026-09-27): Home Assistant
+    boots with two doorbells and sets both entries up at the same time. Both must end LOADED,
+    whichever is added first. The frontend is marked loaded so the call page really registers its
+    static route (the part that raced); only the panel registry itself is stubbed."""
+    from homeassistant.config_entries import ConfigEntryState
+
+    hass.config.components.add("frontend")
+    await async_setup_component(hass, "http", {})
+    ids = {"A": DEVICE_ID, "B": "abcdefabcdefabcd"}
+    entries = {}
+    for k in order:
+        e = MockConfigEntry(domain=DOMAIN, unique_id=ids[k],
+                            data={CONF_DEVICE_ID: ids[k], CONF_CREDENTIAL: CREDENTIAL, CONF_HOST_HINT: LAN_IP})
+        e.add_to_hass(hass)
+        entries[k] = e
+    state = {"m": 0, "door_m": 0, "webrtc_clients": 0, "dname": "Test", "panel": 0, "reader": 0}
+    with patch.object(net, "is_this_doorbell", AsyncMock(return_value=True)), \
+         patch.object(api, "async_get_states", AsyncMock(return_value=state)), \
+         patch.object(api, "async_get_firmware_info", AsyncMock(return_value={"fw_version": "0.101.3"})), \
+         patch.object(api, "async_get_role", AsyncMock(return_value="admin")), \
+         patch.object(api, "async_set_hass_config", AsyncMock()), \
+         patch("homeassistant.components.frontend.async_remove_panel"), \
+         patch("homeassistant.components.panel_custom.async_register_panel", AsyncMock()), \
+         patch("homeassistant.components.frontend.add_extra_js_url"):
+        assert await async_setup_component(hass, DOMAIN, {})
+        await hass.async_block_till_done()
+        assert {k: e.state for k, e in entries.items()} == {
+            "A": ConfigEntryState.LOADED, "B": ConfigEntryState.LOADED}
+        for e in entries.values():
+            await hass.config_entries.async_unload(e.entry_id)
+        await hass.async_block_till_done()

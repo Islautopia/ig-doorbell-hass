@@ -223,7 +223,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if (img := data.get("visitor_image")) is not None:
         img._wanted_at_ring = lambda: notifier.enabled  # noqa: SLF001 - wired here on purpose
     entry.async_on_unload(notifier.async_start())
-    await async_register_call_page(hass)
+    try:
+        await async_register_call_page(hass)
+    except Exception:  # noqa: BLE001 - the call page is a convenience; the doorbell is not
+        # A failure here must NEVER take the entry down with it: that would stop this doorbell's
+        # rings from reaching Home Assistant at all (lived 2026-09-27, see panel.py).
+        _LOGGER.exception("Could not register the call page; the doorbell itself keeps working")
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     if (mgr := get_manager(hass)) is not None:

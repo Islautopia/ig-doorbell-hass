@@ -164,6 +164,12 @@ MUTANTS = [
      "        tz = None"),
     ("Android clear / missed-call replacement back to normal priority (held by Doze)", PKG + "notify_ring.py",
      'ANDROID_NOW = {"priority": "high", "ttl": 0}', "ANDROID_NOW = {}"),
+    ("call page registered without the lock (2 doorbells: one entry in setup_error)", PKG + "panel.py",
+     "    async with lock:" + chr(10) + "        await _async_register_locked(hass)",
+     "    await _async_register_locked(hass)"),
+    ("a failing call page takes the entry down", PKG + "__init__.py",
+     "    try:" + chr(10) + "        await async_register_call_page(hass)" + chr(10) + "    except Exception:",
+     "    await async_register_call_page(hass)" + chr(10) + "    if False:" + chr(10) + "     try: pass" + chr(10) + "     except Exception:"),
     ("the event entity forgets the call resolutions", PKG + "event.py",
      '    "call_answered", "call_declined", "call_missed",\n]', "]"),
 ]
