@@ -11,7 +11,9 @@ from __future__ import annotations
 from homeassistant import data_entry_flow
 from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 
+from .const import DOMAIN
 from .https_manager import ISSUE_NAME_TAKEN, get_manager
 
 
@@ -25,7 +27,12 @@ class TakeOverNameFlow(ConfirmRepairFlow):
             if (mgr := get_manager(self.hass)) is not None:
                 mgr.request_replace()
             return self.async_create_entry(data={})
-        return self.async_show_form(step_id="confirm", data_schema=None)
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, ISSUE_NAME_TAKEN)
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=None,
+            description_placeholders=dict(issue.translation_placeholders or {}) if issue else {"hostname": ""},
+        )
 
 
 async def async_create_fix_flow(

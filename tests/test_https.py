@@ -629,3 +629,19 @@ def test_an_existing_rsa_root_is_used_as_is(tmp_path):
     leaf = ca.issue_leaf(["homeassistant.local"], ["192.168.1.10"])
     assert ca.leaf_is_current(["homeassistant.local"], ["192.168.1.10"])
     _tls_roundtrip(ca.ca_cert_path, leaf.chain.read_bytes(), leaf.key.read_bytes(), "homeassistant.local")
+
+
+async def test_the_fix_flow_names_the_hostname_and_moves_it(hass, env):
+    from custom_components.ig_doorbell import repairs
+
+    cloud = _Cloud(claim_errors=[("doorbell_has_ha_name", {"hostname": PUBLIC})])
+    await _enable(env, cloud)
+    flow = await repairs.async_create_fix_flow(hass, https_manager.ISSUE_NAME_TAKEN, None)
+    flow.hass = hass
+    form = await flow.async_step_confirm()
+    assert form["description_placeholders"] == {"hostname": PUBLIC}
+    p1, p2, p3 = cloud.patch()
+    with p1, p2, p3:
+        await flow.async_step_confirm({})
+        await env.mgr._public_task
+    assert cloud.claims[-1]["replace"] is True and env.mgr.public["state"] == "ok"
