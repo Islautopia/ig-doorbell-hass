@@ -51,6 +51,18 @@ Known flaky, and not a regression: `idle_release_network` CASE 2 ("first start H
 reports "did not recover in 13 s" about one run in three - measured the same on the old repository
 before the 1.0.0 renames. The bench is a diagnostic (it prints verdicts, it does not fail on them).
 
+**"2 viewers for a few seconds on opening the card" (measured 2026-09-27, Waveshare + real HA).**
+Leaving the dashboard and coming back within the 15 s pause grace, Home Assistant builds a NEW card
+element instead of re-inserting the old one. The old view, off the page, kept its paused session
+until its grace ran out: `/api/debug/cores` showed viewers=2 for ~12 s, then 1. Every mount opened
+exactly one EventSource and closed it with `bye` - no leak, just a grace kept for an element nobody
+would put back. Fix: a view starting a session hangs up (with `bye`, before its own SSE) any view
+of the same doorbell that is off the page and still in its grace (`VIEWS_WITH_SESSION`,
+`_hangUpDetachedTwins`). Re-insertion of the same element still resumes with `live_resume`.
+Re-measured with the fix: viewers never above 1. Bench: `tests/card/mount_sessions` (sessions per
+mount, with mutants X1-X3). Switching views inside the same dashboard re-inserts the same element
+(no second session), and a plain reload sends `bye` from `pagehide` - both measured clean.
+
 **v1.11.0 (2026-09-26) — adaptive layout.** (Iñaki approved the proposals of the 1.10.0 layout
 analysis.)
 

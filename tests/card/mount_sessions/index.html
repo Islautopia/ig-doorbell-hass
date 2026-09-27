@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Sessions per card mount (network doubled)</title></head>
+<body style="margin:0;background:#111;">
+  <div id="host" style="width:420px;"></div>
+  <!-- The 1.10.0 harness is reused as is: fake doorbells (one slot per EventSource, bye recorded per
+       slot), hass, network. It must load before the card. It does not touch the card. -->
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

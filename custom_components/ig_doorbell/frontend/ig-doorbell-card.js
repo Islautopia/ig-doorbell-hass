@@ -44,6 +44,31 @@ let LAST_INTERACTION_MS = Date.now();
 // connectedCallback. It's lost on a full reload, which is correct: reloading means starting over.
 const PAUSED_BY_DOORBELL = {};
 
+// ⚠️ A VIEW THAT LEFT THE PAGE FOR GOOD MUST NOT KEEP ITS SESSION: A NEW VIEW HANGS UP ITS DETACHED TWIN
+// (2026-09-27).
+//
+// Iñaki: «every time I open the card the doorbell shows 2 viewers for a few seconds». Measured on the
+// Waveshare with the real Home Assistant (/api/debug/cores every 100 ms + the page's EventSources):
+// leaving the dashboard and coming back within the 15 s grace, Home Assistant does NOT re-insert the
+// old card -- it builds a NEW one. The old view is off the page and paused (`live_pause`, session
+// alive, waiting to be re-inserted); the new one opens its own session: viewers=2 for the rest of the
+// grace (12 s in the measurement), then the old one's `bye` -> 1. Every step was clean (one
+// EventSource per mount, a `bye` at the end); the second viewer was the grace itself, kept for an
+// element nobody will ever put back.
+//
+// So when a view STARTS a session it hangs up, right away and with `bye`, every other view of the
+// SAME doorbell that is OFF the page (`!isConnected`) and still in its grace. The `bye` leaves before
+// the new EventSource (startWebRTC() waits for get_connection_info first), so the doorbell does not
+// count both. What this deliberately does NOT touch, each for its reason:
+//  · a view still ON the page (two cards on screen for one doorbell are two real viewers);
+//  · the grace itself: Home Assistant re-inserting the SAME element resumes it with `live_resume`
+//    (connectedCallback -> _resume, no startWebRTC) -- the 2026-09-25 rule still holds;
+//  · a view of ANOTHER doorbell.
+// If Home Assistant did re-insert a hung-up twin later, that one just starts a new session (and hangs
+// up whichever view is then off the page). The Set holds the views that have started a session; a
+// view leaves it when destroyed, or when hung up while off the page, so it can be garbage-collected.
+const VIEWS_WITH_SESSION = new Set();
+
 // ⚠️ REENTRANCY-GUARD FUSE FOR startWebRTC() -- see that function for the full argument.
 //
 // A guard that just said "one's already in flight, I won't start another" and nothing else would be
@@ -1667,8 +1692,22 @@ class IgDoorbellView extends HTMLElement {
   //  state (PAUSED_BY_DOORBELL). `_destroyed` also shuts the door on any in-flight callback
   //  that might try to start a session or reopen the mic afterwards.
   // ══════════════════════════════════════════════════════════════════════════════════════════
+  // See VIEWS_WITH_SESSION (module level) for the measurement, and for what this must NOT touch.
+  _hangUpDetachedTwins(reason) {
+    const id = this.config && this.config.device_id;
+    for (const v of Array.from(VIEWS_WITH_SESSION)) {
+      if (v === this) continue;
+      if (v._destroyed) { VIEWS_WITH_SESSION.delete(v); continue; }
+      if (v.isConnected || !v.config || v.config.device_id !== id) continue;   // on the page, or another doorbell
+      if (!v._pauseState || v._pauseState.phase !== 'grace') continue;
+      console.info(`[ig-doorbell-card] a new view of ${id} starts (${reason}): hanging up the paused one that left the page instead of waiting out its grace`);
+      v._hangUpPaused();
+    }
+  }
+
   _destroy(reason) {
     if (this._destroyed) return;
+    VIEWS_WITH_SESSION.delete(this);
     console.info(`[ig-doorbell-card] instance of ${this.config && this.config.device_id} destroyed (${reason})`);
     this._cancelPause();
     if (this._livePauseAck) { clearTimeout(this._livePauseAck.timer); this._livePauseAck = null; }
@@ -3210,9 +3249,10 @@ class IgDoorbellView extends HTMLElement {
   }
 
   _hangUpPaused() {
-    this._pauseGraceTimer = null;
+    if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
     if (!this._pauseState || this._pauseState.phase !== 'grace') return;
     this._pauseState.phase = 'hung_up';
+    if (!this.isConnected) VIEWS_WITH_SESSION.delete(this);   // off the page and hung up: nothing left to hang up
     // ⚠️ CLOSING THE PEER ISN'T ENOUGH: THE <video> HAS TO BE RELEASED TOO (measured 2026-09-07, dumpsys power).
     if (this.videoEl) {
       try { this.videoEl.pause(); } catch (err) { /* best effort */ }
@@ -4760,6 +4800,8 @@ class IgDoorbellView extends HTMLElement {
     // gets superseded and will collect its own instead of writing it on top of ours.
     this._teardownConnectionObjects();
     this._stopRescue();
+    this._hangUpDetachedTwins(reason);   // BEFORE our EventSource: see VIEWS_WITH_SESSION
+    VIEWS_WITH_SESSION.add(this);
     // (1.10.0) Every new session is born in 'connecting' (e.g. coming back from a hung-up pause the
     // state was 'paused'): only the first image sets 'live', see setupRemoteStream().
     if (this._liveStateKey !== 'error_cam') this._setLiveState('connecting');
