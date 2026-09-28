@@ -145,6 +145,9 @@
       },
       "flip_horizontal": {
         "name": "Espejo horizontal"
+      },
+      "in_call": {
+        "name": "En llamada"
       }
     },
     "event": {
@@ -173,7 +176,8 @@
               "key_locked": "Llave bloqueada",
               "call_answered": "Llamada atendida",
               "call_declined": "Llamada rechazada",
-              "call_missed": "Llamada perdida"
+              "call_missed": "Llamada perdida",
+              "call_finished": "Llamada terminada"
             }
           }
         }
@@ -271,6 +275,9 @@
           "auto": "Automática",
           "manual": "Manual"
         }
+      },
+      "quick_reply": {
+        "name": "Respuesta rápida"
       }
     },
     "sensor": {
@@ -373,6 +380,9 @@
     "button": {
       "reboot": {
         "name": "Reiniciar"
+      },
+      "play_quick_reply": {
+        "name": "Reproducir respuesta rápida"
       }
     },
     "camera": {
@@ -389,20 +399,29 @@
       "device_name": {
         "name": "Nombre del portero"
       }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
     }
   },
   "services": {
     "play_sequence": {
       "name": "Reproducir secuencia",
-      "description": "Lanza una de las secuencias del videoportero (una respuesta rápida que puede hablar, encender una luz o alargar la grabación).",
+      "description": "Reproduce en la calle una de las respuestas rápidas o secuencias del videoportero, por nombre o por id.",
       "fields": {
         "device_id": {
           "name": "Videoportero",
           "description": "El videoportero."
         },
+        "sequence": {
+          "name": "Respuesta rápida",
+          "description": "Nombre de la respuesta rápida, como se ve en la app (o usa su id)."
+        },
         "seq_id": {
           "name": "Id de la secuencia",
-          "description": "Id de la secuencia en el videoportero."
+          "description": "Id de la secuencia en el videoportero (en lugar del nombre)."
         }
       }
     },

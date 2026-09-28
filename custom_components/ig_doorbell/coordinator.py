@@ -69,6 +69,8 @@ SOURCES: dict[str, Source] = {
     "mode_rules": Source("/api/mode_rules", 10, admin=True),   # why the mode is what it is
     "mem": Source("/api/mem_stats", 10),                       # memory (disabled by default)
     "boot": Source("/api/debug/boot", 20),                     # reset reason (disabled by default)
+    # 1.4.0: the quick replies (§1.18.8, any role, `id` + `label` only). The picker and its button read it.
+    "quick": Source("/api/sequences?quick=1", 10),
 }
 
 
@@ -121,6 +123,9 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         self._due: dict[str, int] = {}
         self._kick: asyncio.Task | None = None
         self._source_lock = asyncio.Lock()
+        # 1.4.0: the quick reply picked in the select, played by the button (both entities read THIS, so
+        # they can never disagree about which one "the selected quick reply" is). None = the first one.
+        self.selected_quick_reply: int | None = None
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -238,6 +243,22 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
             self.async_update_listeners()
         finally:
             self._kick = None
+
+    async def async_refresh_firmware(self) -> None:
+        """Read `firmware_info` now (after an install, or when the update entity needs a fresh answer)."""
+        try:
+            self._firmware = await api.async_get_firmware_info(
+                self._session, self.device_id, self.credential
+            )
+            self._cycles_until_firmware = 20
+        except api.DoorbellApiError:
+            self._cycles_until_firmware = 0      # retried on the next poll
+            raise
+        self.async_set_updated_data({**(self.data or {}), **self._firmware})
+
+    def firmware_due_now(self) -> None:
+        """The next successful poll reads `firmware_info` (the doorbell is rebooting into a new image)."""
+        self._cycles_until_firmware = 0
 
     async def async_refresh_source(self, name: str) -> None:
         """Read one source now (after a write, or when the webhook says it changed)."""

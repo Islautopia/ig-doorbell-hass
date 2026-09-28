@@ -6,6 +6,31 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] — unreleased
+
+Needs doorbell firmware **0.103.2** (0.103.1 for everything but *In call*). With an older firmware the new
+entities show as unavailable and the actions say the firmware is too old.
+
+### Added
+
+- **In call** binary sensor: on from the moment a ring is answered until the conversation ends — the person
+  who answered closes the microphone, leaves the live view or sends the app to the background, hangs up, or
+  drops, and nobody else takes over within 3 seconds. The doorbell itself reports the end (`call_finished`, a
+  new event type), and every poll corrects a lost notice. The last duration and how it ended are attributes.
+- **Quick reply** select and **Play quick reply** button. The list comes from the doorbell and follows the
+  app; picking one plays nothing, the button plays it.
+- **Firmware** update entity, read from the doorbell's own check (never from our servers). "Could not check"
+  shows as unknown, never as up to date. Administrator pairings can install; the doorbell downloads and
+  verifies the image itself, and the update is reported done only when it runs the new version.
+- `ig_doorbell.play_sequence` also takes the quick reply's **name** (`sequence`).
+
+### Changed
+
+- Quick replies, sequences and **Manual recording** use the doorbell's local route for them instead of a
+  signalling session. The recording switch now shows exactly what the doorbell records (a call's recording
+  too) and turns off by itself when the doorbell stops; it no longer ends when Home Assistant restarts.
+- Manual recording is unavailable, not failing, with a user pairing.
+
 ## [1.3.0] — unreleased
 
 ### Added

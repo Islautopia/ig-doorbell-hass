@@ -48,7 +48,8 @@ async def test_every_entity_has_a_translation_key_and_english_name(hass):
     entities = er.async_entries_for_config_entry(reg, entry.entry_id)
     # 1.2.0: + image.visitor. 1.3.0 (Phase 1): 57, of which 12 disabled by default (streams,
     # memory/boot diagnostics, mic gain) - and the open BUTTON is gone, replaced by the lock.
-    assert len(entities) == 57
+    # 1.4.0 (Phase 2): 61 - + quick-reply select, its play button, the firmware update, In call.
+    assert len(entities) == 61
     assert sum(1 for e in entities if e.disabled_by is not None) == 12
     assert not [e for e in entities if e.domain == "button" and e.unique_id.endswith("_open")]
     en = json.loads((ROOT / "translations" / "en.json").read_text(encoding="utf-8"))["entity"]

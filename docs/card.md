@@ -10,6 +10,13 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.0 (2026-09-28): no card code change; REC now reads the doorbell's own `rec`
+
+The card is unchanged except `CARD_VERSION`. Its REC button still follows the `switch` with translation key
+`rec`, but since integration 1.4.0 that switch no longer holds a signalling session: it is the doorbell's
+`get_states.rec` (firmware 0.103.1, `POST /api/call_action`), so it also shows a call's recording and turns
+off by itself. Quick replies still go through the `play_sequence` action (now over HTTP, by id or name).
+
 ## A wall panel is identified by its companion login, not its user agent (1.2.4, 2026-09-28)
 
 1.2.3 matched the page by HA user + the model in the user agent: works on the Android panel, never

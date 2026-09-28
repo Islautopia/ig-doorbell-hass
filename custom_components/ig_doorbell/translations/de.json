@@ -80,6 +80,9 @@
       },
       "flip_horizontal": {
         "name": "Horizontal gespiegelt"
+      },
+      "in_call": {
+        "name": "Im Gespräch"
       }
     },
     "event": {
@@ -108,7 +111,8 @@
               "key_locked": "Tastatur gesperrt",
               "call_answered": "Anruf angenommen",
               "call_declined": "Anruf abgelehnt",
-              "call_missed": "Verpasster Anruf"
+              "call_missed": "Verpasster Anruf",
+              "call_finished": "Gespräch beendet"
             }
           }
         }
@@ -206,6 +210,9 @@
           "auto": "Automatisch",
           "manual": "Manuell"
         }
+      },
+      "quick_reply": {
+        "name": "Schnellantwort"
       }
     },
     "sensor": {
@@ -308,6 +315,9 @@
     "button": {
       "reboot": {
         "name": "Neu starten"
+      },
+      "play_quick_reply": {
+        "name": "Schnellantwort abspielen"
       }
     },
     "camera": {
@@ -323,6 +333,11 @@
     "text": {
       "device_name": {
         "name": "Name der Türklingel"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
       }
     }
   },

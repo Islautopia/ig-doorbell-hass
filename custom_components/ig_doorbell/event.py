@@ -44,6 +44,9 @@ KNOWN_EVENT_TYPES = [
     # the built-in ring notifier - clear a notice or send a panel home. `call_id`, `by` (who, when
     # known) and `reason` ("quick_reply") travel as attributes.
     "call_answered", "call_declined", "call_missed",
+    # The end of the conversation that followed an answer (firmware 0.103.2, §1.4-sexies): `call_id`, `duration_s`,
+    # `reason` (mic_closed / live_paused / hung_up / session_lost / silence), `by`. Home Assistant only.
+    "call_finished",
 ]
 
 

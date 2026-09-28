@@ -78,7 +78,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[str] = [
     "binary_sensor", "button", "camera", "event", "image", "lock", "number", "select", "sensor",
-    "switch", "text",
+    "switch", "text", "update",
 ]
 
 

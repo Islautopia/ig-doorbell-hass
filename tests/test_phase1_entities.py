@@ -101,7 +101,7 @@ def doorbell(doorbell_json):
     fake = FakeDoorbell()
     doorbell_json.update({
         "/api/img_settings": IMG, "/api/detect_config": DETECT, "/api/storage_info": STORAGE,
-        "/api/mode_rules": MODE_RULES,
+        "/api/mode_rules": MODE_RULES, "/api/sequences?quick=1": {"quick_replies": []},   # 1.4.0 source
         "/api/mem_stats": {"uptime_s": 100, "interna": {"libre": 1, "mayor": 1}},
         "/api/debug/boot": {"reset_txt": "poweron"},
     })

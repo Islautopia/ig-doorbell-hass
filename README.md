@@ -202,13 +202,16 @@ It is off until you pick a device. Setup per device, what works away from home, 
 | | |
 |---|---|
 | **Events** | everything the doorbell reports: a ring, a visitor, a parcel, the door opened, a failed login, a key refused, a problem with the memory card, an unexpected restart… Use it directly as an automation trigger |
-| **Ringing** | on from the ring until someone answers, declines, or it is missed; the outcome and who answered are attributes. There is no "call in progress" after answering: the doorbell does not report when a conversation ends |
+| **Ringing** | on from the ring until someone answers, declines, or it is missed; the outcome and who answered are attributes |
+| **In call** | on from the moment a ring is answered (by opening the microphone) until the conversation ends: whoever answered closes the microphone, leaves the live view or sends the app to the background, hangs up, or drops — and nobody else takes over within 3 seconds. A quick reply answers the ring without a conversation. The doorbell itself says when it ends (firmware 0.103.2 or newer; unavailable with an older one); the last duration and how it ended are attributes |
 | **Visitor** / **Package at the door** | the ones you want as a state rather than an instant |
 | **Snapshot** (camera) | a still of the street, refreshed at most every 5 seconds for all viewers together. No live stream (the live call is the card's). While it rings, it shows the ring's own picture and takes no new one; if the doorbell is set to send no picture with a ring, it shows none |
 | **Door** (lock) | when the doorbell has a lock. *Unlock* (or *Open*) releases the door for the open time set on the doorbell, then it reports *locked* again by itself; *Lock* has nothing to do. Home Assistant asks for confirmation before opening. For automations, trigger on the *Door opened* event, which reports every opening from any app |
 | **Mode** | Normal, Away, Do not disturb, Custom — *"Do not disturb at 23:00"* is a two-line automation |
 | **Mode reason** | why it is in that mode: set by hand, by the schedule, no rule; *until* as an attribute |
-| **Manual recording** | a switch (administrator pairings) |
+| **Manual recording** | a switch (administrator pairings) that shows what the doorbell is recording. It turns off by itself when the doorbell stops: after 10 minutes, when a ring or a detection takes over, or when someone stops it from an app. Firmware 0.103.1 or newer |
+| **Quick reply** + **Play quick reply** | pick one of the doorbell's quick replies (their names come from the doorbell and follow the app), then press the button to play it at the street. Picking plays nothing. During a ring it answers the call, as in the apps |
+| **Firmware** (update) | the doorbell's own check for a new firmware: the doorbell asks, Home Assistant asks the doorbell — never our servers. When the doorbell could not check, the latest version shows as unknown, never as "up to date". Install (administrator pairings) is done by the doorbell itself; progress is shown until it restarts on the new version |
 | **Viewers** | how many people are watching right now |
 | **Wall panels: back to the home page after** | seconds before a wall panel returns to Home Assistant's home page (`0` = never) |
 | Firmware version, street panel, fingerprint reader, SD card (state, size, free), Wi-Fi network, IP address, this pairing's role, camera flips | diagnostics |
@@ -242,8 +245,14 @@ become *unavailable* — which is what that means — and the card keeps working
 
 ### Actions
 
-`ig_doorbell.play_sequence` and `ig_doorbell.play_audio` play one of the doorbell's sequences or
-quick replies at the street — the same messages the apps send.
+`ig_doorbell.play_sequence` plays one of the doorbell's quick replies or sequences at the street, by
+its **name** as shown in the app (`sequence: Leave it at the door`) or by its id (`seq_id`).
+`ig_doorbell.play_audio` plays a quick-reply audio slot (1-10). Any pairing may use them; they fail
+with a readable reason (no such quick reply, the doorbell is busy, the firmware is too old) instead of
+doing nothing. Firmware 0.103.1 or newer.
+
+The street panel's firmware has no update entity: the doorbell brings its panel up to date by itself
+when it starts, and there is no catalog to compare the panel with.
 
 ### The doorbell can switch your Home Assistant devices
 

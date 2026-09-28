@@ -26,10 +26,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from . import api
+from . import api, quick_replies
 from .const import DOMAIN
 from .coordinator import DoorbellCoordinator
-from .entity import AddEntities, AdminEntity
+from .entity import AddEntities, AdminEntity, SourceEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +42,35 @@ async def async_setup_entry(
     if (old := reg.async_get_entity_id("button", DOMAIN, f"{c.device_id}_open")) is not None:
         _LOGGER.info("Removing %s: opening the door is the lock entity since 1.3.0", old)
         reg.async_remove(old)
-    async_add_entities([RebootButton(c)])
+    async_add_entities([RebootButton(c), PlayQuickReplyButton(c)])
+
+
+class PlayQuickReplyButton(SourceEntity, ButtonEntity):
+    """Plays the quick reply picked in the "Quick reply" select (1.4.0, §1.4-quinquies). Any role.
+
+    During a ring it does what the apps' quick reply does (§1.18.1): cuts the announcement WITHOUT chaining the
+    no-answer sequence, and the ring counts as answered. Unavailable while the doorbell has no quick replies -
+    a button that can only fail is worse than none.
+    """
+
+    _source = "quick"
+    _attr_translation_key = "play_quick_reply"
+    _attr_icon = "mdi:account-voice"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "play_quick_reply")
+
+    @property
+    def available(self) -> bool:
+        return super().available and bool(quick_replies.quick_list(self.coordinator))
+
+    async def async_press(self) -> None:
+        items = quick_replies.quick_list(self.coordinator)
+        if not items:
+            raise HomeAssistantError("The doorbell has no quick replies.")
+        sel = self.coordinator.selected_quick_reply
+        seq_id = sel if any(i["id"] == sel for i in items) else items[0]["id"]
+        await quick_replies.async_play_sequence(self.coordinator, seq_id)
 
 
 class RebootButton(AdminEntity, ButtonEntity):

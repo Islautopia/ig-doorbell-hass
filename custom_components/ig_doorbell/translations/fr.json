@@ -80,6 +80,9 @@
       },
       "flip_horizontal": {
         "name": "Miroir horizontal"
+      },
+      "in_call": {
+        "name": "En communication"
       }
     },
     "event": {
@@ -108,7 +111,8 @@
               "key_locked": "Clavier bloqué",
               "call_answered": "Appel pris",
               "call_declined": "Appel refusé",
-              "call_missed": "Appel manqué"
+              "call_missed": "Appel manqué",
+              "call_finished": "Appel terminé"
             }
           }
         }
@@ -206,6 +210,9 @@
           "auto": "Automatique",
           "manual": "Manuelle"
         }
+      },
+      "quick_reply": {
+        "name": "Réponse rapide"
       }
     },
     "sensor": {
@@ -308,6 +315,9 @@
     "button": {
       "reboot": {
         "name": "Redémarrer"
+      },
+      "play_quick_reply": {
+        "name": "Lire la réponse rapide"
       }
     },
     "camera": {
@@ -323,6 +333,11 @@
     "text": {
       "device_name": {
         "name": "Nom de la sonnette"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
       }
     }
   },

@@ -80,6 +80,9 @@
       },
       "flip_horizontal": {
         "name": "Espelho horizontal"
+      },
+      "in_call": {
+        "name": "Em chamada"
       }
     },
     "event": {
@@ -108,7 +111,8 @@
               "key_locked": "Teclado bloqueado",
               "call_answered": "Chamada atendida",
               "call_declined": "Chamada recusada",
-              "call_missed": "Chamada perdida"
+              "call_missed": "Chamada perdida",
+              "call_finished": "Chamada terminada"
             }
           }
         }
@@ -206,6 +210,9 @@
           "auto": "Automática",
           "manual": "Manual"
         }
+      },
+      "quick_reply": {
+        "name": "Resposta rápida"
       }
     },
     "sensor": {
@@ -308,6 +315,9 @@
     "button": {
       "reboot": {
         "name": "Reiniciar"
+      },
+      "play_quick_reply": {
+        "name": "Reproduzir resposta rápida"
       }
     },
     "camera": {
@@ -323,6 +333,11 @@
     "text": {
       "device_name": {
         "name": "Nome da campainha"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
       }
     }
   },

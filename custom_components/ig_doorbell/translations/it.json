@@ -145,6 +145,9 @@
       },
       "flip_horizontal": {
         "name": "Specchio orizzontale"
+      },
+      "in_call": {
+        "name": "In chiamata"
       }
     },
     "event": {
@@ -173,7 +176,8 @@
               "key_locked": "Chiave bloccata",
               "call_answered": "Chiamata risposta",
               "call_declined": "Chiamata rifiutata",
-              "call_missed": "Chiamata persa"
+              "call_missed": "Chiamata persa",
+              "call_finished": "Chiamata terminata"
             }
           }
         }
@@ -271,6 +275,9 @@
           "auto": "Automatica",
           "manual": "Manuale"
         }
+      },
+      "quick_reply": {
+        "name": "Risposta rapida"
       }
     },
     "sensor": {
@@ -373,6 +380,9 @@
     "button": {
       "reboot": {
         "name": "Riavvia"
+      },
+      "play_quick_reply": {
+        "name": "Riproduci risposta rapida"
       }
     },
     "camera": {
@@ -389,20 +399,29 @@
       "device_name": {
         "name": "Nome del videocitofono"
       }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
     }
   },
   "services": {
     "play_sequence": {
       "name": "Riproduci sequenza",
-      "description": "Esegue una delle sequenze del videocitofono (una risposta rapida che può parlare, accendere una luce o prolungare la registrazione).",
+      "description": "Riproduce in strada una delle risposte rapide o sequenze del videocitofono, per nome o per id.",
       "fields": {
         "device_id": {
           "name": "Videocitofono",
           "description": "Il videocitofono."
         },
+        "sequence": {
+          "name": "Risposta rapida",
+          "description": "Nome della risposta rapida, come appare nell'app (oppure usa il suo id)."
+        },
         "seq_id": {
           "name": "Id sequenza",
-          "description": "Id della sequenza sul videocitofono."
+          "description": "Id della sequenza sul videocitofono (al posto del nome)."
         }
       }
     },

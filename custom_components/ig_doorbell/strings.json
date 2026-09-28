@@ -145,6 +145,9 @@
       },
       "flip_horizontal": {
         "name": "Mirror horizontal"
+      },
+      "in_call": {
+        "name": "In call"
       }
     },
     "event": {
@@ -173,7 +176,8 @@
               "key_locked": "Key locked",
               "call_answered": "Call answered",
               "call_declined": "Call declined",
-              "call_missed": "Missed call"
+              "call_missed": "Missed call",
+              "call_finished": "Call finished"
             }
           }
         }
@@ -271,6 +275,9 @@
           "auto": "Automatic",
           "manual": "Manual"
         }
+      },
+      "quick_reply": {
+        "name": "Quick reply"
       }
     },
     "sensor": {
@@ -373,6 +380,9 @@
     "button": {
       "reboot": {
         "name": "Restart"
+      },
+      "play_quick_reply": {
+        "name": "Play quick reply"
       }
     },
     "camera": {
@@ -389,20 +399,29 @@
       "device_name": {
         "name": "Doorbell name"
       }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
     }
   },
   "services": {
     "play_sequence": {
       "name": "Play sequence",
-      "description": "Run one of the doorbell's sequences (a quick reply that can speak, turn on a light or extend the recording).",
+      "description": "Play one of the doorbell's quick replies or sequences at the street, by name or by id.",
       "fields": {
         "device_id": {
           "name": "Doorbell",
           "description": "The doorbell."
         },
+        "sequence": {
+          "name": "Quick reply",
+          "description": "Name of the quick reply, as shown in the app (or use its id)."
+        },
         "seq_id": {
           "name": "Sequence id",
-          "description": "Id of the sequence on the doorbell."
+          "description": "Id of the sequence on the doorbell (instead of the name)."
         }
       }
     },

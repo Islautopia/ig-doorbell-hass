@@ -49,6 +49,7 @@ async def async_setup_entry(
         PresenceBinarySensor(c, "panel", "street_panel", "mdi:tablet"),
         PresenceBinarySensor(c, "reader", "fingerprint_reader", "mdi:fingerprint"),
         RingingBinarySensor(c, hass.data[DOMAIN][entry.entry_id]["call_state"]),
+        InCallBinarySensor(c, hass.data[DOMAIN][entry.entry_id]["call_state"]),
         FlipBinarySensor(c, "flip_v", "flip_vertical"),
         FlipBinarySensor(c, "flip_h", "flip_horizontal"),
     ])
@@ -164,9 +165,8 @@ class PresenceBinarySensor(DoorbellEntity, BinarySensorEntity):
 class RingingBinarySensor(DoorbellEntity, BinarySensorEntity):
     """On from the ring until the call is resolved (answered, declined or missed). See call_state.py.
 
-    ⚠️ No "call in progress" after it was answered, on purpose: the doorbell reports when a ring is
-    RESOLVED, not when the conversation ends - a sensor for that would have to invent the ending.
-    The outcome of the last call travels as attributes, for automations.
+    What follows an answer is the "In call" sensor below (1.4.0), told by the doorbell. The outcome of the
+    last call travels as attributes, for automations.
     """
 
     _attr_translation_key = "ringing"
@@ -195,6 +195,41 @@ class RingingBinarySensor(DoorbellEntity, BinarySensorEntity):
         # them, and the project's rule is that internal state is not translated.
         return {"call_id": self._call.call_id, "last_outcome": self._call.outcome,
                 "answered_by": self._call.by}
+
+
+class InCallBinarySensor(DoorbellEntity, BinarySensorEntity):
+    """On from the moment a ring is answered until the conversation ends (1.4.0, firmware 0.103.2+).
+
+    Complements "Ringing": that one is on while it rings; this one while someone is TALKING to the visitor.
+    The end is the doorbell's (§1.4-sexies): the answering client closed the microphone, left the live view or
+    sent the app to the background, hung up, or dropped - and nobody else took the talk turn within 3 s.
+    Pushed by the webhook and corrected by every poll (call_state.py). Unavailable with an older firmware.
+    """
+
+    _attr_translation_key = "in_call"
+    _attr_icon = "mdi:phone-in-talk"
+
+    def __init__(self, coordinator: DoorbellCoordinator, call_state) -> None:
+        super().__init__(coordinator, "in_call")
+        self._call = call_state
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._call.async_listen(self.async_write_ha_state))
+
+    @property
+    def available(self) -> bool:
+        return self._call.supports_in_call
+
+    @property
+    def is_on(self) -> bool:
+        return self._call.in_call
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        # English protocol words (mic_closed, hung_up...): an automation compares them.
+        return {"call_id": self._call.in_call_id, "answered_by": self._call.in_call_by,
+                "last_duration_s": self._call.last_duration_s, "last_end": self._call.last_end}
 
 
 class FlipBinarySensor(DoorbellEntity, BinarySensorEntity):

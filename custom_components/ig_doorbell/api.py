@@ -665,3 +665,75 @@ async def async_get_snapshot(
             return await resp.read()
     except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not fetch the snapshot: {err}") from err
+
+
+# ==================================================================================================
+# PHASE 2 (1.4.0): call actions and the firmware update, all over the LAN, never through the VPS
+# ==================================================================================================
+
+
+class CallActionError(DoorbellApiError):
+    """`POST /api/call_action` refused the action: `code` is the doorbell's own error word (§1.4-quinquies).
+
+    `firmware_too_old` is ours, not the doorbell's: the route does not exist before firmware 0.103.1, and a
+    bare "HTTP 404" would send someone looking for a missing sequence instead of an old firmware.
+    """
+
+    def __init__(self, code: str, status: int = 0) -> None:
+        super().__init__(code)
+        self.code = code
+        self.status = status
+
+
+async def async_call_action(
+    session: aiohttp.ClientSession, device_id: str, credential: str, action: str,
+    params: dict[str, str] | None = None,
+) -> dict:
+    """POST /api/call_action (§1.4-quinquies): `play_sequence`, `play_audio`, `rec_start`, `rec_stop`.
+
+    One URI, the verb inside. The fields go in the form body (the doorbell also reads the query; the query
+    carries only the token). Returns the doorbell's JSON answer (`status`, and `rec` for REC).
+
+    ⚠️ No verb opens the microphone, and none may be added here: talking needs a live session (§1.11-ter).
+    """
+    body = {"action": action, **(params or {})}
+    url = _url(device_id, "/api/call_action", credential)
+    try:
+        async with session.post(url, data=body, timeout=_TIMEOUT) as resp:
+            if resp.status == 401:
+                raise AuthenticationError("Pairing credential rejected by the doorbell")
+            try:
+                answer = await resp.json(content_type=None)
+            except (ValueError, aiohttp.ClientError):
+                answer = None
+            code = answer.get("error") if isinstance(answer, dict) else None
+            if resp.status == 403:
+                raise NotAllowedError(code or "admin_required")
+            if resp.status == 200 and isinstance(answer, dict):
+                return answer
+            if resp.status in (404, 405) and not code:
+                raise CallActionError("firmware_too_old", resp.status)
+            raise CallActionError(str(code or f"HTTP {resp.status}"), resp.status)
+    except (aiohttp.ClientError, TimeoutError) as err:
+        raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
+
+
+async def async_ota_install(
+    session: aiohttp.ClientSession, device_id: str, credential: str, version: str
+) -> None:
+    """POST /api/ota_install `version=` (admin). The DOORBELL downloads from its own VPS with its own secret
+    and, with no `sha256` sent, verifies against the hash of its own catalog check (§1.2-sexies).
+
+    `409 ota_in_progress` is raised as-is: the caller treats it as "already installing", not a failure.
+    """
+    url = _url(device_id, "/api/ota_install", credential)
+    try:
+        async with session.post(url, data={"version": version}, timeout=_TIMEOUT) as resp:
+            if resp.status == 401:
+                raise AuthenticationError("Pairing credential rejected by the doorbell")
+            if resp.status == 403:
+                raise NotAllowedError(await _error_code(resp))
+            if resp.status != 200:
+                raise DoorbellApiError(await _error_code(resp))
+    except (aiohttp.ClientError, TimeoutError) as err:
+        raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
