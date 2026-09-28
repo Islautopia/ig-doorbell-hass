@@ -72,6 +72,8 @@ async def test_a_user_with_two_companions_is_ambiguous_until_the_panel_proves_it
     ipad, iphone = await _login(hass, concha, IOS), await _login(hass, concha, IOS)
     assert _panel(hass, concha.id, ipad) is False          # ambiguous: two iOS companions
     assert _panel(hass, concha.id, iphone) is False
+    # ...and not merely "not a panel": NO device at all (a guess could land on either one)
+    assert panel_identity.async_get(hass).identify(concha.id, ipad) is None
 
     pi = panel_identity.async_get(hass)
     # A nonce only the iPad's push carried, presented by pages that are NOT the iPad's app:
@@ -100,6 +102,7 @@ async def test_an_exact_identity_is_never_overridden_by_the_user_rule(hass):
     _with_panel_identity(hass, ids, kiosk.id, name="M23 Test", model="SM-M236B")
     phone = await _login(hass, kiosk)
     assert _panel(hass, kiosk.id, tab) is False            # two Android companions: ambiguous
+    assert panel_identity.async_get(hass).identify(kiosk.id, tab) is None
     pi = panel_identity.async_get(hass)
     assert pi.bind(pi.issue(ids["M23 Test"]), kiosk.id, phone) is True
     assert pi.bind(pi.issue(ids["Tab Test"]), kiosk.id, tab) is True
