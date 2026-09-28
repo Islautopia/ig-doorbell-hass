@@ -136,11 +136,15 @@
       },
       "fingerprint_reader": {
         "name": "Lettore di impronte"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Apri porta"
+      },
+      "ringing": {
+        "name": "Sta suonando"
+      },
+      "flip_vertical": {
+        "name": "Capovolgimento verticale"
+      },
+      "flip_horizontal": {
+        "name": "Specchio orizzontale"
       }
     },
     "event": {
@@ -178,6 +182,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Pannelli a parete: torna alla pagina iniziale dopo"
+      },
+      "brightness": {
+        "name": "Luminosità"
+      },
+      "contrast": {
+        "name": "Contrasto"
+      },
+      "saturation": {
+        "name": "Saturazione"
+      },
+      "hue": {
+        "name": "Tonalità"
+      },
+      "door_open_time": {
+        "name": "Tempo di apertura"
+      },
+      "main_stream_fps": {
+        "name": "Fotogrammi del flusso principale"
+      },
+      "main_stream_bitrate": {
+        "name": "Bitrate del flusso principale"
+      },
+      "sub_stream_fps": {
+        "name": "Fotogrammi del flusso secondario"
+      },
+      "sub_stream_bitrate": {
+        "name": "Bitrate del flusso secondario"
+      },
+      "person_threshold": {
+        "name": "Soglia rilevamento persona"
+      },
+      "package_threshold": {
+        "name": "Soglia rilevamento pacco"
+      },
+      "detection_min_area": {
+        "name": "Dimensione minima di rilevamento"
+      },
+      "exposure_compensation": {
+        "name": "Compensazione dell'esposizione"
+      },
+      "manual_exposure": {
+        "name": "Tempo di esposizione manuale"
+      },
+      "manual_gain": {
+        "name": "Guadagno manuale"
       }
     },
     "select": {
@@ -188,6 +237,39 @@
           "away": "Assente",
           "do_not_disturb": "Non disturbare",
           "custom": "Personalizzata"
+        }
+      },
+      "timestamp_position": {
+        "name": "Posizione dell'ora",
+        "state": {
+          "top_left": "In alto a sinistra",
+          "top_center": "In alto al centro",
+          "top_right": "In alto a destra",
+          "bottom_left": "In basso a sinistra",
+          "bottom_center": "In basso al centro",
+          "bottom_right": "In basso a destra"
+        }
+      },
+      "lock_type": {
+        "name": "Tipo di serratura",
+        "state": {
+          "relay": "Relè del videocitofono",
+          "home_assistant": "Entità di Home Assistant",
+          "none": "Nessuna serratura"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Controllo bitrate del flusso principale",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Modalità di esposizione",
+        "state": {
+          "auto": "Automatica",
+          "manual": "Manuale"
         }
       }
     },
@@ -200,16 +282,112 @@
       },
       "panel_firmware": {
         "name": "Firmware del pannello"
+      },
+      "wifi_ssid": {
+        "name": "Rete Wi-Fi"
+      },
+      "ip_address": {
+        "name": "Indirizzo IP"
+      },
+      "pairing_role": {
+        "name": "Ruolo di questo abbinamento",
+        "state": {
+          "admin": "Amministratore",
+          "user": "Utente",
+          "unknown": "Sconosciuto"
+        }
+      },
+      "mode_reason": {
+        "name": "Motivo della modalità",
+        "state": {
+          "manual": "Impostata a mano",
+          "schedule": "Programmazione",
+          "no_clock": "Ora non ancora nota",
+          "none": "Nessuna regola"
+        }
+      },
+      "sd_state": {
+        "name": "Scheda SD",
+        "state": {
+          "absent": "Nessuna scheda",
+          "mounted": "Funzionante",
+          "formatting": "Formattazione in corso",
+          "blank": "Scheda vuota",
+          "unreadable": "Illeggibile: formattala dall'app",
+          "format_failed": "Formattazione non riuscita"
+        }
+      },
+      "sd_total": {
+        "name": "Dimensione della scheda SD"
+      },
+      "sd_free": {
+        "name": "Spazio libero sulla scheda SD"
+      },
+      "mic_gain": {
+        "name": "Guadagno del microfono"
+      },
+      "internal_free": {
+        "name": "RAM interna libera"
+      },
+      "internal_largest_block": {
+        "name": "Blocco più grande di RAM interna"
+      },
+      "psram_free": {
+        "name": "PSRAM libera"
+      },
+      "last_boot": {
+        "name": "Ultimo avvio"
+      },
+      "reset_reason": {
+        "name": "Motivo dell'ultimo riavvio"
       }
     },
     "switch": {
       "rec": {
         "name": "Registrazione manuale"
+      },
+      "night_mode": {
+        "name": "Bianco e nero"
+      },
+      "timestamp": {
+        "name": "Ora sul video"
+      },
+      "car_open": {
+        "name": "Apri dall'auto"
+      },
+      "sub_stream": {
+        "name": "Flusso secondario"
+      },
+      "person_detection": {
+        "name": "Rilevamento persone"
+      },
+      "package_detection": {
+        "name": "Rilevamento pacchi"
       }
     },
     "image": {
       "visitor": {
         "name": "Visitatore"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Riavvia"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Istantanea"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Porta"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Nome del videocitofono"
       }
     }
   },

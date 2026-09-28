@@ -136,11 +136,15 @@
       },
       "fingerprint_reader": {
         "name": "Fingerprint reader"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Open door"
+      },
+      "ringing": {
+        "name": "Ringing"
+      },
+      "flip_vertical": {
+        "name": "Flip vertical"
+      },
+      "flip_horizontal": {
+        "name": "Mirror horizontal"
       }
     },
     "event": {
@@ -178,6 +182,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Wall panels: back to the home page after"
+      },
+      "brightness": {
+        "name": "Brightness"
+      },
+      "contrast": {
+        "name": "Contrast"
+      },
+      "saturation": {
+        "name": "Saturation"
+      },
+      "hue": {
+        "name": "Hue"
+      },
+      "door_open_time": {
+        "name": "Door open time"
+      },
+      "main_stream_fps": {
+        "name": "Main stream frame rate"
+      },
+      "main_stream_bitrate": {
+        "name": "Main stream bitrate"
+      },
+      "sub_stream_fps": {
+        "name": "Sub-stream frame rate"
+      },
+      "sub_stream_bitrate": {
+        "name": "Sub-stream bitrate"
+      },
+      "person_threshold": {
+        "name": "Person detection threshold"
+      },
+      "package_threshold": {
+        "name": "Package detection threshold"
+      },
+      "detection_min_area": {
+        "name": "Detection minimum size"
+      },
+      "exposure_compensation": {
+        "name": "Exposure compensation"
+      },
+      "manual_exposure": {
+        "name": "Manual exposure time"
+      },
+      "manual_gain": {
+        "name": "Manual gain"
       }
     },
     "select": {
@@ -188,6 +237,39 @@
           "away": "Away",
           "do_not_disturb": "Do not disturb",
           "custom": "Custom"
+        }
+      },
+      "timestamp_position": {
+        "name": "Timestamp position",
+        "state": {
+          "top_left": "Top left",
+          "top_center": "Top center",
+          "top_right": "Top right",
+          "bottom_left": "Bottom left",
+          "bottom_center": "Bottom center",
+          "bottom_right": "Bottom right"
+        }
+      },
+      "lock_type": {
+        "name": "Lock type",
+        "state": {
+          "relay": "Doorbell relay",
+          "home_assistant": "Home Assistant entity",
+          "none": "No lock"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Main stream rate control",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Exposure mode",
+        "state": {
+          "auto": "Automatic",
+          "manual": "Manual"
         }
       }
     },
@@ -200,16 +282,112 @@
       },
       "panel_firmware": {
         "name": "Panel firmware"
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi network"
+      },
+      "ip_address": {
+        "name": "IP address"
+      },
+      "pairing_role": {
+        "name": "This pairing's role",
+        "state": {
+          "admin": "Administrator",
+          "user": "User",
+          "unknown": "Unknown"
+        }
+      },
+      "mode_reason": {
+        "name": "Mode reason",
+        "state": {
+          "manual": "Set by hand",
+          "schedule": "Schedule",
+          "no_clock": "No clock yet",
+          "none": "No rule"
+        }
+      },
+      "sd_state": {
+        "name": "SD card",
+        "state": {
+          "absent": "No card",
+          "mounted": "Working",
+          "formatting": "Formatting",
+          "blank": "Blank card",
+          "unreadable": "Unreadable: format it from the app",
+          "format_failed": "Format failed"
+        }
+      },
+      "sd_total": {
+        "name": "SD card size"
+      },
+      "sd_free": {
+        "name": "SD card free space"
+      },
+      "mic_gain": {
+        "name": "Microphone gain"
+      },
+      "internal_free": {
+        "name": "Internal RAM free"
+      },
+      "internal_largest_block": {
+        "name": "Internal RAM largest block"
+      },
+      "psram_free": {
+        "name": "PSRAM free"
+      },
+      "last_boot": {
+        "name": "Last start"
+      },
+      "reset_reason": {
+        "name": "Last restart reason"
       }
     },
     "switch": {
       "rec": {
         "name": "Manual recording"
+      },
+      "night_mode": {
+        "name": "Black and white"
+      },
+      "timestamp": {
+        "name": "Timestamp on video"
+      },
+      "car_open": {
+        "name": "Open from the car"
+      },
+      "sub_stream": {
+        "name": "Sub-stream"
+      },
+      "person_detection": {
+        "name": "Person detection"
+      },
+      "package_detection": {
+        "name": "Package detection"
       }
     },
     "image": {
       "visitor": {
         "name": "Visitor"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Restart"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Snapshot"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Door"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Doorbell name"
       }
     }
   },

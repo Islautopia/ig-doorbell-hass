@@ -71,11 +71,15 @@
       },
       "fingerprint_reader": {
         "name": "Fingerabdruckleser"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Tür öffnen"
+      },
+      "ringing": {
+        "name": "Klingelt"
+      },
+      "flip_vertical": {
+        "name": "Vertikal gespiegelt"
+      },
+      "flip_horizontal": {
+        "name": "Horizontal gespiegelt"
       }
     },
     "event": {
@@ -113,6 +117,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Wand-Panels: zurück zur Startseite nach"
+      },
+      "brightness": {
+        "name": "Helligkeit"
+      },
+      "contrast": {
+        "name": "Kontrast"
+      },
+      "saturation": {
+        "name": "Sättigung"
+      },
+      "hue": {
+        "name": "Farbton"
+      },
+      "door_open_time": {
+        "name": "Öffnungsdauer"
+      },
+      "main_stream_fps": {
+        "name": "Bildrate Hauptstream"
+      },
+      "main_stream_bitrate": {
+        "name": "Bitrate Hauptstream"
+      },
+      "sub_stream_fps": {
+        "name": "Bildrate Substream"
+      },
+      "sub_stream_bitrate": {
+        "name": "Bitrate Substream"
+      },
+      "person_threshold": {
+        "name": "Schwelle Personenerkennung"
+      },
+      "package_threshold": {
+        "name": "Schwelle Paketerkennung"
+      },
+      "detection_min_area": {
+        "name": "Mindestgröße der Erkennung"
+      },
+      "exposure_compensation": {
+        "name": "Belichtungskorrektur"
+      },
+      "manual_exposure": {
+        "name": "Manuelle Belichtungszeit"
+      },
+      "manual_gain": {
+        "name": "Manuelle Verstärkung"
       }
     },
     "select": {
@@ -123,6 +172,39 @@
           "away": "Abwesend",
           "do_not_disturb": "Nicht stören",
           "custom": "Benutzerdefiniert"
+        }
+      },
+      "timestamp_position": {
+        "name": "Position des Zeitstempels",
+        "state": {
+          "top_left": "Oben links",
+          "top_center": "Oben mittig",
+          "top_right": "Oben rechts",
+          "bottom_left": "Unten links",
+          "bottom_center": "Unten mittig",
+          "bottom_right": "Unten rechts"
+        }
+      },
+      "lock_type": {
+        "name": "Schlosstyp",
+        "state": {
+          "relay": "Relais der Türklingel",
+          "home_assistant": "Home-Assistant-Entität",
+          "none": "Kein Schloss"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Ratensteuerung Hauptstream",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Belichtungsmodus",
+        "state": {
+          "auto": "Automatisch",
+          "manual": "Manuell"
         }
       }
     },
@@ -135,16 +217,112 @@
       },
       "panel_firmware": {
         "name": "Panel-Firmware"
+      },
+      "wifi_ssid": {
+        "name": "WLAN-Netz"
+      },
+      "ip_address": {
+        "name": "IP-Adresse"
+      },
+      "pairing_role": {
+        "name": "Rolle dieser Kopplung",
+        "state": {
+          "admin": "Administrator",
+          "user": "Benutzer",
+          "unknown": "Unbekannt"
+        }
+      },
+      "mode_reason": {
+        "name": "Grund des Modus",
+        "state": {
+          "manual": "Manuell gesetzt",
+          "schedule": "Zeitplan",
+          "no_clock": "Noch keine Uhrzeit",
+          "none": "Keine Regel"
+        }
+      },
+      "sd_state": {
+        "name": "SD-Karte",
+        "state": {
+          "absent": "Keine Karte",
+          "mounted": "In Betrieb",
+          "formatting": "Wird formatiert",
+          "blank": "Leere Karte",
+          "unreadable": "Unlesbar: in der App formatieren",
+          "format_failed": "Formatierung fehlgeschlagen"
+        }
+      },
+      "sd_total": {
+        "name": "Größe der SD-Karte"
+      },
+      "sd_free": {
+        "name": "Freier Speicher der SD-Karte"
+      },
+      "mic_gain": {
+        "name": "Mikrofonverstärkung"
+      },
+      "internal_free": {
+        "name": "Freier interner RAM"
+      },
+      "internal_largest_block": {
+        "name": "Größter interner RAM-Block"
+      },
+      "psram_free": {
+        "name": "Freier PSRAM"
+      },
+      "last_boot": {
+        "name": "Letzter Start"
+      },
+      "reset_reason": {
+        "name": "Grund des letzten Neustarts"
       }
     },
     "switch": {
       "rec": {
         "name": "Manuelle Aufnahme"
+      },
+      "night_mode": {
+        "name": "Schwarzweiß"
+      },
+      "timestamp": {
+        "name": "Zeitstempel im Video"
+      },
+      "car_open": {
+        "name": "Öffnen aus dem Auto"
+      },
+      "sub_stream": {
+        "name": "Substream"
+      },
+      "person_detection": {
+        "name": "Personenerkennung"
+      },
+      "package_detection": {
+        "name": "Paketerkennung"
       }
     },
     "image": {
       "visitor": {
         "name": "Besucher"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Neu starten"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Standbild"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Tür"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Name der Türklingel"
       }
     }
   },

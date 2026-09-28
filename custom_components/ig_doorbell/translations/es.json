@@ -136,11 +136,15 @@
       },
       "fingerprint_reader": {
         "name": "Lector de huellas"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Abrir puerta"
+      },
+      "ringing": {
+        "name": "Llamando"
+      },
+      "flip_vertical": {
+        "name": "Volteo vertical"
+      },
+      "flip_horizontal": {
+        "name": "Espejo horizontal"
       }
     },
     "event": {
@@ -178,6 +182,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Paneles de pared: volver a la página de inicio tras"
+      },
+      "brightness": {
+        "name": "Brillo"
+      },
+      "contrast": {
+        "name": "Contraste"
+      },
+      "saturation": {
+        "name": "Saturación"
+      },
+      "hue": {
+        "name": "Tono"
+      },
+      "door_open_time": {
+        "name": "Tiempo de apertura"
+      },
+      "main_stream_fps": {
+        "name": "Fotogramas del flujo principal"
+      },
+      "main_stream_bitrate": {
+        "name": "Tasa del flujo principal"
+      },
+      "sub_stream_fps": {
+        "name": "Fotogramas del subflujo"
+      },
+      "sub_stream_bitrate": {
+        "name": "Tasa del subflujo"
+      },
+      "person_threshold": {
+        "name": "Umbral de persona"
+      },
+      "package_threshold": {
+        "name": "Umbral de paquete"
+      },
+      "detection_min_area": {
+        "name": "Tamaño mínimo de detección"
+      },
+      "exposure_compensation": {
+        "name": "Compensación de exposición"
+      },
+      "manual_exposure": {
+        "name": "Exposición manual"
+      },
+      "manual_gain": {
+        "name": "Ganancia manual"
       }
     },
     "select": {
@@ -188,6 +237,39 @@
           "away": "Ausente",
           "do_not_disturb": "No molestar",
           "custom": "Personalizado"
+        }
+      },
+      "timestamp_position": {
+        "name": "Posición de la hora",
+        "state": {
+          "top_left": "Arriba a la izquierda",
+          "top_center": "Arriba en el centro",
+          "top_right": "Arriba a la derecha",
+          "bottom_left": "Abajo a la izquierda",
+          "bottom_center": "Abajo en el centro",
+          "bottom_right": "Abajo a la derecha"
+        }
+      },
+      "lock_type": {
+        "name": "Tipo de cerradura",
+        "state": {
+          "relay": "Relé del portero",
+          "home_assistant": "Entidad de Home Assistant",
+          "none": "Sin cerradura"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Control de tasa del flujo principal",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Modo de exposición",
+        "state": {
+          "auto": "Automática",
+          "manual": "Manual"
         }
       }
     },
@@ -200,16 +282,112 @@
       },
       "panel_firmware": {
         "name": "Firmware del panel"
+      },
+      "wifi_ssid": {
+        "name": "Red Wi-Fi"
+      },
+      "ip_address": {
+        "name": "Dirección IP"
+      },
+      "pairing_role": {
+        "name": "Rol de este emparejamiento",
+        "state": {
+          "admin": "Administrador",
+          "user": "Usuario",
+          "unknown": "Desconocido"
+        }
+      },
+      "mode_reason": {
+        "name": "Motivo del modo",
+        "state": {
+          "manual": "Puesto a mano",
+          "schedule": "Horario",
+          "no_clock": "Aún sin hora",
+          "none": "Ninguna regla"
+        }
+      },
+      "sd_state": {
+        "name": "Tarjeta SD",
+        "state": {
+          "absent": "Sin tarjeta",
+          "mounted": "Funcionando",
+          "formatting": "Formateando",
+          "blank": "Tarjeta en blanco",
+          "unreadable": "Ilegible: formatéala desde la app",
+          "format_failed": "Falló el formateo"
+        }
+      },
+      "sd_total": {
+        "name": "Tamaño de la SD"
+      },
+      "sd_free": {
+        "name": "Espacio libre en la SD"
+      },
+      "mic_gain": {
+        "name": "Ganancia del micrófono"
+      },
+      "internal_free": {
+        "name": "RAM interna libre"
+      },
+      "internal_largest_block": {
+        "name": "Mayor bloque de RAM interna"
+      },
+      "psram_free": {
+        "name": "PSRAM libre"
+      },
+      "last_boot": {
+        "name": "Último arranque"
+      },
+      "reset_reason": {
+        "name": "Motivo del último reinicio"
       }
     },
     "switch": {
       "rec": {
         "name": "Grabación manual"
+      },
+      "night_mode": {
+        "name": "Blanco y negro"
+      },
+      "timestamp": {
+        "name": "Hora en el vídeo"
+      },
+      "car_open": {
+        "name": "Abrir desde el coche"
+      },
+      "sub_stream": {
+        "name": "Subflujo"
+      },
+      "person_detection": {
+        "name": "Detección de personas"
+      },
+      "package_detection": {
+        "name": "Detección de paquetes"
       }
     },
     "image": {
       "visitor": {
         "name": "Visitante"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Reiniciar"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Foto"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Puerta"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Nombre del portero"
       }
     }
   },

@@ -25,13 +25,14 @@ import logging
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from . import api
 from .const import DOMAIN
 from .coordinator import DoorbellCoordinator
-from .entity import AddEntities, DoorbellEntity
+from .entity import AddEntities, AdminEntity, DoorbellEntity
 from .rec_session import RecSession
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,7 +42,18 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntities
 ) -> None:
     c: DoorbellCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    async_add_entities([ManualRecordingSwitch(c)])
+    async_add_entities([
+        ManualRecordingSwitch(c),
+        StateSwitch(c, "night_mode", "night", "mdi:weather-night"),
+        StateSwitch(c, "timestamp", "ts", "mdi:clock-time-four-outline"),
+        # `car_open` (E7): is opening from a car screen allowed. Absent = 1 (firmware < 0.98.1,
+        # §1.2: "its absence means 1, never 'unknown'"). Writing it is LAN-only on the doorbell
+        # (`403 local_only` through the tunnel) - Home Assistant only ever talks over the LAN.
+        StateSwitch(c, "car_open", "car_open", "mdi:car-key", default=1),
+        StateSwitch(c, "sub_stream", "sen", "mdi:video-switch", enabled=False),
+        DetectSwitch(c, "person_detection", "person_on", "mdi:account-eye"),
+        DetectSwitch(c, "package_detection", "pkg_on", "mdi:package-variant-closed"),
+    ])
 
 
 class ManualRecordingSwitch(DoorbellEntity, SwitchEntity):
@@ -108,3 +120,82 @@ class ManualRecordingSwitch(DoorbellEntity, SwitchEntity):
         session, self._session = self._session, None
         if session is not None:
             await session.stop()
+
+
+
+# ==================================================================================================
+# DOORBELL SETTINGS (1.3.0). Admin only (entity.AdminEntity).
+#
+# Plan rule R5 - "secret, irreversible or editor?": none of these. `car_open` is the one that deserves
+# a sentence: turning it OFF is a protection (no opening from a car screen), turning it ON only gives
+# back what a paired app could already do from its own screen (§1.2), and the doorbell accepts it only
+# from the LAN - which is the only way Home Assistant ever reaches it.
+#
+# ⚠️ Not here, on purpose:
+# - Auto white balance (`awb`): `0` has NO effect on this hardware yet (§1.2: "do not present this
+#   option as functional"). A switch that does nothing is worse than none.
+# - The flips (`flip_v`/`flip_h`): read-only binary sensors (binary_sensor.py) - changing them live
+#   destroys the colour until a reboot.
+# ==================================================================================================
+
+
+class StateSwitch(AdminEntity, SwitchEntity):
+    """A 0/1 field of `get_states` / `save_states`."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: DoorbellCoordinator, key: str, field: str, icon: str,
+                 *, default: int | None = None, enabled: bool = True) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._default = default
+        self._attr_translation_key = key
+        self._attr_icon = icon
+        self._attr_entity_registry_enabled_default = enabled
+
+    def _raw(self):
+        return (self.coordinator.data or {}).get(self._field, self._default)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._raw() is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        raw = self._raw()
+        return None if raw is None else bool(int(raw))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.coordinator.async_save_states({self._field: "1"}, self._attr_translation_key.replace("_", " "))
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.coordinator.async_save_states({self._field: "0"}, self._attr_translation_key.replace("_", " "))
+
+
+class DetectSwitch(AdminEntity, SwitchEntity):
+    """Detection of one class (§1.14-bis). ⚠️ Turning ONE off saves notices, not CPU: the model is
+    one and finds both classes in the same pass. Only with BOTH off does the inference stop."""
+
+    _source = "detect"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: DoorbellCoordinator, key: str, field: str, icon: str) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._attr_translation_key = key
+        self._attr_icon = icon
+
+    @property
+    def available(self) -> bool:
+        return super().available and (self.source or {}).get(self._field) is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        raw = (self.source or {}).get(self._field)
+        return None if raw is None else bool(int(raw))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.coordinator.async_save_detect({self._field: "1"}, self._attr_translation_key.replace("_", " "))
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.coordinator.async_save_detect({self._field: "0"}, self._attr_translation_key.replace("_", " "))

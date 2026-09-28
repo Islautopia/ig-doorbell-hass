@@ -48,6 +48,9 @@ async def async_setup_entry(
         PackageBinarySensor(c),
         PresenceBinarySensor(c, "panel", "street_panel", "mdi:tablet"),
         PresenceBinarySensor(c, "reader", "fingerprint_reader", "mdi:fingerprint"),
+        RingingBinarySensor(c, hass.data[DOMAIN][entry.entry_id]["call_state"]),
+        FlipBinarySensor(c, "flip_v", "flip_vertical"),
+        FlipBinarySensor(c, "flip_h", "flip_horizontal"),
     ])
 
 
@@ -156,3 +159,65 @@ class PresenceBinarySensor(DoorbellEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return bool((self.coordinator.data or {}).get(self._field, 0))
+
+
+class RingingBinarySensor(DoorbellEntity, BinarySensorEntity):
+    """On from the ring until the call is resolved (answered, declined or missed). See call_state.py.
+
+    ⚠️ No "call in progress" after it was answered, on purpose: the doorbell reports when a ring is
+    RESOLVED, not when the conversation ends - a sensor for that would have to invent the ending.
+    The outcome of the last call travels as attributes, for automations.
+    """
+
+    _attr_translation_key = "ringing"
+    _attr_icon = "mdi:bell-ring"
+
+    def __init__(self, coordinator: DoorbellCoordinator, call_state) -> None:
+        super().__init__(coordinator, "ringing")
+        self._call = call_state
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._call.async_listen(self.async_write_ha_state))
+
+    @property
+    def available(self) -> bool:
+        # Pushed by the webhook, not polled: a doorbell that missed ONE poll is still ringing.
+        return True
+
+    @property
+    def is_on(self) -> bool:
+        return self._call.ringing
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        # English protocol words on purpose (answered/declined/missed): an automation compares
+        # them, and the project's rule is that internal state is not translated.
+        return {"call_id": self._call.call_id, "last_outcome": self._call.outcome,
+                "answered_by": self._call.by}
+
+
+class FlipBinarySensor(DoorbellEntity, BinarySensorEntity):
+    """`flip_v` / `flip_h`: the camera's mounting orientation. READ-ONLY, and it must stay so.
+
+    ⚠️ NOT A SWITCH, AND DO NOT MAKE IT ONE. Changing a flip WHILE THE CAMERA RUNS destroys the colour
+    until a full reboot of the doorbell (measured 2026-08-21, IG_Doorbell CLAUDE.md landmine):
+    saturation P95 89 -> 42.6, and turning the flip back does NOT repair it. An automation toggling
+    it would leave the picture washed out with nothing to explain why. Orientation is set once, at
+    installation, from the apps or the doorbell's own page, followed by a reboot.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:flip-vertical"
+
+    def __init__(self, coordinator: DoorbellCoordinator, field: str, key: str) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._attr_translation_key = key
+        if field == "flip_h":
+            self._attr_icon = "mdi:flip-horizontal"
+
+    @property
+    def is_on(self) -> bool | None:
+        value = (self.coordinator.data or {}).get(self._field)
+        return None if value is None else bool(value)

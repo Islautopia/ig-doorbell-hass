@@ -37,3 +37,30 @@ LAN_IP = "192.168.1.10"
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     yield
+
+
+# The slow sources (coordinator.SOURCES, 1.3.0) read through ONE function, api.async_get_json. It is
+# patched for EVERY test so no test can reach the network by accident: a path with no canned answer
+# fails like an unreachable doorbell (DoorbellApiError), which is what an entity must survive anyway.
+# Tests that need an answer put it in `doorbell_json` (path -> dict, or an exception to raise).
+@pytest.fixture(autouse=True)
+def doorbell_json():
+    from unittest.mock import patch
+
+    from custom_components.ig_doorbell import api
+
+    answers: dict = {}
+    calls: list[str] = []
+
+    async def _get_json(session, device_id, credential, path):
+        calls.append(path)
+        answer = answers.get(path)
+        if answer is None:
+            raise api.DoorbellApiError(f"no canned answer for {path}")
+        if isinstance(answer, Exception):
+            raise answer
+        return dict(answer)
+
+    answers["_calls"] = calls
+    with patch.object(api, "async_get_json", _get_json):
+        yield answers

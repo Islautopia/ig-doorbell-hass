@@ -63,3 +63,42 @@ class DoorbellEntity(CoordinatorEntity[DoorbellCoordinator]):
         entities reporting a state from hours ago.
         """
         return self.coordinator.last_update_success
+
+
+class SourceEntity(DoorbellEntity):
+    """An entity that reads one of the coordinator's slow sources (coordinator.SOURCES).
+
+    Unavailable until that source has been read - never a made-up value in the meantime - and
+    unavailable when this pairing may not read it.
+    """
+
+    _source: str | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._source:
+            self.async_on_remove(self.coordinator.want(self._source))
+
+    @property
+    def source(self) -> dict | None:
+        return self.coordinator.extra.get(self._source) if self._source else None
+
+    @property
+    def available(self) -> bool:
+        if not super().available:
+            return False
+        return self._source is None or self.source is not None
+
+
+class AdminEntity(SourceEntity):
+    """A control that WRITES a doorbell setting. Admin only (§1.16-bis: anyone reads, admin writes).
+
+    ⚠️ UNAVAILABLE, not failing, with a `user` pairing (Iñaki, 2026-09-28): a control that is
+    offered and then refuses every time is the worse of the two. The value is still readable in
+    that pairing's diagnostics and in the apps. And the doorbell remains the one that enforces it -
+    its 403 is still turned into a readable error (coordinator._write_error) if it is reached.
+    """
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.role == "admin"
