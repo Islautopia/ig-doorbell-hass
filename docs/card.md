@@ -10,6 +10,29 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## Back to the home page: wall panels only, re-armed on every visit (1.2.3, 2026-09-28)
+
+Two bugs of 1.2.2 on Iñaki's HA. (1) Salon wall panel: once the deadline had fired, every later
+visit to the card bounced straight home. Home Assistant builds a NEW card on the way back, and the
+absolute "last touch" mark (module-wide since 2026-09-06, so re-created elements do not restart it)
+was already older than the deadline. (2) His desktop PC went home at the same moment as the panel:
+nothing server-side - the same ring re-armed every open card with the same integration-wide value.
+
+- The mark and the single back-home timer live on `window.__igDoorbellIdle` (IG_IDLE), shared by
+  every copy of the module on the page. `_idleOnShown()` (connectedCallback, the off-screen observer
+  seeing the card again) restarts the mark when there was a navigation since the card was last shown
+  (`location-changed`/`popstate` counter) or the deadline had already run out; `visibilitychange` to
+  visible and `pageshow` restart it too. A re-creation WITHOUT navigation keeps the absolute deadline
+  (the 2026-09-06 bug stays fixed: sim_carrera_reentrada).
+- The timer acts only from the card's own view on screen (`_idleOnOwnView()`: connected, not paused,
+  document visible, not off-screen, same pathname as when shown) - the off-screen pause takes 1.5 s,
+  and a hand navigation inside that window was being sent home.
+- `back_home` in `get_connection_info` (the card sends `ua`): true only for a page matching a panel
+  picked in Ring notifications (HA user + companion model in the user agent,
+  `call_page_nav.is_configured_panel`). Otherwise `_idleTimeoutMs()` is 0. Fails closed: an iPad
+  panel (no model in its UA) is never sent home - not fixable with this identity.
+- Bench: `tests/card/back_home` (H1-H6, six mutants; control: the 1.2.2 build fails H1).
+
 ## PRIVACY: the microphone lives only inside an active talk turn; the call page never falls back (1.2.2, 2026-09-28)
 
 **Symptom** (salon wall tablet, Android HA app WebView): a HIDDEN page held the microphone capture

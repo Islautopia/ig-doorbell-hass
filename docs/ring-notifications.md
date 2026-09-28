@@ -38,10 +38,19 @@ older firmware they still ring, but they are not cleared.
 
 **When the doorbell page goes away.** Every card and call page follows the same rule. While it is on
 screen, the video is on; when it leaves the screen, the video stops at once. The doorbell's
-*Back to the home page after* setting (default 120 s) takes the screen back to Home Assistant's
-default page after that long with nobody touching it. For a call nobody answered, the time counts from
-the ring. It never leaves during a call that was answered, and it never navigates away if the card
-is already on the default page. `0` means never.
+*Wall panels: back to the home page after* setting (default 120 s) takes the screen back to Home
+Assistant's default page after that long with nobody touching it - **only on the wall panels picked
+in these Ring notifications options**. A computer or a phone showing the card is attended: whoever
+opened it closes it, and the card never navigates it away. For a call nobody answered, the time
+counts from the ring. Every visit to the card starts the full time again, and so does every touch.
+It never leaves during a call that was answered, and it never navigates away if the card is already
+on the default page. `0` means never.
+
+How a panel is recognised: the card sends its browser's user agent, and the integration matches it
+with the Home Assistant user and the device model the companion app registered for a picked panel
+(the same identity that shows the call page in the window already on screen). Anything it cannot
+match is treated as attended and never sent home - including an iPad, whose companion does not put
+its model in the user agent.
 
 ## Setting up each device
 

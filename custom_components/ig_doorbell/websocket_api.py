@@ -11,7 +11,10 @@ recordings_view.py), which adds the credential server-side and reaches the doorb
 
 Commands:
   - ig_doorbell/get_connection_info: the device id and the entity ids the card reads
-    (the live-view timeout `number` and the events `event`, so a ring can wake a paused card).
+    (the back-home deadline `number` and the events `event`, so a ring can wake a paused card),
+    and (1.2.3) `back_home`: whether THIS page is a wall panel picked in the Ring notifications
+    options (the card sends its user agent as `ua`; call_page_nav.is_configured_panel). Only then
+    does the card apply the deadline; any other page is never navigated away.
   - ig_doorbell/get_local_signal_url: a short-lived signed URL for the signalling proxy.
   - ig_doorbell/get_quick_replies: the doorbell's quick-reply list (id + label), read
     fresh over the LAN each time - same "the card shows, the integration exposes" rule as the
@@ -79,6 +82,7 @@ def _find_entry_data(hass: HomeAssistant, device_id: str) -> dict | None:
     {
         vol.Required("type"): "ig_doorbell/get_connection_info",
         vol.Required("device_id"): str,
+        vol.Optional("ua", default=""): str,
     }
 )
 @websocket_api.async_response
@@ -103,6 +107,10 @@ async def websocket_get_connection_info(hass: HomeAssistant, connection, msg) ->
     device_id = entry_data[CONF_DEVICE_ID]
     coordinator = entry_data.get("coordinator")
     registry = er.async_get(hass)
+    from . import call_page_nav  # noqa: PLC0415
+
+    user = getattr(connection, "user", None)
+    back_home = call_page_nav.is_configured_panel(hass, user.id if user else None, msg["ua"][:400])
     connection.send_result(
         msg["id"],
         {
@@ -112,6 +120,8 @@ async def websocket_get_connection_info(hass: HomeAssistant, connection, msg) ->
                 "number", DOMAIN, f"{device_id}_live_timeout"
             ),
             "events_entity": registry.async_get_entity_id("event", DOMAIN, f"{device_id}_events"),
+            # (1.2.3) Only a configured wall panel goes back to the home page; see is_configured_panel.
+            "back_home": back_home,
         },
     )
 

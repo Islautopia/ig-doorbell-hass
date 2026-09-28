@@ -225,7 +225,7 @@ async function main() {
   // ════════════════════════════════════════════════════════════════════════════════════════════
   // CASE 5 (a one-shot idle clock): after releasing on idle and restoring with
   // a tap, does the idle clock get armed again for a SECOND automatic cycle? If the
-  // restoring tap never updates LAST_INTERACTION_MS (see the early `return` in
+  // restoring tap never updates IG_IDLE.last (see the early `return` in
   // _onIdleActivity's "restore" branch), the check startWebRTC() arms sees the clock already
   // expired, fires almost instantly, finds nothing to release (or releases what was just restored,
   // CASE 4) and in NO case does it reschedule itself -- so the automatic idle clock

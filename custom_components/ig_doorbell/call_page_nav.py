@@ -125,6 +125,33 @@ class CallPageNav:
 
 
 @callback
+def is_configured_panel(hass: HomeAssistant, user_id: str | None, ua: str | None) -> bool:
+    """Is this page a wall panel picked in some doorbell's Ring notifications options? (1.2.3)
+
+    ⚠️ ONLY a positively identified panel gets the "back to the home page" deadline (Iñaki,
+    2026-09-28: his desktop PC was being sent to the home page too). A desktop browser or a phone
+    is ATTENDED: whoever opened the card there closes it; the card never navigates it away. Same
+    identity as the in-place call page above: the Home Assistant user + the device model the
+    companion registered with, found in the page's user agent. Anything that does not match -
+    no user agent, another user, a model that is not in it, an iPad (its user agent carries no
+    model) - is not a panel, and fails CLOSED: never navigated.
+    """
+    if not user_id or not ua:
+        return False
+    from . import notify_ring  # noqa: PLC0415 - notify_ring imports this module
+    from .const import CONF_NOTIFY_PANELS  # noqa: PLC0415
+
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        picked = entry.options.get(CONF_NOTIFY_PANELS) or []
+        if not picked:
+            continue
+        for t in notify_ring.resolve_targets(hass, picked, "panel"):
+            if t.user_id and _matches(t.user_id, t.model or "", user_id, ua):
+                return True
+    return False
+
+
+@callback
 def async_get(hass: HomeAssistant) -> CallPageNav:
     nav = hass.data.get(DATA_CALL_PAGE_NAV)
     if nav is None:

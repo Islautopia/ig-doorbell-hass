@@ -136,7 +136,10 @@ function makeHass() {
           await new Promise((r) => setTimeout(r, d.connDelay));
           log(`connInfo ${msg.device_id} role=${d.role}`);
           const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-          return { device_id: msg.device_id, role: d.role, live_timeout_entity: null, events_entity: `event.${slug}_events` };
+          // back_home (1.2.3): the integration's answer to "is this page a configured wall panel?".
+          // A bench that needs a panel sets window.__backHomeFor(ua); by default no page is one.
+          return { device_id: msg.device_id, role: d.role, live_timeout_entity: null, events_entity: `event.${slug}_events`,
+            back_home: window.__backHomeFor ? !!window.__backHomeFor(msg.ua || '') : false };
         }
         if (msg.type === 'ig_doorbell/get_local_signal_url') {
           return { signal_url: `/api/ig_doorbell/signal/${msg.device_id}?authSig=fake` };

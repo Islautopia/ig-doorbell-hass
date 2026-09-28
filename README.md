@@ -180,7 +180,9 @@ Doorbell → Configure → Ring notifications** and pick the phones and the pane
 - **Phones** get a notification with the visitor's picture that rings even in silent mode (a
   critical alert on iPhone). Tapping it opens the doorbell full-screen.
 - **Android wall panels** wake up and show the doorbell. They go back to Home Assistant's default
-  page after the doorbell's *Back to the home page after* time, but not while an answered call lasts.
+  page after the doorbell's *Wall panels: back to the home page after* time (`0` = never), but not
+  while an answered call lasts. Only the panels picked here ever go back by themselves: a computer or
+  a phone showing the card is attended, and the card never takes it away from the page.
 - **Speakers** (optional): Echo speakers play Alexa's doorbell chime, and other speakers play the
   IG Doorbell chime. They can also say which doorbell is ringing.
 - When someone answers, the notification **disappears from every device**. A missed call is left

@@ -366,6 +366,7 @@ const CASES = {
   },
   // ---- a visible card never pauses by itself (1.2.0 rule, 2026-09-27) ------------------------------
   I1: async (page, check) => {
+    await ev(page, () => { window.__backHomeFor = () => true; });   // 1.2.3: the deadline is a wall panel's only
     await mountLive(page);
     const r = await ev(page, async () => {
       const v = window.tView();

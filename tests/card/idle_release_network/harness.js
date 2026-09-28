@@ -154,7 +154,8 @@ function makeHass() {
         log(`sendMessagePromise(${msg.type})`);
         if (msg.type === 'ig_doorbell/get_connection_info') {
           await sleep(c.connInfoDelay);
-          return { credential: 'FAKE-CRED', relay_ws_url: 'wss://fake-relay.example/ws' };
+          // back_home (1.2.3): this bench plays a configured wall panel - the only page the deadline applies to.
+          return { credential: 'FAKE-CRED', relay_ws_url: 'wss://fake-relay.example/ws', back_home: true };
         }
         if (msg.type === 'ig_doorbell/get_turn_credentials') {
           await sleep(c.turnDelay);

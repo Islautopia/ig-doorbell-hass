@@ -6,8 +6,8 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.2.3';
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-28-ig-doorbell`;
+const CARD_VERSION = '1.2.2';
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -33,37 +33,7 @@ const EDITOR_TAG = 'ig-doorbell-card-editor';
 // instant that survives the element, rearming and recreating both stop mattering --
 // and a new instance born when 60 s have already passed lets go IMMEDIATELY, instead of
 // handing out another free minute.
-//
-// ⚠️ (1.2.3) ...EXCEPT WHEN THAT INSTANCE IS BORN BECAUSE SOMEONE CAME BACK TO THE CARD (Iñaki,
-// 2026-09-28, salon wall tablet). Since 1.2.0 the deadline navigates to the default page, and Home
-// Assistant builds a NEW card when you come back to its view. The mark still pointed at the last
-// touch before the deadline had fired, so every later visit to the card was "already expired" and
-// bounced straight back home: the deadline never re-armed. So the mark now also restarts when the
-// card BECOMES VISIBLE - a navigation since it was last shown, the document shown again
-// (visibilitychange/pageshow), or a deadline that had already run out - and a card that just
-// became visible can never fire. A re-creation WITHOUT any navigation (the 2026-09-06 case above)
-// still inherits the absolute deadline: the navigation counter tells the two apart.
-//
-// It lives on `window`, not in the module, for the same reason as IG_MIC below: two copies of this
-// module on one page (HACS + the integration, a stale service-worker copy) must share ONE mark and
-// ONE timer. `timer`/`owner`: the single back-home timer of this window and the view that armed it;
-// `wants`: every view that asked for it, so another one takes over when the owner stops.
-const IG_IDLE = (typeof window !== 'undefined' && window.__igDoorbellIdle)
-  || { last: Date.now(), navSeq: 0, shownNavSeq: 0, timer: null, owner: null, wants: new Set(), hooked: false };
-if (typeof window !== 'undefined') window.__igDoorbellIdle = IG_IDLE;
-if (!IG_IDLE.hooked && typeof window !== 'undefined' && typeof document !== 'undefined') {
-  IG_IDLE.hooked = true;
-  // Home Assistant's router announces every in-app navigation with `location-changed` (so does
-  // _goHome() below); the back button is `popstate`.
-  const navigated = () => { IG_IDLE.navSeq += 1; };
-  window.addEventListener('location-changed', navigated);
-  window.addEventListener('popstate', navigated);
-  // The document shown again (screen on, app back in front, a page restored from the bfcache):
-  // someone is looking now, the full deadline starts over. The pending timer re-checks this mark
-  // before acting, so moving it without re-arming is safe (see the guard in _armIdleWakeLockTimer).
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') IG_IDLE.last = Date.now(); });
-  window.addEventListener('pageshow', () => { IG_IDLE.last = Date.now(); });
-}
+let LAST_INTERACTION_MS = Date.now();
 
 // ⚠️ THE IDLE PAUSE LIVES IN THE MODULE, PER DOORBELL (1.9.1, measured on the living-room tablet
 // on 2026-09-25). Home Assistant re-inserts -- or recreates -- the card element without
@@ -882,7 +852,6 @@ class IgDoorbellView extends HTMLElement {
 
   connectedCallback() {
     if (this._destroyed) return;  // (1.10.0) instance of a doorbell that's no longer being viewed: see _destroy()
-    this._idleOnShown();          // (1.2.3) became visible: the back-home deadline may start over
     // The SAME element that was removed comes back into view (Home Assistant reuses its views): the
     // "off-screen" pause resumes. The idle one does NOT: that one is a person's.
     if (this._pauseState && this._pauseState.reason === 'hidden') {
@@ -997,7 +966,6 @@ class IgDoorbellView extends HTMLElement {
       this._offscreenVisible = visible;
       if (visible) {
         this._clearOffscreenTimer();
-        this._idleOnShown();                          // (1.2.3) back on screen (e.g. its view shown again)
         // Only lifts the "off-screen" pause. The idle one belongs to a person or to
         // a ring: a layout flicker (the sourceless <video> changing size) is NOT
         // someone coming back, and treating it as such was the loop measured on the tablet (1.9.0).
@@ -3149,7 +3117,7 @@ class IgDoorbellView extends HTMLElement {
   // Only interaction restarts it. The stream's lifecycle arms the countdown if none existed,
   // but doesn't touch it if one is already running.
   _armIdleWakeLockTimer(restartClock = false) {
-    if (restartClock) IG_IDLE.last = Date.now();
+    if (restartClock) LAST_INTERACTION_MS = Date.now();
     this._clearIdleWakeLockTimer();
     const timeoutMs = this._idleTimeoutMs();
     this._appliedIdleTimeoutMs = timeoutMs;
@@ -3157,18 +3125,8 @@ class IgDoorbellView extends HTMLElement {
     this._registerIdleActivityListeners();
     // The deadline is ABSOLUTE from the last real interaction, not from this call. Rearming it doesn't
     // hand out extra time, and a newly created instance inherits whatever genuinely remains.
-    const secondsLeft = timeoutMs - (Date.now() - IG_IDLE.last);
-    // (1.2.3) ONE timer per window: whoever held it (another view, or a view of another copy of this
-    // module) gives it up. The deadline is shared (IG_IDLE.last), so one timer is enough, and a
-    // leftover one from a stacked view can no longer navigate on its own schedule.
-    if (IG_IDLE.timer) {
-      clearTimeout(IG_IDLE.timer);
-      if (IG_IDLE.owner && IG_IDLE.owner !== this) IG_IDLE.owner._idleWakeLockTimer = null;
-    }
-    IG_IDLE.wants.add(this);
-    IG_IDLE.owner = this;
-    const timer = setTimeout(() => {
-      if (IG_IDLE.timer === timer) { IG_IDLE.timer = null; IG_IDLE.owner = null; }
+    const secondsLeft = timeoutMs - (Date.now() - LAST_INTERACTION_MS);
+    this._idleWakeLockTimer = setTimeout(() => {
       this._idleWakeLockTimer = null;
       // ⚠️ THE GUARD AGAINST FALSE TRIGGERS, AND IT GOES IN HERE ON PURPOSE (2026-09-07).
       //
@@ -3177,7 +3135,7 @@ class IgDoorbellView extends HTMLElement {
       // than leaving the screen on for too long, and it's also the kind that doesn't reproduce by
       // counting seconds.
       //
-      // And the failure mode is real, not theoretical: the deadline is ABSOLUTE from `IG_IDLE.last`,
+      // And the failure mode is real, not theoretical: the deadline is ABSOLUTE from `LAST_INTERACTION_MS`,
       // but the timer was computed with the value from a while ago. Any path that
       // updates the mark without rearming (and until today _onIdleActivity() was exactly that when
       // there was no wake lock) leaves this trigger pointing at a time that's no longer the right one.
@@ -3186,7 +3144,7 @@ class IgDoorbellView extends HTMLElement {
       // gets released and it rearms with whatever genuinely remains. A clock that arms too early is
       // free; one that fires too early isn't. This check is what makes "arming the countdown in more places" safe.
       const timeoutNowMs = this._idleTimeoutMs();
-      const remainingMs = timeoutNowMs - (Date.now() - IG_IDLE.last);
+      const remainingMs = timeoutNowMs - (Date.now() - LAST_INTERACTION_MS);
       if (!timeoutNowMs) return;                        // it was disabled while it was running
       if (remainingMs > 0) {
         this._armIdleWakeLockTimer();
@@ -3197,7 +3155,7 @@ class IgDoorbellView extends HTMLElement {
       // touching the screen is exactly the normal case, and cutting it would be the worst possible bug in this
       // feature. It counts as interaction and gets checked again after a full deadline.
       if (this._callActive()) {
-        IG_IDLE.last = Date.now();
+        LAST_INTERACTION_MS = Date.now();
         this._armIdleWakeLockTimer();
         return;
       }
@@ -3222,44 +3180,8 @@ class IgDoorbellView extends HTMLElement {
       // stream. So a wall panel that a ring brought to the doorbell goes back to its dashboard, and
       // a card that IS on the default dashboard stays, with its stream (never a navigation loop).
       // A call that was answered (mic/turn above) never gets here while it lasts.
-      // (1.2.3) Only from the card's own view, on screen: never against a page the user navigated
-      // to by hand (the off-screen pause takes 1.5 s to arrive, the deadline may fire before it).
-      if (!this._idleOnOwnView()) {
-        console.info('[ig-doorbell-card] idle deadline reached but the card is not on screen in its view: not navigating');
-        return;
-      }
       this._goHome();
     }, Math.max(0, secondsLeft));
-    this._idleWakeLockTimer = timer;
-    IG_IDLE.timer = timer;
-  }
-
-  // ⚠️ (1.2.3) THE CARD BECAME VISIBLE: connectedCallback (a new or re-inserted element) and the
-  // off-screen observer seeing it again. The full deadline starts over when the user got here by
-  // navigating (Iñaki, 2026-09-28: after the deadline had fired once, every later visit bounced
-  // straight back home) or when the deadline had already run out - a card that just became visible
-  // never fires. Without a navigation and with time left it keeps the ABSOLUTE deadline: Home
-  // Assistant re-creates the element on its own every 30-45 s, and restarting on that is the
-  // 2026-09-06 bug (a 60 s deadline that never arrived). See IG_IDLE at the top.
-  _idleOnShown() {
-    const timeoutMs = this._idleTimeoutMs();
-    const navigated = IG_IDLE.navSeq !== IG_IDLE.shownNavSeq;
-    const expired = timeoutMs > 0 && Date.now() - IG_IDLE.last >= timeoutMs;
-    if (navigated || expired) IG_IDLE.last = Date.now();
-    IG_IDLE.shownNavSeq = IG_IDLE.navSeq;
-    this._idlePath = window.location.pathname;
-    // A running timer was computed with the old mark: it would re-check and re-arm anyway, but
-    // re-arming now keeps the timer honest (and this view becomes its owner).
-    if (this._idleWakeLockTimer || (this.pc && !this._pauseState && IG_IDLE.owner === null)) this._armIdleWakeLockTimer();
-  }
-
-  // Is this view where the deadline may act: in the page, not paused, the document shown, on screen
-  // for the observer, and the location still the one it was shown in?
-  _idleOnOwnView() {
-    if (this._destroyed || !this.isConnected || this._pauseState) return false;
-    if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return false;
-    if (this._offscreenVisible === false) return false;
-    return !this._idlePath || window.location.pathname === this._idlePath;
   }
 
   // Home Assistant's default page for this user: what "/" opens. Measured on HA 2026.9.3 (Docker):
@@ -3280,11 +3202,8 @@ class IgDoorbellView extends HTMLElement {
   }
 
   async _goHome() {
-    const from = window.location.pathname;
     const home = await this._defaultPanel();
     if (!home) return;
-    // (1.2.3) The user may have navigated (or the card left the screen) while the default page was read.
-    if (window.location.pathname !== from || !this._idleOnOwnView()) return;
     const current = (window.location.pathname.split('/')[1] || '');
     if (current === home) {
       console.info(`[ig-doorbell-card] idle deadline reached on the default page (/${home}): staying, stream on`);
@@ -3298,16 +3217,7 @@ class IgDoorbellView extends HTMLElement {
 
   // The current deadline, in ms. Set by the integration's entity (an automation can change it);
   // the YAML's `idle_release_seconds` only if the integration is older and doesn't offer it.
-  //
-  // ⚠️ (1.2.3) ONLY ON A WALL PANEL (Iñaki, 2026-09-28: his desktop PC was sent to the home page too,
-  // at the same moment as the salon panel - both armed by the same ring with the same integration-wide
-  // value). The deadline exists for a panel that a ring brought to the card and nobody will close. A
-  // desktop browser or a phone is ATTENDED: whoever opened the card closes it, and taking the page
-  // from under them is the bug. So the deadline applies only when the integration says THIS page is
-  // a panel picked in the Ring notifications options (`back_home`, websocket_api.py); without that
-  // answer - not received yet, an older integration, any other page - it is 0: never navigate.
   _idleTimeoutMs() {
-    if (!this._connInfo || this._connInfo.back_home !== true) return 0;
     const ent = this._connInfo && this._connInfo.live_timeout_entity;
     const st = ent && this._hass && this._hass.states ? this._hass.states[ent] : null;
     const v = st ? Number(st.state) : NaN;
@@ -3400,7 +3310,7 @@ class IgDoorbellView extends HTMLElement {
     this._pauseState = null;
     delete PAUSED_BY_DOORBELL[this.config.device_id];
     if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
-    IG_IDLE.last = Date.now();
+    LAST_INTERACTION_MS = Date.now();
     this._resetStatusLine();
     if (p.phase === 'grace' && this.pc) {
       this._sendLivePause(false);
@@ -3484,17 +3394,6 @@ class IgDoorbellView extends HTMLElement {
 
   _clearIdleWakeLockTimer() {
     if (this._idleWakeLockTimer) { clearTimeout(this._idleWakeLockTimer); this._idleWakeLockTimer = null; }
-    IG_IDLE.wants.delete(this);
-    if (IG_IDLE.owner !== this) return;
-    if (IG_IDLE.timer) clearTimeout(IG_IDLE.timer);
-    IG_IDLE.timer = null;
-    IG_IDLE.owner = null;
-    // (1.2.3) The window's single timer was this view's: another view still streaming on screen
-    // (two doorbells on one dashboard) takes it over, so stopping one card never leaves the other
-    // without its deadline.
-    for (const other of Array.from(IG_IDLE.wants)) {
-      if (other && typeof other._idleOnOwnView === 'function' && other.pc && other._idleOnOwnView()) { other._armIdleWakeLockTimer(); return; }
-    }
   }
 
   _registerIdleActivityListeners() {
@@ -3508,7 +3407,7 @@ class IgDoorbellView extends HTMLElement {
       // ⚠️ IT ALWAYS REARMS, AND IT USED TO BE AN `else` (2026-09-07). The previous version said
       // `if (!this._wakeLock) this._acquireWakeLock(); else this._armIdleWakeLockTimer(true)`: which
       // meant that on a device with no wake lock -- the wallpanel-- a touch updated
-      // `IG_IDLE.last` and did NOT rearm anything, leaving a trigger running that was computed with the
+      // `LAST_INTERACTION_MS` and did NOT rearm anything, leaving a trigger running that was computed with the
       // old mark. These are two independent things: rearming the countdown belongs to the interaction, requesting
       // the screen belongs to the wake lock. Requesting it remains best-effort and may not exist.
       this._armIdleWakeLockTimer(true);
@@ -5225,9 +5124,6 @@ class IgDoorbellView extends HTMLElement {
       const info = await this._hass.connection.sendMessagePromise({
         type: `${IG_DOMAIN}/get_connection_info`,
         device_id: this.config.device_id,
-        // (1.2.3) Who this page is: the integration answers `back_home` only for a wall panel picked
-        // in the Ring notifications options (user + model in the user agent). See _idleTimeoutMs().
-        ua: (typeof navigator !== 'undefined' && navigator.userAgent) || '',
       });
       // Wait #1 (HA's WebSocket) passed. If we got superseded here nothing is open yet:
       // it's enough to not write `_connInfo`/`_slot` over the current startup's.

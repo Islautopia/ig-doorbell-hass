@@ -179,6 +179,8 @@ function newCard(CardClass, options) {
         if (msg.type === 'ig_doorbell/get_connection_info') {
           // Phase 0: no credential or relay; the entities the card reads.
           const info = { device_id: 'abc', live_timeout_entity: o.entityDeadline === undefined ? null : 'number.x_live_view_timeout', events_entity: 'event.x_events' };
+          // 1.2.3: the deadline applies only to a configured wall panel; this simulation plays one.
+          info.back_home = o.backHome === undefined ? true : o.backHome;
           // The BEFORE code (negative control) read these two: they're given to it so it can follow its path.
           info.relay_ws_url = 'wss://relay/ws'; info.credential = 'X';
           return new Promise((r) => setTimeout(() => r(info), o.infoMs || 0));

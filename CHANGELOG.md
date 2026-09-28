@@ -6,6 +6,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.3] — unreleased
+
+### Fixed
+
+- **Back to the home page applies only to wall panels.** It used to apply wherever the card was
+  open: a desktop browser was sent home at the same moment as the wall panel (the same ring
+  started both clocks). Now only a page recognised as one of the wall panels picked in *Ring
+  notifications* goes back by itself; a computer or a phone is never navigated away. The setting
+  is now called *Wall panels: back to the home page after* (`0` = never).
+- **After going home once, the panel bounced straight back from the card on every later visit.**
+  Every visit to the card now starts the full time again, and so does every touch. The deadline
+  never navigates a page the user went to by hand, and a page keeps a single back-home timer even
+  with several cards on it.
+
 ## [1.2.2] — unreleased
 
 ### Fixed

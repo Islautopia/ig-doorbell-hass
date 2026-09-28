@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.2.3: back to the home page - wall panels only, re-armed on every visit</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // The document's visibility, emulated (headless Chromium is always "visible").
+    window.__vis = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__vis === 'hidden' });
+    // The integration's back-home deadline entity (number.*_live_view_timeout), in seconds.
+    const realSend = window.__hass.connection.sendMessagePromise;
+    window.__hass.connection.sendMessagePromise = async (m) => {
+      const r = await realSend(m);
+      if (m.type === 'ig_doorbell/get_connection_info' && r) r.live_timeout_entity = 'number.bench_back_home';
+      return r;
+    };
+    window.tDeadline = (s) => { window.__states['number.bench_back_home'] = { entity_id: 'number.bench_back_home', state: String(s) }; };
+    // Every navigation the page makes to the default page, counted (Home Assistant's router is not here).
+    window.__homeNavs = 0;
+    const realPush = history.pushState.bind(history);
+    history.pushState = (st, t, url) => { if (url === '/lovelace') window.__homeNavs += 1; return realPush(st, t, url); };
+    // A navigation the way Home Assistant's router announces it.
+    window.tNavigate = (p) => { realPush(null, '', p); window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } })); };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

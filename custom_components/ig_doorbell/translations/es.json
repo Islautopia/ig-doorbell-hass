@@ -98,7 +98,7 @@
         },
         "data_description": {
           "notify_phones": "Móviles con la app de Home Assistant. Reciben un aviso con la foto; al tocarlo se abre la página de la llamada. No añadas móviles que ya usan la app IG Doorbell para las llamadas, o sonarán dos veces. Un móvil que no añadas sigue recibiendo todo lo demás de Home Assistant; se elige móvil a móvil.",
-          "notify_panels": "Tabletas de pared con la app de Home Assistant. Android: la pantalla se enciende y muestra la página de la llamada (la app necesita el permiso «Mostrar sobre otras apps»; sin él muestra un aviso normal sin decir nada); vuelve a la página de inicio pasado el tiempo «Volver a la página de inicio tras» del portero, y nunca mientras dura una llamada contestada. iPad: un aviso; para un panel de verdad deja la página de la llamada abierta con Acceso Guiado.",
+          "notify_panels": "Tabletas de pared con la app de Home Assistant. Android: la pantalla se enciende y muestra la página de la llamada (la app necesita el permiso «Mostrar sobre otras apps»; sin él muestra un aviso normal sin decir nada); vuelve a la página de inicio pasado el tiempo «Paneles de pared: volver a la página de inicio tras» del portero (0 = nunca), y nunca mientras dura una llamada contestada. Solo los paneles elegidos aquí vuelven por sí solos: un ordenador o un teléfono está atendido, y la tarjeta nunca lo saca de la página. iPad: un aviso; para un panel de verdad deja la página de la llamada abierta con Acceso Guiado.",
           "notify_critical": "iPhone: alerta crítica (permite las Alertas críticas a la app de Home Assistant). Android: canal de alarma.",
           "notify_open_door": "Añade un botón «Abrir puerta» al aviso, válido solo mientras suena. El iPhone pide Face ID antes. En Android aún no se sabe si obliga a desbloquear el móvil: déjalo apagado si eso te importa.",
           "announce_players": "Suenan con un carillón cuando alguien llama: Alexa (Echo) con su propio carillón de timbre, el resto de altavoces con el de IG Doorbell. Si ya anuncias el timbre en estos altavoces con una automatización, no necesitas esto, o sonarán dos veces.",
@@ -177,7 +177,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Volver a la página de inicio tras"
+        "name": "Paneles de pared: volver a la página de inicio tras"
       }
     },
     "select": {

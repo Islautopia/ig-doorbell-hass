@@ -23,6 +23,9 @@
 //   - registry_race against the 1.1.1 build (fixtures/legacy/card_1.1.1.js, a plain copy) must go
 //     red on R1 - the card defined in the native registry before Home Assistant's polyfill replaced
 //     it (fixed in 1.1.2).
+//   - back_home against the 1.2.2 build (fixtures/legacy/card_1.2.2.js, a plain copy) must go red
+//     on H1 - once the back-home deadline had fired, every later visit bounced straight home (fixed
+//     in 1.2.3).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
 //     fixtures/legacy/card_3983f68.js) plus its own mutants.
 const http = require('http');
@@ -73,6 +76,7 @@ const JOBS = [
   { name: 'idle_release_network', bench: 'idle_release_network', args: ['idle_release_network/driver.js'], expect: 0 },
   { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
   { name: 'mic_privacy (+ mutants MA-MN)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
+  { name: 'back_home (+ mutants MR-MS)', bench: 'back_home', args: ['back_home/driver.js'], expect: 0 },
   { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },
@@ -86,6 +90,8 @@ const JOBS = [
     args: ['ui_v1_11_0/driver.js'], env: { CARD_FILE: LEGACY('card_1.0.0.js'), SKIP_MUTANTS: '1' }, expect: 1, failText: /^FAIL \[L13\]/m, },
   { name: 'CONTROL registry_race vs 1.1.1 card (must fail R1)', bench: 'registry_race', control: true,
     args: ['registry_race/driver.js'], env: { CARD_FILE: LEGACY('card_1.1.1.js') }, expect: 1, failText: /^ {2}FAIL \[R1\]/m, },
+  { name: 'CONTROL back_home vs 1.2.2 card (must fail H1)', bench: 'back_home', control: true,
+    args: ['back_home/driver.js'], env: { CARD_FILE: LEGACY('card_1.2.2.js'), ONLY_CASES: 'H1', SKIP_MUTANTS: '1' }, expect: 1, failText: /^ {2}FAIL \[H1\]/m, },
 ];
 
 (async () => {

@@ -98,7 +98,7 @@
         },
         "data_description": {
           "notify_phones": "Telefoni con l'app Home Assistant. Ricevono una notifica con la foto; toccandola si apre la pagina della chiamata. Non aggiungere i telefoni che usano già l'app IG Doorbell per le chiamate, o squilleranno due volte. Un telefono non aggiunto continua a ricevere tutto il resto da Home Assistant; si sceglie telefono per telefono.",
-          "notify_panels": "Tablet a parete con l'app Home Assistant. Android: lo schermo si accende e mostra la pagina della chiamata (l'app richiede il permesso «Mostra sopra altre app», altrimenti mostra una semplice notifica senza avvisare); torna alla pagina iniziale dopo il tempo «Torna alla pagina iniziale dopo» del videocitofono, mai durante una chiamata risposta. iPad: una notifica; per un vero pannello lascia aperta la pagina della chiamata con Accesso guidato.",
+          "notify_panels": "Tablet a parete con l'app Home Assistant. Android: lo schermo si accende e mostra la pagina della chiamata (l'app richiede il permesso «Mostra sopra altre app», altrimenti mostra una semplice notifica senza avvisare); torna alla pagina iniziale dopo il tempo «Pannelli a parete: torna alla pagina iniziale dopo» del videocitofono (0 = mai), mai durante una chiamata risposta. Solo i pannelli scelti qui tornano da soli: un computer o un telefono è presidiato, e la scheda non lo porta mai via dalla pagina. iPad: una notifica; per un vero pannello lascia aperta la pagina della chiamata con Accesso guidato.",
           "notify_critical": "iPhone: avviso critico (consenti gli avvisi critici all'app Home Assistant). Android: flusso sveglia.",
           "notify_open_door": "Aggiunge un pulsante «Apri la porta» alla notifica, valido solo mentre suona. L'iPhone chiede prima il Face ID. Su Android non si sa ancora se il telefono deve essere sbloccato: lascialo disattivato se ti importa.",
           "announce_players": "Suonano un carillon quando qualcuno suona: Alexa (Echo) il proprio carillon del campanello, gli altri altoparlanti quello di IG Doorbell. Se annunci già il campanello su questi altoparlanti con un'automazione, non ti serve, altrimenti annunceranno due volte.",
@@ -177,7 +177,7 @@
     },
     "number": {
       "live_view_timeout": {
-        "name": "Torna alla pagina iniziale dopo"
+        "name": "Pannelli a parete: torna alla pagina iniziale dopo"
       }
     },
     "select": {

@@ -80,6 +80,12 @@ MUTANTS = [
     ("a page of another user or model is asked to navigate", PKG + "call_page_nav.py",
      '    return bool(model) and sub_user == user_id and model.lower() in (ua or "").lower()',
      "    return True"),
+    # --- 1.2.3: back to the home page only on a picked wall panel ---------------------------------
+    ("every page is treated as a wall panel (a desktop is sent home)", PKG + "call_page_nav.py",
+     '            if t.user_id and _matches(t.user_id, t.model or "", user_id, ua):',
+     "            if True:"),
+    ("get_connection_info never tells the panel to go home", PKG + "websocket_api.py",
+     '            "back_home": back_home,', '            "back_home": False,'),
     # --- 1.2.1: the card is also a Lovelace resource (a stale page HTML imports no card) ----------
     ("the card is never added as a Lovelace resource", PKG + "card.py",
      "    await async_sync_lovelace_resource(hass, url)\n    return url\n", "    return url\n"),
