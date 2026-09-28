@@ -42,7 +42,7 @@ from homeassistant.util import slugify
 
 from . import api
 from .announce import async_announce
-from . import call_page_nav
+from . import call_page_nav, panel_identity
 from .const import (
     CALL_PAGE_PATH,
     CONF_ANNOUNCE_PLAYERS,
@@ -132,8 +132,9 @@ class Target:
     platform: str       # "ios" / "android"
     role: str           # "phone" / "panel"
     name: str
-    user_id: str | None = None   # the HA user the companion registered as (call_page_nav.py)
-    model: str | None = None     # the device model it registered with (it is in its WebView's UA)
+    user_id: str | None = None   # the HA user the companion registered as
+    model: str | None = None     # the device model it registered with
+    device_id: str | None = None  # its registry device id: a panel's identity (panel_identity.py)
 
 
 @dataclass
@@ -179,7 +180,8 @@ def resolve_targets(hass: HomeAssistant, device_ids: list[str], role: str) -> li
         ident = f"{entry.data.get('app_id', '')} {entry.data.get('os_name', '')}".lower()
         platform = "android" if "android" in ident else "ios"
         found.append(Target(service=service, platform=platform, role=role, name=name,
-                            user_id=entry.data.get("user_id"), model=entry.data.get("model")))
+                            user_id=entry.data.get("user_id"), model=entry.data.get("model"),
+                            device_id=device.id))
     return found
 
 
@@ -300,10 +302,26 @@ class RingNotifier:
             call.picture = await img.async_wait_picture(RING_PICTURE_WAIT_S)
         await self._each(self._ring_one(call, t) for t in targets)
 
+    def _page_url(self, call: Call, target: Target) -> str:
+        """The call page; for a PANEL, with the nonce that identifies its companion (1.2.4).
+
+        ⚠️ Only this device's push carries this nonce, so the page that opens the URL and presents
+        it (get_connection_info) is this device's app: panel_identity.py binds its login to it. That
+        is how an iPad panel - no model in its user agent - is recognised at all. Do not drop it
+        from any URL sent to a panel.
+        """
+        url = call_page_url(self.coordinator.device_id)
+        if target.role != "panel" or not target.device_id:
+            return url
+        nonces = call.extra.setdefault("panel_nonce", {})
+        if target.device_id not in nonces:
+            nonces[target.device_id] = panel_identity.async_get(self.hass).issue(target.device_id)
+        return panel_identity.with_nonce(url, nonces[target.device_id])
+
     def _ring_data(self, call: Call, target: Target) -> dict:
         o = self.entry.options
         critical = o.get(CONF_NOTIFY_CRITICAL, True)
-        url = call_page_url(self.coordinator.device_id)
+        url = self._page_url(call, target)
         data: dict[str, Any] = {"tag": call.tag, "group": f"igd_{self.coordinator.device_id}"}
         image = self._image_entity_id()
         if image and call.picture:
@@ -352,10 +370,11 @@ class RingNotifier:
             # ⚠️ (1.2.2) FIRST IN PLACE: command_webview opens a NEW companion window on every ring
             # (measured: four stacked on the salon panel, each with its own page and card) - see
             # call_page_nav.py. It stays only as the fallback when no page of the panel answers.
-            if await call_page_nav.async_get(self.hass).async_show(target.user_id, target.model, url):
+            if await call_page_nav.async_get(self.hass).async_show(target.device_id, url):
                 _LOGGER.debug("Call page shown in place on %s", target.name)
                 return
-            await self._send(target, "command_webview", {**high, "command": url})
+            await self._send(target, "command_webview",
+                             {**high, "command": self._page_url(call, target)})
 
     # -- the resolution ---------------------------------------------------------------------------
 
@@ -390,7 +409,7 @@ class RingNotifier:
         image_id = self._image_entity_id()
         if img is not None and image_id and img.picture_of(call.call_id):
             data["image"] = f"/api/image_proxy/{image_id}"
-        url = call_page_url(self.coordinator.device_id)
+        url = self._page_url(call, target)
         if target.platform == "ios":
             data["url"] = url
             data["push"] = {"interruption-level": "passive", "sound": "none"}

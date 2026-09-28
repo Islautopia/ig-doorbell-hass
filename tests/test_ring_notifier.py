@@ -165,7 +165,9 @@ async def test_android_panel_wakes_and_opens_the_call_page(hass, rung):
     msgs = _msgs(calls, "Tab Test")
     assert [m["message"] for m in msgs] == ["Someone is at the door", "command_screen_on",
                                             "command_webview"]
-    assert msgs[2]["data"]["command"] == PAGE
+    # (1.2.4) Every URL to a panel carries the nonce that identifies its companion (panel_identity.py).
+    assert msgs[2]["data"]["command"].startswith(PAGE + "&igd_panel=")
+    assert msgs[0]["data"]["clickAction"] == msgs[2]["data"]["command"]
     # A panel is shared: no "Open door" action on its notification.
     assert [a["title"] for a in msgs[0]["data"]["actions"]] == ["Open"]
 
@@ -174,7 +176,7 @@ async def test_ipad_panel_gets_a_notification_only(hass, rung):
     _, _, calls = rung
     msgs = _msgs(calls, "Ipad Test")
     assert [m["message"] for m in msgs] == ["Someone is at the door"]
-    assert msgs[0]["data"]["url"] == PAGE
+    assert msgs[0]["data"]["url"].startswith(PAGE + "&igd_panel=")
 
 
 async def test_answered_clears_everywhere_by_the_same_tag(hass, rung):

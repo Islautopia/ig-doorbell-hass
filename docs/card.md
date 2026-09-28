@@ -10,6 +10,25 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## A wall panel is identified by its companion login, not its user agent (1.2.4, 2026-09-28)
+
+1.2.3 matched the page by HA user + the model in the user agent: works on the Android panel, never
+on the iPad (iOS user agents carry no model). Measured on the salon tablet (Android companion
+2026.6.5, HA 2026.9.3) with a throw-away page in the companion WebView: the external bus
+(`externalAppV2`, `config/get`) returns capability flags and `appVersion` only - no device, webhook
+or name; the page's websocket uses the companion's OWN refresh token (client_id
+`https://home-assistant.io/android`, one per installation); HA does not link that token to the
+`mobile_app` registration. IP matching was rejected: the Android IP sensor is disabled by default and
+the iOS companion has none.
+
+- Server side only (`panel_identity.py`): exact = refresh token bound to a device by the `igd_panel`
+  nonce that every URL to a picked panel carries (the call page's card passes it as `panel_nonce`
+  in `get_connection_info`); else unique user = a companion login whose user has exactly one
+  companion registration of that platform; else nothing. Bindings persist in `.storage`.
+- The card no longer sends `ua` (the server still accepts it from a cached 1.2.3 card and ignores
+  it). The Android in-place call page (`subscribe_call_page`) matches by the same identity.
+- NOT measured on the iPad yet: its binding needs a ring notification opened on it once.
+
 ## Back to the home page: wall panels only, re-armed on every visit (1.2.3, 2026-09-28)
 
 Two bugs of 1.2.2 on Iñaki's HA. (1) Salon wall panel: once the deadline had fired, every later
@@ -27,10 +46,9 @@ nothing server-side - the same ring re-armed every open card with the same integ
 - The timer acts only from the card's own view on screen (`_idleOnOwnView()`: connected, not paused,
   document visible, not off-screen, same pathname as when shown) - the off-screen pause takes 1.5 s,
   and a hand navigation inside that window was being sent home.
-- `back_home` in `get_connection_info` (the card sends `ua`): true only for a page matching a panel
-  picked in Ring notifications (HA user + companion model in the user agent,
-  `call_page_nav.is_configured_panel`). Otherwise `_idleTimeoutMs()` is 0. Fails closed: an iPad
-  panel (no model in its UA) is never sent home - not fixable with this identity.
+- `back_home` in `get_connection_info`: true only for a page identified as a panel picked in Ring
+  notifications (`call_page_nav.is_configured_panel`; since 1.2.4 by companion login, see above).
+  Otherwise `_idleTimeoutMs()` is 0. Fails closed.
 - Bench: `tests/card/back_home` (H1-H6, six mutants; control: the 1.2.2 build fails H1).
 
 ## PRIVACY: the microphone lives only inside an active talk turn; the call page never falls back (1.2.2, 2026-09-28)

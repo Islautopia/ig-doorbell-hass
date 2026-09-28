@@ -22,8 +22,8 @@
 //   H3 panel: the user navigates elsewhere by hand while the card is still on screen (the off-screen
 //      pause takes 1.5 s): the deadline never navigates that other page.
 //   H4 two windows, the same "ring" at the same moment: the panel window (companion user agent) goes
-//      home; the desktop window never does. Each window's answer comes from the integration's
-//      `back_home` for the user agent the card itself sent.
+//      home; the desktop window never does. (1.2.4) The panel is recognised only through the
+//      `igd_panel` nonce of its URL, which the card passes as `panel_nonce` (the iPad case).
 //   H5 two cards on one panel page: exactly one back-home timer in the window, one navigation.
 //   H6 panel with the deadline at 0: never.
 //
@@ -53,8 +53,8 @@ const MUTANTS = {
   MV2: { helper: true, a: '    if (window.location.pathname !== from || !this._idleOnOwnView()) return;\n', b: '' },
   // the 1.2.2 behaviour: the deadline applies to every page, panel or not
   MP: { target: 'H4', a: '    if (!this._connInfo || this._connInfo.back_home !== true) return 0;\n', b: '' },
-  // the card does not say who it is: the integration cannot recognise the panel
-  MU: { target: 'H4', a: "        ua: (typeof navigator !== 'undefined' && navigator.userAgent) || '',\n", b: '' },
+  // (1.2.4) the card does not hand over the panel nonce of its URL: an iPad panel is never recognised
+  MU: { target: 'H4', a: "        ...(igPanelNonce() ? { panel_nonce: igPanelNonce() } : {}),\n", b: '' },
   // every view keeps its own timer (no single window timer)
   MS: { target: 'H5', a: '    if (IG_IDLE.timer) {\n      clearTimeout(IG_IDLE.timer);\n      if (IG_IDLE.owner && IG_IDLE.owner !== this) IG_IDLE.owner._idleWakeLockTimer = null;\n    }\n', b: '' },
 };
@@ -71,7 +71,9 @@ function mutate(src, name) {
   return src;
 }
 
-async function openPage(browser, body, ua) {
+const NONCE = 'bench-nonce-0001';
+
+async function openPage(browser, body, ua, search) {
   const ctx = await browser.newContext({ userAgent: ua || PANEL_UA, viewport: { width: 700, height: 900 } });
   const page = await ctx.newPage();
   if (body) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));
@@ -80,8 +82,13 @@ async function openPage(browser, body, ua) {
   await page.goto(BASE);
   await page.waitForFunction(() => !!customElements.get('ig-doorbell-card'));
   page.__errors = errors;
-  // The integration's answer: a panel is the companion user agent carrying the picked model.
-  await page.evaluate((p) => { window.__lang = 'en'; window.__backHomeFor = (ua) => /SM-X200/.test(ua); history.replaceState(null, '', p); }, CARD_PATH);
+  // The integration's answer: the panel's login (here: the window's companion user agent) is a
+  // picked panel. H4 passes `search` to model the iPad instead: identified ONLY by the nonce.
+  await page.evaluate(([p, s, n]) => {
+    window.__lang = 'en';
+    window.__backHomeFor = s ? (login, msg) => msg.panel_nonce === n : (login) => /SM-X200/.test(login);
+    history.replaceState(null, '', p + (s || ''));
+  }, [CARD_PATH, search || '', NONCE]);
   return page;
 }
 
@@ -161,8 +168,10 @@ const CASES = {
 async function runH4(browser, body) {
   const results = [];
   const check = (id, label, cond) => results.push({ id, label, ok: !!cond });
-  const panel = await openPage(browser, body, PANEL_UA);
-  const desk = await openPage(browser, body, DESKTOP_UA);
+  // (1.2.4) The iPad case: the panel window was opened from its ring notification (the nonce in
+  // its URL) and the integration knows it by nothing else; the desktop has the same mock.
+  const panel = await openPage(browser, body, PANEL_UA, `?igd_panel=${NONCE}`);
+  const desk = await openPage(browser, body, DESKTOP_UA, '?other=1');
   try {
     await Promise.all([mountLive(panel, 2), mountLive(desk, 2)]);
     const said = await Promise.all([panel, desk].map((p) => ev(p, () => window.tView()._connInfo.back_home)));

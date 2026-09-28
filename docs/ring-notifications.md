@@ -46,11 +46,21 @@ counts from the ring. Every visit to the card starts the full time again, and so
 It never leaves during a call that was answered, and it never navigates away if the card is already
 on the default page. `0` means never.
 
-How a panel is recognised: the card sends its browser's user agent, and the integration matches it
-with the Home Assistant user and the device model the companion app registered for a picked panel
-(the same identity that shows the call page in the window already on screen). Anything it cannot
-match is treated as attended and never sent home - including an iPad, whose companion does not put
-its model in the user agent.
+How a panel is recognised (1.2.4): by the companion app itself, never by what the page says. The
+page's connection to Home Assistant uses the companion's own login, and the integration links that
+login to the device in one of two ways:
+
+- **Automatically**, when the page's Home Assistant user has only one companion app of that kind
+  (Android or iOS) - typical for a wall panel with its own user.
+- **The first time the call page is opened from that panel's own ring notification** (or, on
+  Android, when the ring opens it). Every link sent to a picked panel carries a one-time code that
+  only that device received; the page that opens it proves it is that device, and the login is
+  remembered. This is how an iPad whose user also has an iPhone is recognised.
+
+Anything it cannot identify - a computer, a phone, a panel not identified yet - is treated as
+attended and never sent home. The same identity decides which page shows the call page in the
+window already on screen. A companion app that logs out and in again (or is reinstalled) is
+recognised again the same way.
 
 ## Setting up each device
 

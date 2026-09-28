@@ -8,15 +8,14 @@ rings (`dumpsys activity activities`, tasks #100-#103). A `homeassistant://navig
 no better: it stacks a new WebViewActivity inside the front task. Only a navigation INSIDE the page
 already on screen reuses the window - and only the page can do that.
 
-So, for an Android panel: the card module (loaded on every Home Assistant page) subscribes here,
-saying who it is (the user, and the WebView's user agent, which carries the device model). On a
-ring the notifier asks the matching page(s) to navigate to the call page; a page that is VISIBLE
-does it in place and acknowledges. No acknowledgement in time (app closed, page never loaded) and
+So, for an Android panel: the card module (loaded on every Home Assistant page) subscribes here.
+On a ring the notifier asks the page(s) of THAT companion device to navigate to the call page; a
+page that is VISIBLE does it in place and acknowledges. No acknowledgement in time (app closed, page never loaded) and
 the notifier falls back to `command_webview` - a new window is better than no call page.
 
-Matching is by Home Assistant user + the model in the user agent, both from the companion's own
-registration (mobile_app entry data). Loose on purpose and harmless when loose: the worst case is
-another visible page of the same user on the same model showing the call page.
+(1.2.4) A page is matched by its companion DEVICE (panel_identity.py: the refresh token of its
+websocket, bound to the device or unique for its user) - no longer by the model in the user agent,
+which the iPad's does not carry. A page that cannot be identified is never asked.
 """
 from __future__ import annotations
 
@@ -29,6 +28,7 @@ from typing import Any, Callable
 
 from homeassistant.core import HomeAssistant, callback
 
+from . import panel_identity
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,107 +47,105 @@ PENDING_S = 15.0
 @dataclass
 class _Sub:
     user_id: str
-    ua: str
+    token_id: str | None      # the refresh token of the page's websocket (panel_identity.py)
     send: Callable[[dict], None]
 
 
 @dataclass
 class _Pending:
-    user_id: str
-    model: str
+    device_id: str            # the registry device id of the panel
     url: str
     expires: float
     fut: asyncio.Future = field(repr=False)
 
 
-def _matches(user_id: str, model: str, sub_user: str, ua: str) -> bool:
-    return bool(model) and sub_user == user_id and model.lower() in (ua or "").lower()
+def _matches(hass: HomeAssistant, device_id: str | None, user_id: str | None,
+             token_id: str | None) -> bool:
+    return bool(device_id) and panel_identity.async_get(hass).identify(user_id, token_id) == device_id
 
 
 class CallPageNav:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self.subs: dict[int, _Sub] = {}
-        self.seen: dict[tuple[str, str], float] = {}       # (user_id, ua) -> last subscribed
+        self.seen: dict[tuple[str, str | None], float] = {}  # (user_id, token_id) -> last subscribed
         self.pending: dict[str, _Pending] = {}
         self._next = 0
 
     @callback
-    def async_subscribe(self, user_id: str, ua: str, send: Callable[[dict], None]) -> Callable[[], None]:
+    def async_subscribe(self, user_id: str, token_id: str | None,
+                        send: Callable[[dict], None]) -> Callable[[], None]:
         self._next += 1
         key = self._next
-        self.subs[key] = _Sub(user_id, ua, send)
-        self.seen[(user_id, ua)] = time.monotonic()
+        self.subs[key] = _Sub(user_id, token_id, send)
+        self.seen[(user_id, token_id)] = time.monotonic()
         now = time.monotonic()
         # A page that (re)connects while a ring waits for it: the request is delivered now.
         for token, p in list(self.pending.items()):
-            if p.expires > now and _matches(p.user_id, p.model, user_id, ua):
+            if p.expires > now and _matches(self.hass, p.device_id, user_id, token_id):
                 send({"token": token, "url": p.url})
 
         @callback
         def _unsub() -> None:
             sub = self.subs.pop(key, None)
             if sub is not None:
-                self.seen[(sub.user_id, sub.ua)] = time.monotonic()
+                self.seen[(sub.user_id, sub.token_id)] = time.monotonic()
         return _unsub
 
     @callback
-    def async_ack(self, token: str, user_id: str) -> bool:
+    def async_ack(self, token: str, user_id: str | None, token_id: str | None) -> bool:
         p = self.pending.get(token)
-        if p is None or p.user_id != user_id or p.fut.done():
+        if p is None or not _matches(self.hass, p.device_id, user_id, token_id) or p.fut.done():
             return False
         p.fut.set_result(True)
         return True
 
-    async def async_show(self, user_id: str | None, model: str | None, url: str) -> bool:
+    async def async_show(self, device_id: str | None, url: str) -> bool:
         """Ask the panel's page to navigate in place. True = a visible page did it."""
-        if not user_id or not model:
+        if not device_id:
             return False
         now = time.monotonic()
-        live = [s for s in self.subs.values() if _matches(user_id, model, s.user_id, s.ua)]
-        recent = any(now - t < RECENT_S for (u, ua), t in self.seen.items()
-                     if _matches(user_id, model, u, ua))
+        live = [s for s in self.subs.values() if _matches(self.hass, device_id, s.user_id, s.token_id)]
+        recent = any(now - t < RECENT_S for (u, tid), t in self.seen.items()
+                     if _matches(self.hass, device_id, u, tid))
         wait = ACK_LIVE_S if live else ACK_RECENT_S if recent else 0.0
         if not wait:
             return False
         token = secrets.token_hex(8)
         fut: asyncio.Future = self.hass.loop.create_future()
-        self.pending[token] = _Pending(user_id, model, url, now + PENDING_S, fut)
+        self.pending[token] = _Pending(device_id, url, now + PENDING_S, fut)
         for s in live:
             s.send({"token": token, "url": url})
         try:
             return await asyncio.wait_for(fut, wait)
         except asyncio.TimeoutError:
-            _LOGGER.info("Call page: no page of the panel (%s) answered in %.0f s", model, wait)
+            _LOGGER.info("Call page: no page of the panel answered in %.0f s", wait)
             return False
         finally:
             self.pending.pop(token, None)
 
 
 @callback
-def is_configured_panel(hass: HomeAssistant, user_id: str | None, ua: str | None) -> bool:
+def is_configured_panel(hass: HomeAssistant, user_id: str | None, token_id: str | None) -> bool:
     """Is this page a wall panel picked in some doorbell's Ring notifications options? (1.2.3)
 
     ⚠️ ONLY a positively identified panel gets the "back to the home page" deadline (Iñaki,
     2026-09-28: his desktop PC was being sent to the home page too). A desktop browser or a phone
-    is ATTENDED: whoever opened the card there closes it; the card never navigates it away. Same
-    identity as the in-place call page above: the Home Assistant user + the device model the
-    companion registered with, found in the page's user agent. Anything that does not match -
-    no user agent, another user, a model that is not in it, an iPad (its user agent carries no
-    model) - is not a panel, and fails CLOSED: never navigated.
+    is ATTENDED: whoever opened the card there closes it; the card never navigates it away.
+
+    (1.2.4) The page's identity is its companion DEVICE (panel_identity.py): the refresh token of
+    its websocket, bound to the device by a nonce only that device received, or the only companion
+    of its platform that the page's user has. A browser, an ambiguous user, a page not identified
+    yet - not a panel, and fails CLOSED: never navigated.
     """
-    if not user_id or not ua:
+    device_id = panel_identity.async_get(hass).identify(user_id, token_id)
+    if device_id is None:
         return False
-    from . import notify_ring  # noqa: PLC0415 - notify_ring imports this module
     from .const import CONF_NOTIFY_PANELS  # noqa: PLC0415
 
     for entry in hass.config_entries.async_entries(DOMAIN):
-        picked = entry.options.get(CONF_NOTIFY_PANELS) or []
-        if not picked:
-            continue
-        for t in notify_ring.resolve_targets(hass, picked, "panel"):
-            if t.user_id and _matches(t.user_id, t.model or "", user_id, ua):
-                return True
+        if device_id in (entry.options.get(CONF_NOTIFY_PANELS) or []):
+            return True
     return False
 
 
@@ -161,4 +159,5 @@ def async_get(hass: HomeAssistant) -> CallPageNav:
 
 def summary(nav: CallPageNav) -> dict[str, Any]:
     """For diagnostics and tests."""
-    return {"subs": len(nav.subs), "pending": len(nav.pending)}
+    return {"subs": len(nav.subs), "pending": len(nav.pending),
+            **panel_identity.async_get(nav.hass).summary()}

@@ -6,6 +6,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.4] — unreleased
+
+### Fixed
+
+- **An iPad picked as a wall panel was never recognised as one** (so it never went back to the home
+  page by itself). Panels were matched by the device model in the browser's user agent, which the
+  iPad's companion app does not include. A panel is now recognised by the companion app's own login:
+  automatically when its Home Assistant user has only one companion app of that kind, otherwise the
+  first time the call page is opened from that panel's own ring notification. A computer, a phone
+  or a device that cannot be identified is never treated as a panel.
+
 ## [1.2.3] — unreleased
 
 ### Fixed

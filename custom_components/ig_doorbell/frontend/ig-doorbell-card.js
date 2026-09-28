@@ -6,7 +6,9 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.2.3';
+const CARD_VERSION = '1.2.4';
+// (1.2.4) Captured before anything can navigate: see igPanelNonce().
+const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-28-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
@@ -5225,9 +5227,11 @@ class IgDoorbellView extends HTMLElement {
       const info = await this._hass.connection.sendMessagePromise({
         type: `${IG_DOMAIN}/get_connection_info`,
         device_id: this.config.device_id,
-        // (1.2.3) Who this page is: the integration answers `back_home` only for a wall panel picked
-        // in the Ring notifications options (user + model in the user agent). See _idleTimeoutMs().
-        ua: (typeof navigator !== 'undefined' && navigator.userAgent) || '',
+        // (1.2.3) The integration answers `back_home` only for a wall panel picked in the Ring
+        // notifications options. (1.2.4) It knows the page by its companion login, not by anything
+        // the page says; the one thing the page hands over is the `igd_panel` nonce of the URL a
+        // ring notification opened, which only that panel received (panel_identity.py).
+        ...(igPanelNonce() ? { panel_nonce: igPanelNonce() } : {}),
       });
       // Wait #1 (HA's WebSocket) passed. If we got superseded here nothing is open yet:
       // it's enough to not write `_connInfo`/`_slot` over the current startup's.
@@ -7458,6 +7462,17 @@ igRegisterElements();
 // acknowledges. A page that stays hidden (a window behind another one) does nothing, and without
 // an acknowledgement the integration falls back to command_webview.
 // ==============================================================================
+// (1.2.4) The `igd_panel` nonce the integration puts in every call-page URL it sends to a picked wall
+// panel (IG_PANEL_NONCE_AT_LOAD, at the top of this file: read when the module loads, and again now).
+function igPanelNonceIn(search) {
+  const m = /[?&]igd_panel=([A-Za-z0-9_-]{8,64})/.exec(search || '');
+  return m ? m[1] : '';
+}
+function igPanelNonce() {
+  return igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '') ||
+    IG_PANEL_NONCE_AT_LOAD;
+}
+
 function igShowCallPage(conn, m) {
   if (!m || !m.url || !m.token) return;
   const go = () => {
@@ -7485,6 +7500,7 @@ function igShowCallPage(conn, m) {
   if (typeof window === 'undefined' || typeof document === 'undefined' || window.__igCallPageListener) return;
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   if (!/Android/i.test(ua) || !(window.externalApp || window.externalAppV2)) return;   // the Android companion only
+  // (1.2.4) No `ua` sent: the integration identifies the page by its companion login.
   window.__igCallPageListener = true;
   let timer = null;
   const hook = () => {
@@ -7493,7 +7509,7 @@ function igShowCallPage(conn, m) {
     if (!conn || typeof conn.subscribeMessage !== 'function') return;
     clearInterval(timer);
     // home-assistant-js-websocket subscribes again by itself after a reconnection.
-    conn.subscribeMessage((m) => igShowCallPage(conn, m), { type: `${IG_DOMAIN}/subscribe_call_page`, ua })
+    conn.subscribeMessage((m) => igShowCallPage(conn, m), { type: `${IG_DOMAIN}/subscribe_call_page` })
       .catch((err) => console.info(`[ig-doorbell-card] call page in place not available: ${err && (err.message || err.code)}`));
   };
   timer = setInterval(hook, 1000);

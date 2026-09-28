@@ -4,8 +4,8 @@ panel's screen back to Home Assistant's default page (1.2.0; wall panels only si
 ## Only on a wall panel (Iñaki, 2026-09-28, 1.2.3)
 
 It applies ONLY on a page the integration recognises as a wall panel picked in the Ring
-notifications options (call_page_nav.is_configured_panel: HA user + companion model in the user
-agent; the card gets the answer as `back_home` in get_connection_info). A desktop browser or a
+notifications options (call_page_nav.is_configured_panel: since 1.2.4 by its companion login,
+panel_identity.py; the card gets the answer as `back_home` in get_connection_info). A desktop browser or a
 phone is attended and is never navigated away - in 1.2.2 his PC was sent home at the same moment
 as the salon panel. The name says so, in every language.
 

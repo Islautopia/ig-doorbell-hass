@@ -38,7 +38,7 @@
 //   V2 a new stream arrives while the sound was on -> it plays, muted, instead of a frozen picture.
 //   I1 the "back to the home page" deadline on a visible card -> it goes home; never a pause.
 //   I2 a visible, untouched card with the default deadline (120 s) still streams at 125 s.
-//   N1 Android companion page: subscribes with its user agent; a request navigates it IN PLACE
+//   N1 Android companion page: subscribes (no user agent since 1.2.4); a request navigates it IN PLACE
 //      to the call page and it acknowledges (call_page_nav.py).
 //   N2 a HIDDEN page (a window behind another) neither navigates nor acknowledges - until it is
 //      shown within the wait (command_screen_on).
@@ -388,7 +388,8 @@ const CASES = {
   // ---- the call page in the window already on screen (1.2.2, call_page_nav.py) ----------------------
   N1: async (page, check) => {
     const r = await companionPage(page);
-    check('N1', `companion page subscribed (ua carries the model: ${r.subscribed && /SM-X200/.test(r.ua)})`, r.subscribed && /SM-X200/.test(r.ua));
+    // (1.2.4) The integration identifies the page by its login: the card sends no user agent.
+    check('N1', `companion page subscribed (no ua sent: ${r.subscribed && !r.ua})`, r.subscribed && !r.ua);
     const after = await ev(page, async () => {
       window.__sub.cb({ token: 't1', url: '/ig-doorbell?device=bbbb2222' });
       await new Promise((res) => setTimeout(res, 200));

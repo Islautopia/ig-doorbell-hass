@@ -81,6 +81,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register integration-wide resources once, regardless of how many entries get added."""
     await async_register_card(hass)
     async_register_websocket_commands(hass)
+    # (1.2.4) Which companion device a page is (the logins already proved to be a wall panel).
+    from . import panel_identity  # noqa: PLC0415
+    await panel_identity.async_setup(hass)
     async_register_signal_proxy(hass)
     async_register_recordings_view(hass)
     async_register_services(hass)

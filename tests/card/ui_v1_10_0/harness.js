@@ -137,9 +137,12 @@ function makeHass() {
           log(`connInfo ${msg.device_id} role=${d.role}`);
           const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
           // back_home (1.2.3): the integration's answer to "is this page a configured wall panel?".
-          // A bench that needs a panel sets window.__backHomeFor(ua); by default no page is one.
+          // A bench that needs a panel sets window.__backHomeFor(login, msg); by default no page is one.
+          // (1.2.4) The integration knows the page by its companion LOGIN, not by anything the card
+          // says: here the window's own user agent stands for that login (never msg.ua, which the
+          // card no longer sends); msg.panel_nonce is the one thing the card hands over.
           return { device_id: msg.device_id, role: d.role, live_timeout_entity: null, events_entity: `event.${slug}_events`,
-            back_home: window.__backHomeFor ? !!window.__backHomeFor(msg.ua || '') : false };
+            back_home: window.__backHomeFor ? !!window.__backHomeFor(navigator.userAgent, msg) : false };
         }
         if (msg.type === 'ig_doorbell/get_local_signal_url') {
           return { signal_url: `/api/ig_doorbell/signal/${msg.device_id}?authSig=fake` };

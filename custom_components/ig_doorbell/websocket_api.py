@@ -13,7 +13,8 @@ Commands:
   - ig_doorbell/get_connection_info: the device id and the entity ids the card reads
     (the back-home deadline `number` and the events `event`, so a ring can wake a paused card),
     and (1.2.3) `back_home`: whether THIS page is a wall panel picked in the Ring notifications
-    options (the card sends its user agent as `ua`; call_page_nav.is_configured_panel). Only then
+    options (identified by its companion login, panel_identity.py; the card passes the `igd_panel`
+    nonce of its URL as `panel_nonce`; call_page_nav.is_configured_panel). Only then
     does the card apply the deadline; any other page is never navigated away.
   - ig_doorbell/get_local_signal_url: a short-lived signed URL for the signalling proxy.
   - ig_doorbell/get_quick_replies: the doorbell's quick-reply list (id + label), read
@@ -82,7 +83,10 @@ def _find_entry_data(hass: HomeAssistant, device_id: str) -> dict | None:
     {
         vol.Required("type"): "ig_doorbell/get_connection_info",
         vol.Required("device_id"): str,
+        # (1.2.3) Accepted and ignored since 1.2.4: a card still cached from 1.2.3 sends it.
         vol.Optional("ua", default=""): str,
+        # (1.2.4) The `igd_panel` nonce of the URL this page was opened with (panel_identity.py).
+        vol.Optional("panel_nonce"): str,
     }
 )
 @websocket_api.async_response
@@ -109,8 +113,15 @@ async def websocket_get_connection_info(hass: HomeAssistant, connection, msg) ->
     registry = er.async_get(hass)
     from . import call_page_nav  # noqa: PLC0415
 
+    from . import panel_identity  # noqa: PLC0415
+
     user = getattr(connection, "user", None)
-    back_home = call_page_nav.is_configured_panel(hass, user.id if user else None, msg["ua"][:400])
+    user_id = user.id if user else None
+    token_id = getattr(connection, "refresh_token_id", None)
+    if msg.get("panel_nonce"):
+        # The page was opened from a URL only one picked panel received: its login IS that panel.
+        panel_identity.async_get(hass).bind(msg["panel_nonce"][:64], user_id, token_id)
+    back_home = call_page_nav.is_configured_panel(hass, user_id, token_id)
     connection.send_result(
         msg["id"],
         {
@@ -245,7 +256,7 @@ def websocket_subscribe_call_page(hass: HomeAssistant, connection, msg) -> None:
         connection.send_message(websocket_api.event_message(msg_id, payload))
 
     connection.subscriptions[msg_id] = call_page_nav.async_get(hass).async_subscribe(
-        connection.user.id, msg["ua"][:400], _send)
+        connection.user.id, getattr(connection, "refresh_token_id", None), _send)
     connection.send_result(msg_id)
 
 
@@ -257,5 +268,6 @@ def websocket_call_page_ack(hass: HomeAssistant, connection, msg) -> None:
     """The page is showing the call page (it was visible and navigated in place)."""
     from . import call_page_nav  # noqa: PLC0415
 
-    ok = call_page_nav.async_get(hass).async_ack(msg["token"], connection.user.id)
+    ok = call_page_nav.async_get(hass).async_ack(
+        msg["token"], connection.user.id, getattr(connection, "refresh_token_id", None))
     connection.send_result(msg["id"], {"ok": ok})
