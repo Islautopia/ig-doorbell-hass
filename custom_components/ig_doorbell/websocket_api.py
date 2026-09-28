@@ -9,7 +9,7 @@ user who opened a dashboard, and the card used it to talk to the doorbell's publ
 the cloud relay. The card now talks ONLY to this Home Assistant (signal_proxy.py,
 recordings_view.py), which adds the credential server-side and reaches the doorbell over the LAN.
 
-Four commands:
+Commands:
   - ig_doorbell/get_connection_info: the device id and the entity ids the card reads
     (the live-view timeout `number` and the events `event`, so a ring can wake a paused card).
   - ig_doorbell/get_local_signal_url: a short-lived signed URL for the signalling proxy.
@@ -19,6 +19,8 @@ Four commands:
     command only supplies the list, never a credential.
   - ig_doorbell/https_status: whether local HTTPS is on and where its install page is, so the
     card can explain a blocked microphone instead of failing silently.
+  - ig_doorbell/subscribe_call_page + ig_doorbell/call_page_ack (1.2.2): an Android companion
+    page offers to show the call page IN PLACE on a ring, and says when it did (call_page_nav.py).
 """
 from __future__ import annotations
 
@@ -44,6 +46,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_get_local_signal_url)
     websocket_api.async_register_command(hass, websocket_get_quick_replies)
     websocket_api.async_register_command(hass, websocket_https_status)
+    websocket_api.async_register_command(hass, websocket_subscribe_call_page)
+    websocket_api.async_register_command(hass, websocket_call_page_ack)
 
 
 def _find_entry_data(hass: HomeAssistant, device_id: str) -> dict | None:
@@ -212,3 +216,36 @@ def websocket_https_status(hass: HomeAssistant, connection, msg) -> None:
             "public_url": (status.get("public") or {}).get("url"),
         },
     )
+
+
+# ---- the call page on a wall panel, in the window already on screen (1.2.2, call_page_nav.py) ----
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "ig_doorbell/subscribe_call_page", vol.Optional("ua", default=""): str}
+)
+@callback
+def websocket_subscribe_call_page(hass: HomeAssistant, connection, msg) -> None:
+    """A page of the Android companion app offers to show the call page in place on a ring."""
+    from . import call_page_nav  # noqa: PLC0415
+
+    msg_id = msg["id"]
+
+    @callback
+    def _send(payload: dict) -> None:
+        connection.send_message(websocket_api.event_message(msg_id, payload))
+
+    connection.subscriptions[msg_id] = call_page_nav.async_get(hass).async_subscribe(
+        connection.user.id, msg["ua"][:400], _send)
+    connection.send_result(msg_id)
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "ig_doorbell/call_page_ack", vol.Required("token"): str}
+)
+@callback
+def websocket_call_page_ack(hass: HomeAssistant, connection, msg) -> None:
+    """The page is showing the call page (it was visible and navigated in place)."""
+    from . import call_page_nav  # noqa: PLC0415
+
+    ok = call_page_nav.async_get(hass).async_ack(msg["token"], connection.user.id)
+    connection.send_result(msg["id"], {"ok": ok})

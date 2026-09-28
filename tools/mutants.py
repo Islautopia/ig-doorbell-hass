@@ -70,6 +70,16 @@ MUTANTS = [
      "StaticPathConfig(CARD_URL, str(CARD_PATH), False)", "StaticPathConfig(CARD_URL, str(CARD_PATH), True)"),
     ("setup no longer registers the card", PKG + "__init__.py",
      "    await async_register_card(hass)\n", ""),
+    # --- 1.2.2: the call page in the wall panel's window already on screen (call_page_nav.py) ------
+    ("every ring opens a new companion window again", PKG + "notify_ring.py",
+     "            if await call_page_nav.async_get(self.hass).async_show(",
+     "            if False and await call_page_nav.async_get(self.hass).async_show("),
+    ("an acknowledgement from another user counts", PKG + "call_page_nav.py",
+     "        if p is None or p.user_id != user_id or p.fut.done():",
+     "        if p is None or p.fut.done():"),
+    ("a page of another user or model is asked to navigate", PKG + "call_page_nav.py",
+     '    return bool(model) and sub_user == user_id and model.lower() in (ua or "").lower()',
+     "    return True"),
     # --- 1.2.1: the card is also a Lovelace resource (a stale page HTML imports no card) ----------
     ("the card is never added as a Lovelace resource", PKG + "card.py",
      "    await async_sync_lovelace_resource(hass, url)\n    return url\n", "    return url\n"),

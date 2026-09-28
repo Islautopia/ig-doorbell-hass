@@ -3314,7 +3314,8 @@ class IgDoorbellView extends HTMLElement {
     this._resetStatusLine();
     if (p.phase === 'grace' && this.pc) {
       this._sendLivePause(false);
-      if (this.videoEl) { try { const pr = this.videoEl.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (err) { /* best effort */ } }
+      // (1.2.2) Refused (sound on, no user activation): muted, never a frozen picture.
+      if (this.videoEl) { try { const pr = this.videoEl.play(); if (pr && pr.catch) pr.catch(() => { this._audioOn = false; this._paintAudioState(); this._playMuted('resume refused'); }); } catch (err) { /* best effort */ } }
       this._setLiveState('live');
       if (this.loader) this.loader.style.opacity = '0';
       this._rescueAfterResume();
@@ -3536,6 +3537,18 @@ class IgDoorbellView extends HTMLElement {
   // so unmuting always needs a user activation on the page. When the attempt
   // fails, it doesn't pretend it worked: it goes back to muted and says the speaker needs to be tapped.
   // ==============================================================================
+  // (1.2.2) The picture never stays paused by the browser: a muted play() needs no user activation.
+  _playMuted(why) {
+    const v = this.videoEl;
+    if (!v || !v.srcObject || this._pauseState || this._destroyed) return;
+    v.muted = true;
+    const pr = v.play();
+    if (pr && pr.catch) {
+      pr.then(() => console.info(`[ig-doorbell-card] video resumed muted (${why})`))
+        .catch((err) => console.warn(`[ig-doorbell-card] video could not play even muted (${why}): ${err && err.name}`));
+    }
+  }
+
   _setAudioOn(on, reason) {
     const wantOn = !!on;
     this._audioOn = wantOn;
@@ -3549,6 +3562,12 @@ class IgDoorbellView extends HTMLElement {
           p.catch(() => {
             this.videoEl.muted = true;
             this._audioOn = false;
+            // ⚠️ (1.2.2) AND PLAY AGAIN, MUTED. Unmuting without a user activation does not just fail:
+            // Chromium/WebView PAUSES the element. Until 1.2.1 this only re-muted, so the picture stayed
+            // frozen under the browser's grey "play" button - seen on the salon wall panel, on a call
+            // page a ring had opened (a fresh WebView nobody had touched: the ring turns the sound on).
+            // A muted play() needs no activation.
+            this._playMuted('sound blocked');
             this._paintAudioState();
             this._flashStatusLine('snd_blocked', 5000);
             console.warn(`[ig-doorbell-card] the browser did not allow turning on the sound (reason="${reason}") - the user needs to tap the speaker control`);
@@ -6050,7 +6069,15 @@ class IgDoorbellView extends HTMLElement {
       // The card no longer manages volume (the slider was removed, 2026-09-25): always 1, the
       // real control belongs to the device/speaker itself.
       this.videoEl.volume = 1;
-      this.videoEl.play().catch(() => {});
+      // (1.2.2) If the sound was on (a ring) and the page has no user activation, the browser refuses
+      // this play(): fall back to MUTED instead of leaving a frozen picture (see _setAudioOn).
+      this.videoEl.play().catch(() => {
+        if (!this.videoEl.muted) {
+          this._audioOn = false;
+          this._flashStatusLine('snd_blocked', 5000);
+        }
+        this._playMuted('play() refused');
+      });
       this._paintAudioState();
 
       // ⚠️ (1.10.0) 'live' IS NO LONGER DECLARED HERE. `ontrack` fires on applying the offer, BEFORE
@@ -7314,6 +7341,60 @@ igRegisterElements();
   }, 200);
   // Node (the simulation benches) would otherwise wait for this watch before exiting.
   if (timer && typeof timer.unref === 'function') timer.unref();
+})();
+
+// ==============================================================================
+// (1.2.2) THE CALL PAGE IN THE WINDOW ALREADY ON SCREEN (the integration's call_page_nav.py).
+//
+// Measured on the salon wall panel: the companion's `command_webview` opens a NEW window (task) on
+// every ring - four stacked after a few rings, each with its own page, its own card and its own
+// session. The only way to reuse the window on screen is to navigate INSIDE it, and only a page
+// can do that. So, in the Android companion app only, this module (it is on every Home Assistant
+// page) offers itself to the integration; on a ring, a VISIBLE page navigates to the call page and
+// acknowledges. A page that stays hidden (a window behind another one) does nothing, and without
+// an acknowledgement the integration falls back to command_webview.
+// ==============================================================================
+function igShowCallPage(conn, m) {
+  if (!m || !m.url || !m.token) return;
+  const go = () => {
+    if (window.location.pathname + window.location.search !== m.url) {
+      window.history.pushState(null, '', m.url);
+      window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+    }
+    console.info('[ig-doorbell-card] ring: call page shown in this window');
+    conn.sendMessagePromise({ type: `${IG_DOMAIN}/call_page_ack`, token: m.token }).catch(() => {});
+  };
+  if (document.visibilityState === 'visible') { go(); return; }
+  // Hidden: command_screen_on may be waking the screen right now. Wait a little, never longer.
+  let timer = null;
+  const onVis = () => {
+    if (document.visibilityState !== 'visible') return;
+    clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVis);
+    go();
+  };
+  timer = setTimeout(() => document.removeEventListener('visibilitychange', onVis), 6000);
+  document.addEventListener('visibilitychange', onVis);
+}
+
+(function igCallPageListener() {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || window.__igCallPageListener) return;
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (!/Android/i.test(ua) || !(window.externalApp || window.externalAppV2)) return;   // the Android companion only
+  window.__igCallPageListener = true;
+  let timer = null;
+  const hook = () => {
+    const ha = document.querySelector('home-assistant');
+    const conn = ha && ha.hass && ha.hass.connection;
+    if (!conn || typeof conn.subscribeMessage !== 'function') return;
+    clearInterval(timer);
+    // home-assistant-js-websocket subscribes again by itself after a reconnection.
+    conn.subscribeMessage((m) => igShowCallPage(conn, m), { type: `${IG_DOMAIN}/subscribe_call_page`, ua })
+      .catch((err) => console.info(`[ig-doorbell-card] call page in place not available: ${err && (err.message || err.code)}`));
+  };
+  timer = setInterval(hook, 1000);
+  if (timer && typeof timer.unref === 'function') timer.unref();
+  hook();
 })();
 
 // ==============================================================================

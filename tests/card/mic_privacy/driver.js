@@ -33,6 +33,15 @@
 //   D3 the requested doorbell changes to an unknown one while showing another -> hung up, error.
 //   D4 the call page /ig-doorbell?device=<unknown> -> no card view, no session, the error.
 //   D5 the call page without `device` and two doorbells -> "no doorbell chosen", no session.
+//   V1 a ring turns the sound on in a page nobody touched -> the picture keeps playing, muted
+//      (the companion WebView's autoplay rule is EMULATED in index.html - see why there).
+//   V2 a new stream arrives while the sound was on -> it plays, muted, instead of a frozen picture.
+//   I1 the "back to the home page" deadline on a visible card -> it goes home; never a pause.
+//   I2 a visible, untouched card with the default deadline (120 s) still streams at 125 s.
+//   N1 Android companion page: subscribes with its user agent; a request navigates it IN PLACE
+//      to the call page and it acknowledges (call_page_nav.py).
+//   N2 a HIDDEN page (a window behind another) neither navigates nor acknowledges - until it is
+//      shown within the wait (command_screen_on).
 //
 // POSITIVE CONTROLS BUILT IN: the same cases against MUTANTS of the card (page.route); each must turn
 // its target red.
@@ -62,6 +71,12 @@ const MUTANTS = {
   MD: { target: 'P10', a: "        if (this.localAudioStream && this.localAudioStream !== probeStream) {\n", b: "        if (false) {\n" },
   // no sender: the track is kept (the pre-1.2.2 behaviour) - and the watchdog is off so it is not rescued
   ME: { target: 'P11', a: "          throw new Error('no audio sender at this moment: the microphone is not opened');\n", b: '', also: 'MC' },
+  // a sound refused by the browser leaves the picture paused (the pre-1.2.2 behaviour)
+  MV: { target: 'V1', a: "            this._playMuted('sound blocked');\n", b: '' },
+  // the back-home deadline pauses the visible card instead
+  MI: { target: 'I1', a: "      this._goHome();\n    }, Math.max(0, secondsLeft));", b: "      this._pause('idle');\n    }, Math.max(0, secondsLeft));" },
+  // a hidden page (a window behind another) navigates and acknowledges too
+  MN: { target: 'N2', a: "  if (document.visibilityState === 'visible') { go(); return; }\n  // Hidden:", b: "  { go(); return; }\n  // Hidden:" },
   // the requested doorbell falls back to the first one
   MG: { target: 'D1', a: 'const target = this._resolveForced(list);', b: 'const target = this._resolveForced(list) || list[0].id;' },
 };
@@ -79,8 +94,16 @@ function mutate(src, name) {
 }
 
 // ---- page helpers ----------------------------------------------------------------------------------
-async function openPage(browser, body) {
-  const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
+// Cases that need to look like the Android companion app's WebView (N*): its user agent and the
+// `externalApp` bridge it injects.
+const COMPANION_UA = 'Mozilla/5.0 (Linux; Android 14; SM-X200 Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/153.0.0.0 Safari/537.36 Home Assistant/2026.6.5-full';
+const COMPANION_CASES = new Set(['N1', 'N2']);
+
+async function openPage(browser, body, name) {
+  const companion = COMPANION_CASES.has(name);
+  const ctx = await browser.newContext(companion ? { userAgent: COMPANION_UA, viewport: { width: 700, height: 900 } } : { viewport: { width: 700, height: 900 } });
+  const page = await ctx.newPage();
+  if (companion) await page.addInitScript(() => { window.externalApp = {}; });
   if (body) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));
   const errors = [];
   const logs = [];
@@ -309,11 +332,106 @@ const CASES = {
     check('D4', `call page, unknown device: views=${r.views}, sessions=${r.sessions}`, r.cardThere && r.views === 0 && r.sessions === 0);
     check('D4', `call page shows the error ("${r.text}")`, r.text === "This doorbell isn't set up in Home Assistant.");
   },
+  // ---- the picture never stays paused by the browser (1.2.2) ---------------------------------------
+  // With the companion WebView's autoplay rule EMULATED (index.html explains why it has to be): an
+  // unmuted play() with no user gesture is refused and leaves the element paused; a muted one plays.
+  // The harness's fake doorbell offers no msid, so its `ontrack` carries no stream: the stream is
+  // handed to the card's own setupRemoteStream() - the code under test - from a local source
+  // (a canvas picture + a tone), which is a real MediaStream with video and audio.
+  V1: async (page, check) => {
+    await ev(page, () => window.__emulateWebViewAutoplay());
+    await mountLive(page);
+    const before = await ev(page, async () => {
+      const v = window.tView();
+      v.setupRemoteStream(window.tLocalStream());
+      await new Promise((res) => setTimeout(res, 400));
+      return { paused: v.videoEl.paused, muted: v.videoEl.muted };
+    });
+    await ev(page, () => window.tView()._setAudioOn(true, 'ring'));   // a ring turns the sound on, nobody touched the page
+    await sleep(800);
+    const after = await ev(page, () => { const e = window.tView().videoEl; return { paused: e.paused, muted: e.muted }; });
+    check('V1', `a ring with no user gesture: before paused=${before.paused}, after paused=${after.paused} muted=${after.muted}`, !before.paused && !after.paused && after.muted);
+  },
+  V2: async (page, check) => {
+    await ev(page, () => window.__emulateWebViewAutoplay());
+    await mountLive(page);
+    const r = await ev(page, async () => {
+      const v = window.tView();
+      v._audioOn = true;                        // the sound was on (a ring) when the new stream arrives
+      v.setupRemoteStream(window.tLocalStream());
+      await new Promise((res) => setTimeout(res, 800));
+      return { paused: v.videoEl.paused, muted: v.videoEl.muted, src: !!v.videoEl.srcObject };
+    });
+    check('V2', `a new stream while the sound was on: paused=${r.paused} muted=${r.muted}`, r.src && !r.paused && r.muted);
+  },
+  // ---- a visible card never pauses by itself (1.2.0 rule, 2026-09-27) ------------------------------
+  I1: async (page, check) => {
+    await mountLive(page);
+    const r = await ev(page, async () => {
+      const v = window.tView();
+      v._idleReleaseMs = 2000;                  // "Back to the home page after" = 2 s
+      v._armIdleWakeLockTimer(true);
+      await new Promise((res) => setTimeout(res, 3500));
+      return { pause: v._pauseState, open: window.tOpenSessions().length, livePause: window.__posts.some((p) => p.payload && p.payload.type === 'live_pause'), path: location.pathname };
+    });
+    check('I1', `deadline reached on a visible card: pause=${JSON.stringify(r.pause)}, open sessions=${r.open}, live_pause sent=${r.livePause}`, r.pause === null && r.open === 1 && !r.livePause);
+    check('I1', `and what it did was go to the default page (${r.path})`, r.path === '/lovelace');
+  },
+  I2: async (page, check) => {
+    await mountLive(page);
+    const t0 = Date.now();
+    await sleep(125000);                        // the default deadline is 120 s: well past it
+    const r = await ev(page, () => { const v = window.tView(); return { pause: v._pauseState, open: window.tOpenSessions().length, livePause: window.__posts.some((p) => p.payload && p.payload.type === 'live_pause'), pc: !!v.pc }; });
+    check('I2', `visible and untouched for ${Math.round((Date.now() - t0) / 1000)} s: pause=${JSON.stringify(r.pause)}, session open=${r.open}, live_pause=${r.livePause}`, r.pause === null && r.open === 1 && !r.livePause && r.pc);
+  },
+  // ---- the call page in the window already on screen (1.2.2, call_page_nav.py) ----------------------
+  N1: async (page, check) => {
+    const r = await companionPage(page);
+    check('N1', `companion page subscribed (ua carries the model: ${r.subscribed && /SM-X200/.test(r.ua)})`, r.subscribed && /SM-X200/.test(r.ua));
+    const after = await ev(page, async () => {
+      window.__sub.cb({ token: 't1', url: '/ig-doorbell?device=bbbb2222' });
+      await new Promise((res) => setTimeout(res, 200));
+      return { at: location.pathname + location.search, acks: window.__acks.map((a) => a.token) };
+    });
+    check('N1', `visible: navigated in place to ${after.at} and acknowledged (${after.acks.join(',')})`, after.at === '/ig-doorbell?device=bbbb2222' && after.acks.includes('t1'));
+  },
+  N2: async (page, check) => {
+    await companionPage(page);
+    const hidden = await ev(page, async () => {
+      window.tSetVisible(false);
+      const from = location.pathname;
+      window.__sub.cb({ token: 't2', url: '/ig-doorbell?device=bbbb2222' });
+      await new Promise((res) => setTimeout(res, 1000));
+      return { moved: location.pathname !== from, acks: window.__acks.length };
+    });
+    check('N2', `hidden (a window behind another): no navigation (${hidden.moved}), no acknowledgement (${hidden.acks})`, !hidden.moved && hidden.acks === 0);
+    const woke = await ev(page, async () => {
+      window.tSetVisible(true);                 // command_screen_on woke the screen
+      await new Promise((res) => setTimeout(res, 200));
+      return { at: location.pathname + location.search, acks: window.__acks.map((a) => a.token) };
+    });
+    check('N2', `shown within the wait: navigates and acknowledges (${woke.at}, ${woke.acks.join(',')})`, woke.at === '/ig-doorbell?device=bbbb2222' && woke.acks.includes('t2'));
+  },
   D5: async (page, check) => {
     const r = await callPage(page, '');
     check('D5', `call page, no device, two doorbells: no card, sessions=${r.sessions}, "${r.none}"`, !r.cardThere && r.sessions === 0 && /No doorbell chosen/.test(r.none || ''));
   },
 };
+
+// A stand-in for Home Assistant's root element: the listener finds the connection on it.
+async function companionPage(page) {
+  await ev(page, () => {
+    window.__acks = [];
+    const ha = document.createElement('home-assistant');
+    ha.hass = { connection: {
+      subscribeMessage: (cb, msg) => { window.__sub = { cb, msg }; return Promise.resolve(() => {}); },
+      sendMessagePromise: async (m) => { if (m.type === 'ig_doorbell/call_page_ack') window.__acks.push(m); return { ok: true }; },
+    } };
+    document.body.appendChild(ha);
+  });
+  await page.waitForFunction(() => !!window.__sub, null, { timeout: 4000 }).catch(() => {});
+  return ev(page, () => ({ subscribed: !!window.__sub && window.__sub.msg.type === 'ig_doorbell/subscribe_call_page', ua: window.__sub ? window.__sub.msg.ua : '' }));
+}
 
 async function callPage(page, search) {
   await ev(page, (s) => { window.__lang = 'en'; history.replaceState(null, '', location.pathname + s); }, search);
@@ -340,14 +458,14 @@ async function callPage(page, search) {
 async function runCase(browser, name, body) {
   const results = [];
   const check = (id, label, cond) => results.push({ id, label, ok: !!cond });
-  const page = await openPage(browser, body);
+  const page = await openPage(browser, body, name);
   try {
     await CASES[name](page, check);
   } catch (e) {
     check(name, `crashed: ${e && e.message}`, false);
   }
   if (page.__errors.length) check(name, `page errors: ${page.__errors.slice(0, 2).join(' | ')}`, false);
-  await page.close();
+  await page.context().close();
   return results;
 }
 

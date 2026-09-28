@@ -15,6 +15,15 @@ This project follows [Semantic Versioning](https://semver.org/).
   second start, a failed start, closing the page) could leave a microphone capture running on a
   hidden page. The microphone is now open only during an active talk turn, and a watchdog stops
   (and logs) any microphone left open without one within 2 seconds, at once when the page is hidden.
+- **A ring no longer opens a new window on an Android wall panel.** The companion app's command
+  opened a new window on every ring (four stacked on a real panel, each with its own video session).
+  The page already on screen now navigates to the call page itself; the app's command is only the
+  fallback when no page answers.
+- **The picture no longer freezes under a "play" button** when a ring turns the sound on in a page
+  nobody has touched (a wall panel): the browser refuses sound without a tap, and the video now keeps
+  playing muted. Tap the speaker to hear.
+- **A visible card never pauses by itself**: the "Back to the home page after" time only takes the
+  screen home; a test now proves it past the default 120 s.
 - **The call page never shows another doorbell.** `/ig-doorbell?device=<id>` with an unknown id
   showed a different doorbell. It now says "This doorbell isn't set up in Home Assistant", with no
   video and no microphone. The Home Assistant device id is also accepted.

@@ -50,7 +50,25 @@ Home Assistant" (`db_not_setup`, six languages) with no view, no session and no 
 `?device=` on an open page is followed. Kept on purpose: no `device` with exactly ONE doorbell shows it
 (docs/ring-notifications.md, kiosk bookmark) - there is no other one to confuse it with.
 
-**Tests.** `tests/card/mic_privacy` (P0-P14, D1-D5, mutants MA-MG; `CARD_FILE=<old build>` runs it
+**Stacked windows on the wall panel (measured 2026-09-28, salon tablet, companion 2026.6.5).**
+`dumpsys activity activities` showed FOUR companion tasks (#100-#103), each a WebViewActivity with
+its own page: `command_webview` starts it with `flg=0x18800000` (NEW_TASK | MULTIPLE_TASK), so every
+ring adds a window. A `homeassistant://navigate/...` deep link also stacks (a new WebViewActivity in
+the front task). The hidden ones DO see themselves hidden (a second window streaming made the
+doorbell count 2 viewers, back to 1 after the 15 s grace), so they release the stream - and, from
+1.2.2, the mic at once. Fix: `call_page_nav.py` + the listener at the end of the card module - the
+visible page navigates in place and acknowledges; `command_webview` only without an answer.
+
+**The grey "play" button.** A ring turns the sound on (`_setAudioOn(true, 'ring')`); in a page nobody
+has touched the WebView refuses sound and PAUSES the element; the catch only re-muted, so the picture
+stayed frozen - and a paused `<video>` no longer keeps the screen on, the screen goes off, the page is
+hidden, the card pauses: that is very probably the "pauses by itself after idle" too (believed, not
+measured). 1.2.2 plays again muted (`_playMuted`). Measured: the companion's *Autoplay videos* switch
+was OFF on the tablet and a fresh window still played MUTED video - the refusal is about sound.
+Nothing in 1.2.1 pauses a visible card on idle any more: the deadline only calls `_goHome()`
+(bench I1/I2); `_pause('idle')`/`PAUSED_BY_DOORBELL` are dead code kept for the resume paths.
+
+**Tests.** `tests/card/mic_privacy` (P0-P14, D1-D5, V1-V2, I1-I2, N1-N2, mutants MA-MN; `CARD_FILE=<old build>` runs it
 against another build). `ui_v1_10_0` M3 now removes all four layers that release a late permission.
 
 ## "Custom element doesn't exist" from a STALE PAGE, not from the card (1.2.1, 2026-09-28)

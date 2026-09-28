@@ -62,6 +62,11 @@ is already on the default page. `0` means never.
   nothing tells you why.
 - Keep the companion's persistent connection on (*Settings → Companion app → Persistent
   connection*) so the panel is reached over your home network.
+- From 1.2.2 the call page opens **in the window already on screen**: the Home Assistant page the
+  panel is showing navigates to it by itself. Only when no page of the panel answers (the app was
+  closed) does the integration ask the app to open a new window, which is what the app's own
+  command always does - a new window per ring, stacked behind each other (measured). The panel is
+  recognised by the Home Assistant user its app is logged in with and its device model.
 
 ## Where it works
 

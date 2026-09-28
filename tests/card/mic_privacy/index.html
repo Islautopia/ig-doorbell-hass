@@ -27,6 +27,36 @@
     window.__vis = 'visible';
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__vis === 'hidden' });
+    // EMULATED, NOT the real engine: desktop Chromium lets a MediaStream play unmuted with no user
+    // gesture whatever --autoplay-policy says (measured with this bench's Chromium, headless and
+    // headed), so it cannot show the WebView's refusal. This reproduces the rule seen on the salon
+    // panel's companion WebView: with no user activation an unmuted play() is refused and the
+    // element is left paused (the grey "play" button), and unmuting a playing element pauses it.
+    window.__emulateWebViewAutoplay = () => {
+      // Not navigator.userActivation: Playwright's evaluate() counts as a user gesture (measured:
+      // hasBeenActive is true on a page nobody touched), so the bench says who touched the page.
+      const active = () => !!window.__touched;
+      const realPlay = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        if (!this.muted && !active()) { this.pause(); return Promise.reject(new DOMException('play() needs a user gesture', 'NotAllowedError')); }
+        return realPlay.call(this);
+      };
+      const d = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'muted');
+      Object.defineProperty(HTMLMediaElement.prototype, 'muted', {
+        configurable: true,
+        get() { return d.get.call(this); },
+        set(v) { d.set.call(this, v); if (!v && !this.paused && !active()) this.pause(); },
+      });
+      window.__webviewAutoplay = true;
+    };
+    // A real MediaStream with a picture and a tone, as a doorbell stream would be.
+    window.tLocalStream = () => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+      const g = c.getContext('2d'); g.fillStyle = '#3a7'; g.fillRect(0, 0, 64, 64);
+      const vs = c.captureStream(5);
+      const ctx = new AudioContext(); const d = ctx.createMediaStreamDestination(); const o = ctx.createOscillator(); o.connect(d); o.start();
+      return new MediaStream([...vs.getVideoTracks(), ...d.stream.getAudioTracks()]);
+    };
     window.tSetVisible = (v) => { window.__vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
   </script>
   <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>

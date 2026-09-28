@@ -72,7 +72,7 @@ const JOBS = [
   { name: 'mount_sessions (+ mutants X1-X3)', bench: 'mount_sessions', args: ['mount_sessions/driver.js'], expect: 0 },
   { name: 'idle_release_network', bench: 'idle_release_network', args: ['idle_release_network/driver.js'], expect: 0 },
   { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
-  { name: 'mic_privacy (+ mutants MA-MG)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
+  { name: 'mic_privacy (+ mutants MA-MN)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
   { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },

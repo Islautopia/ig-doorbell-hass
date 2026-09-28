@@ -42,6 +42,7 @@ from homeassistant.util import slugify
 
 from . import api
 from .announce import async_announce
+from . import call_page_nav
 from .const import (
     CALL_PAGE_PATH,
     CONF_ANNOUNCE_PLAYERS,
@@ -131,6 +132,8 @@ class Target:
     platform: str       # "ios" / "android"
     role: str           # "phone" / "panel"
     name: str
+    user_id: str | None = None   # the HA user the companion registered as (call_page_nav.py)
+    model: str | None = None     # the device model it registered with (it is in its WebView's UA)
 
 
 @dataclass
@@ -175,7 +178,8 @@ def resolve_targets(hass: HomeAssistant, device_ids: list[str], role: str) -> li
         service = slugify(f"mobile_app_{name}")
         ident = f"{entry.data.get('app_id', '')} {entry.data.get('os_name', '')}".lower()
         platform = "android" if "android" in ident else "ios"
-        found.append(Target(service=service, platform=platform, role=role, name=name))
+        found.append(Target(service=service, platform=platform, role=role, name=name,
+                            user_id=entry.data.get("user_id"), model=entry.data.get("model")))
     return found
 
 
@@ -344,8 +348,14 @@ class RingNotifier:
             # silence (lived on the salon panel) - the options page says so.
             high = {"ttl": 0, "priority": "high"}
             await self._send(target, "command_screen_on", dict(high))
-            await self._send(target, "command_webview",
-                             {**high, "command": call_page_url(self.coordinator.device_id)})
+            url = call_page_url(self.coordinator.device_id)
+            # ⚠️ (1.2.2) FIRST IN PLACE: command_webview opens a NEW companion window on every ring
+            # (measured: four stacked on the salon panel, each with its own page and card) - see
+            # call_page_nav.py. It stays only as the fallback when no page of the panel answers.
+            if await call_page_nav.async_get(self.hass).async_show(target.user_id, target.model, url):
+                _LOGGER.debug("Call page shown in place on %s", target.name)
+                return
+            await self._send(target, "command_webview", {**high, "command": url})
 
     # -- the resolution ---------------------------------------------------------------------------
 
