@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.2.1';
+const CARD_VERSION = '1.2.2';
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-27-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
@@ -68,6 +68,99 @@ const PAUSED_BY_DOORBELL = {};
 // up whichever view is then off the page). The Set holds the views that have started a session; a
 // view leaves it when destroyed, or when hung up while off the page, so it can be garbage-collected.
 const VIEWS_WITH_SESSION = new Set();
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+//  ⚠️ PRIVACY: THE MICROPHONE LIVES ONLY INSIDE AN ACTIVE TALK TURN (1.2.2, 2026-09-28)
+//
+//  Measured on the living-room wall tablet (Android Home Assistant app, WebView): a HIDDEN page held
+//  the microphone capture open for over an hour, until the page was reloaded; the night before, two
+//  captures were open at once. Nobody was talking. The card has exactly ONE getUserMedia() call
+//  (_startTalk), so every leak is a path where a track outlives the talk turn it was opened for:
+//
+//   1. Pausing while a talk turn was still REQUESTED (tap the mic, leave within 3 s): _stopTalk() did
+//      not cancel the request, so the 3 s legacy timer, or a late talk_granted, opened the mic on the
+//      hidden, paused page.
+//   2. getUserMedia() resolving AFTER the talk was stopped or the view paused (same connection
+//      generation): the stream was kept, with talkActive already false - nothing would stop it.
+//   3. A second _startTalk() (resume re-requesting the turn while the first one was still open, or
+//      still waiting for the permission) OVERWROTE this.localAudioStream without stopping the old
+//      one: an orphan track no teardown can ever reach - "two captures at once", "until reload".
+//   4. replaceTrack() failing, or no audio sender: the catch reset the UI but never stopped the track.
+//   5. The hide/hang-up deadlines are setTimeout()s, and a WebView in the background freezes timers:
+//      "5 minutes" can be hours. That is why the stop on hiding is SYNCHRONOUS (visibilitychange,
+//      pagehide) and the deadlines are also checked by wall clock on resume.
+//
+//  So there are two layers, and the second one does not trust the first:
+//   · every path stops its own tracks (the fixes in _startTalk, _stopTalk, _closeMicHardware,
+//     _teardownConnectionObjects);
+//   · EVERY track getUserMedia() hands us is registered HERE, per window (shared with a duplicate
+//     copy of this module), with its owner view. A track whose owner has no active talk turn
+//     (_micAllowed(): talking, on the page, not paused, not destroyed, session up, document
+//     visible) is stopped after IG_MIC_GRACE_MS by the watchdog, and at once on `visibilitychange`
+//     to hidden and on `pagehide` - listeners on the window itself, so a view that left the DOM
+//     without its cleanup (or whose listeners were already released) is still covered.
+//  Do NOT remove the registry because "the paths are fixed now": the paths were believed fixed
+//  before, five times. The watchdog logs every track it stops - a log line here is a bug to fix.
+// ══════════════════════════════════════════════════════════════════════════════════════════
+const IG_MIC_GRACE_MS = 2000;
+const IG_MIC_TICK_MS = 500;
+const IG_MIC = (typeof window !== 'undefined' && window.__igDoorbellMic) || { tracks: new Map(), timer: null, hooked: false, stopped: [] };
+if (typeof window !== 'undefined') window.__igDoorbellMic = IG_MIC;
+
+function igMicAllowedFor(owner) {
+  try { return !!(owner && typeof owner._micAllowed === 'function' && owner._micAllowed()); } catch (err) { return false; }
+}
+
+// The owner's UI and turn follow AFTER the event that stopped the track has reached every listener:
+// on hiding, the view's own handler pauses first and remembers the talk "as it was" (the 2026-09-25
+// rule: coming back resumes the same state); only a view that did NOT pause is reset here.
+function igMicStop(track, why) {
+  const entry = IG_MIC.tracks.get(track);
+  IG_MIC.tracks.delete(track);
+  if (track.readyState === 'ended') return;
+  try { track.stop(); } catch (err) { /* best effort */ }
+  IG_MIC.stopped.push({ at: Date.now(), why });
+  console.warn(`[ig-doorbell-card] PRIVACY: stopped a live microphone track (${why})`);
+  const owner = entry && entry.owner;
+  if (owner && typeof owner._onMicForcedOff === 'function') {
+    setTimeout(() => { try { owner._onMicForcedOff(); } catch (err) { /* best effort */ } }, 0);
+  }
+}
+
+// immediate = on hiding / pagehide: no grace at all.
+function igMicSweep(reason, immediate) {
+  const now = Date.now();
+  for (const [track, entry] of Array.from(IG_MIC.tracks)) {
+    if (track.readyState === 'ended') { IG_MIC.tracks.delete(track); continue; }
+    if (!immediate && igMicAllowedFor(entry.owner)) { entry.badSince = 0; continue; }
+    if (immediate) { igMicStop(track, reason); continue; }
+    if (!entry.badSince) entry.badSince = now;
+    else if (now - entry.badSince >= IG_MIC_GRACE_MS) igMicStop(track, `${reason}: no talk turn for ${now - entry.badSince} ms`);
+  }
+  if (!IG_MIC.tracks.size && IG_MIC.timer) { clearInterval(IG_MIC.timer); IG_MIC.timer = null; }
+}
+
+function igMicRegister(track, owner) {
+  IG_MIC.tracks.set(track, { owner, badSince: 0 });
+  if (!IG_MIC.hooked && typeof document !== 'undefined') {
+    IG_MIC.hooked = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') igMicSweep('the page was hidden', true);
+    });
+    window.addEventListener('pagehide', () => igMicSweep('pagehide', true));
+  }
+  if (!IG_MIC.timer) IG_MIC.timer = setInterval(() => igMicSweep('watchdog', false), IG_MIC_TICK_MS);
+}
+
+// Stops every registered track that belongs to `owner` (its talk ended, it was paused, torn down...).
+function igMicReleaseOwner(owner, why) {
+  for (const [track, entry] of Array.from(IG_MIC.tracks)) {
+    if (entry.owner !== owner) continue;
+    IG_MIC.tracks.delete(track);
+    if (track.readyState !== 'ended') { try { track.stop(); } catch (err) { /* best effort */ } }
+  }
+  if (why) console.info(`[ig-doorbell-card] microphone released (${why})`);
+}
 
 // ⚠️ REENTRANCY-GUARD FUSE FOR startWebRTC() -- see that function for the full argument.
 //
@@ -132,6 +225,7 @@ const igLocales = {
     snd_blocked: "Toca el altavoz para oír", cred_revoked: "El portero rechazó el emparejamiento — vuelve a emparejarlo en Ajustes › Dispositivos y servicios",
     lbl_rec_off: "REC", lbl_rec_on: "Grabando", rec_start_tip: "Empezar a grabar", rec_stop_tip: "Parar la grabación", rec_no_answer: "Home Assistant no aceptó la orden de grabar", recordings_title: "Grabaciones",
     quick_reply_title: "Respuestas rápidas", qr_empty: "El portero no tiene respuestas rápidas configuradas", qr_load_error: "No se pudo obtener la lista del portero", qr_no_answer: "El portero no aceptó la respuesta rápida",
+    db_not_setup: "Este portero no está configurado en Home Assistant.",
     db_switch: "Cambiar de portero", db_unnamed: "Portero sin nombre", no_doorbells: "No hay ningún portero. Añade la integración Islautopia Garage Doorbell en Ajustes › Dispositivos y servicios.", ed_nothing: "Esta tarjeta no tiene nada que configurar: muestra todos tus porteros y se cambia de uno a otro desde la propia tarjeta. Los ajustes están en la integración: Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar."
   },
   en: { // English (global fallback)
@@ -153,6 +247,7 @@ const igLocales = {
     snd_blocked: "Tap the speaker to listen", cred_revoked: "The doorbell rejected this pairing — re-pair it in Settings › Devices & services",
     lbl_rec_off: "REC", lbl_rec_on: "Recording", rec_start_tip: "Start recording", rec_stop_tip: "Stop recording", rec_no_answer: "Home Assistant did not accept the recording request", recordings_title: "Recordings",
     quick_reply_title: "Quick replies", qr_empty: "The doorbell has no quick replies configured", qr_load_error: "Could not load the list from the doorbell", qr_no_answer: "The doorbell did not accept the quick reply",
+    db_not_setup: "This doorbell isn't set up in Home Assistant.",
     db_switch: "Switch doorbell", db_unnamed: "Unnamed doorbell", no_doorbells: "No doorbell found. Add the Islautopia Garage Doorbell integration in Settings › Devices & services.", ed_nothing: "There is nothing to configure in this card: it shows all your doorbells and you switch between them from the card itself. Settings live in the integration: Settings › Devices & services › Islautopia Garage Doorbell › Configure."
   },
   pt: { // Portuguese
@@ -174,6 +269,7 @@ const igLocales = {
     snd_blocked: "Toque no altifalante para ouvir", cred_revoked: "O porteiro rejeitou este emparelhamento — volte a emparelhá-lo em Definições › Dispositivos e serviços",
     lbl_rec_off: "REC", lbl_rec_on: "A gravar", rec_start_tip: "Começar a gravar", rec_stop_tip: "Parar a gravação", rec_no_answer: "O Home Assistant não aceitou o pedido de gravação", recordings_title: "Gravações",
     quick_reply_title: "Respostas rápidas", qr_empty: "A campainha não tem respostas rápidas configuradas", qr_load_error: "Não foi possível obter a lista da campainha", qr_no_answer: "A campainha não aceitou a resposta rápida",
+    db_not_setup: "Esta campainha não está configurada no Home Assistant.",
     db_switch: "Mudar de campainha", db_unnamed: "Campainha sem nome", no_doorbells: "Nenhuma campainha encontrada. Adicione a integração Islautopia Garage Doorbell em Definições › Dispositivos e serviços.", ed_nothing: "Este cartão não tem nada para configurar: mostra todas as suas campainhas e muda-se de uma para outra no próprio cartão. As definições estão na integração: Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar."
   },
   de: { // German
@@ -195,6 +291,7 @@ const igLocales = {
     snd_blocked: "Auf den Lautsprecher tippen, um zu hören", cred_revoked: "Die Türsprechanlage hat diese Kopplung abgelehnt — in Einstellungen › Geräte & Dienste neu koppeln",
     lbl_rec_off: "REC", lbl_rec_on: "Aufnahme läuft", rec_start_tip: "Aufnahme starten", rec_stop_tip: "Aufnahme stoppen", rec_no_answer: "Home Assistant hat die Aufnahme-Anfrage nicht angenommen", recordings_title: "Aufnahmen",
     quick_reply_title: "Schnellantworten", qr_empty: "Für die Klingel sind keine Schnellantworten eingerichtet", qr_load_error: "Liste konnte nicht von der Klingel geladen werden", qr_no_answer: "Die Klingel hat die Schnellantwort nicht angenommen",
+    db_not_setup: "Diese Türklingel ist in Home Assistant nicht eingerichtet.",
     db_switch: "Klingel wechseln", db_unnamed: "Klingel ohne Namen", no_doorbells: "Keine Klingel gefunden. Füge die Integration Islautopia Garage Doorbell unter Einstellungen › Geräte & Dienste hinzu.", ed_nothing: "Diese Karte hat keine Einstellungen: Sie zeigt alle deine Klingeln, und du wechselst direkt in der Karte zwischen ihnen. Die Einstellungen liegen in der Integration: Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren."
   },
   fr: { // French
@@ -216,6 +313,7 @@ const igLocales = {
     snd_blocked: "Touchez le haut-parleur pour écouter", cred_revoked: "Le portier a refusé cet appairage — réappairez-le dans Paramètres › Appareils et services",
     lbl_rec_off: "REC", lbl_rec_on: "Enregistrement", rec_start_tip: "Démarrer l'enregistrement", rec_stop_tip: "Arrêter l'enregistrement", rec_no_answer: "Home Assistant n'a pas accepté la demande d'enregistrement", recordings_title: "Enregistrements",
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
+    db_not_setup: "Cette sonnette n'est pas configurée dans Home Assistant.",
     db_switch: "Changer de sonnette", db_unnamed: "Sonnette sans nom", no_doorbells: "Aucune sonnette trouvée. Ajoutez l'intégration Islautopia Garage Doorbell dans Paramètres › Appareils et services.", ed_nothing: "Cette carte n'a rien à configurer : elle affiche toutes vos sonnettes et l'on passe de l'une à l'autre depuis la carte elle-même. Les réglages sont dans l'intégration : Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer."
   },
   it: { // Italian
@@ -237,6 +335,7 @@ const igLocales = {
     snd_blocked: "Tocca l'altoparlante per ascoltare", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
     lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
     quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
+    db_not_setup: "Questo videocitofono non è configurato in Home Assistant.",
     db_switch: "Cambia videocitofono", db_unnamed: "Videocitofono senza nome", no_doorbells: "Nessun videocitofono trovato. Aggiungi l'integrazione Islautopia Garage Doorbell in Impostazioni › Dispositivi e servizi.", ed_nothing: "Questa card non ha nulla da configurare: mostra tutti i tuoi videocitofoni e si passa dall'uno all'altro dalla card stessa. Le impostazioni sono nell'integrazione: Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura."
   }
 };
@@ -1016,6 +1115,9 @@ class IgDoorbellView extends HTMLElement {
       this.localAudioStream.getTracks().forEach((track) => track.stop());
       this.localAudioStream = null;
     }
+    // (1.2.2) Also a getUserMedia() still pending, and any track of this view the registry knows (IG_MIC).
+    this._micReq = null;
+    igMicReleaseOwner(this, micWasOpen ? 'session torn down' : null);
     this.talkActive = false;
     // Talk turn / counter / quality: PER-SESSION state, never inherited (2026-07-26,
     // §1.4-ter). Goes BEFORE repainting the button so _paintMicState() already sees the clean state.
@@ -3158,7 +3260,9 @@ class IgDoorbellView extends HTMLElement {
       return;
     }
     console.info(`[ig-doorbell-card] pause (${reason})${inCall ? ' with a call: not hanging up' : ''}`);
-    this._pauseState = { reason, phase: 'grace', micOpen };
+    // `at`/`limitMs` (1.2.2): the grace is ALSO checked by wall clock in _resume(), because a WebView in
+    // the background freezes the setTimeout below (see IG_MIC, leak 5).
+    this._pauseState = { reason, phase: 'grace', micOpen, at: Date.now(), limitMs: inCall ? CALL_HIDDEN_MAX_MS : this._idleGraceMs };
     if (reason === 'idle') PAUSED_BY_DOORBELL[this.config.device_id] = true;
     // The mic doesn't stay open with the view closed (and the doorbell releases the turn with
     // live_pause anyway, §1.4-bis). It's remembered so it can be reopened on return.
@@ -3196,6 +3300,13 @@ class IgDoorbellView extends HTMLElement {
     if (this._destroyed) return;  // (1.10.0) instance of a doorbell that's no longer being viewed: see _destroy()
     const p = this._pauseState;
     if (!p) return;
+    // (1.2.2) Past the grace BY WALL CLOCK it is a new session, never a live_resume that re-requests
+    // the talk turn: frozen timers (a WebView in the background) could otherwise reopen the mic of a
+    // call that ended hours ago, on the first ring that wakes the screen.
+    if (p.phase === 'grace' && p.at && Date.now() - p.at > p.limitMs) {
+      console.info(`[ig-doorbell-card] resuming after ${Math.round((Date.now() - p.at) / 1000)} s paused: the grace had run out (frozen timers?), hanging up first`);
+      this._hangUpPaused();
+    }
     this._pauseState = null;
     delete PAUSED_BY_DOORBELL[this.config.device_id];
     if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
@@ -5689,6 +5800,15 @@ class IgDoorbellView extends HTMLElement {
   async _startTalk() {
     this.talkActive = true;
     this._listenOnly = false;
+    // (1.2.2) Not even ASKED for on a paused, hidden or detached view, or with no session: asking
+    // lights the system's "microphone in use" indicator even if the track is released right after.
+    if (!this._micAllowed()) {
+      this.talkActive = false;
+      if (this._talkHeld) { this.sendNativeSignal({ type: 'talk_release' }); this._talkHeld = false; }
+      this._paintMicState();
+      console.info('[ig-doorbell-card] microphone not requested: the view is paused, hidden or off the page, or has no session');
+      return;
+    }
     {
       try {
         // Talking implies hearing, obviously. The sound's previous state is remembered so it can be
@@ -5698,15 +5818,39 @@ class IgDoorbellView extends HTMLElement {
         this._setAudioOn(true, 'mic');
         console.log('[ig-doorbell-card DIAG audio] toggleIntercom: requesting getUserMedia({audio:true})...');
         const genMic = this._connGen;
+        // (1.2.2) THIS request's token: _stopTalk/_closeMicHardware/teardown/a newer request replace it,
+        // and a permission answered after that must not open anything (IG_MIC, leaks 2 and 3).
+        const micReq = {};
+        this._micReq = micReq;
         const probeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Registered BEFORE anything else looks at it: from here on the watchdog stops these tracks
+        // the moment their talk turn goes away, whatever the code below does.
+        probeStream.getTracks().forEach((t) => igMicRegister(t, this));
+        const dropUnused = (why) => {
+          probeStream.getTracks().forEach((t) => { IG_MIC.tracks.delete(t); t.stop(); });
+          console.info(`[ig-doorbell-card] getUserMedia resolved but ${why}: mic released unused`);
+        };
         // ⚠️ (1.10.0) The mic permission can take as long as the user takes to answer the
         // browser prompt, and meanwhile the session may have been torn down (reconnection) or the doorbell
         // may have CHANGED. Without this check, the mic would open on a dead instance: the
         // system icon lit up and nobody listening -- or, worse, the old doorbell's turn.
         if (this._destroyed || genMic !== this._connGen) {
-          probeStream.getTracks().forEach((t) => t.stop());
-          console.info('[ig-doorbell-card] getUserMedia resolved after a session/doorbell change: mic released unused');
+          dropUnused('the session or the doorbell changed meanwhile');
           return;
+        }
+        if (micReq !== this._micReq) {
+          dropUnused('the talk was stopped (or requested again) meanwhile');
+          return;
+        }
+        if (!this._micAllowed()) {
+          // Paused, hidden or off the page while the permission was pending: no talk turn to serve.
+          dropUnused('the view is paused, hidden or off the page');
+          if (this.talkActive || this._talkHeld) this._stopTalk();
+          return;
+        }
+        // Never overwrite a live stream: the old one would become an orphan no teardown can reach.
+        if (this.localAudioStream && this.localAudioStream !== probeStream) {
+          this.localAudioStream.getTracks().forEach((t) => { IG_MIC.tracks.delete(t); t.stop(); });
         }
         this.localAudioStream = probeStream;
         const realAudioTrack = this.localAudioStream.getAudioTracks()[0];
@@ -5737,7 +5881,9 @@ class IgDoorbellView extends HTMLElement {
             console.warn('[ig-doorbell-card DIAG audio] sender.getParameters() failed', paramsErr);
           }
         } else {
-          console.warn('[ig-doorbell-card DIAG audio] replaceTrack SKIPPED: audioTransceiver/sender does not exist at this moment - the mic NEVER actually activated even though the UI is going to say it did');
+          // (1.2.2) Holding the microphone with nowhere to send it is a capture for nobody: fail, and
+          // the catch below releases it (it used to keep the track open with the UI saying "on").
+          throw new Error('no audio sender at this moment: the microphone is not opened');
         }
         this._startAudioSendDiagnostics();
 
@@ -5747,6 +5893,8 @@ class IgDoorbellView extends HTMLElement {
         this._updateMotionPill(); // rule: never visible with the mic active
       } catch (err) {
         console.warn('[ig-doorbell-card] could not activate the microphone', err);
+        // (1.2.2) Whatever failed (replaceTrack, no sender...), a track already obtained is stopped.
+        this._closeMicHardware();
         // Any other path that reaches here without a secure context gets the same explanation.
         if (!igMicPossible()) this._showMicNeedsHttps();
         this.talkActive = false;
@@ -5770,16 +5918,37 @@ class IgDoorbellView extends HTMLElement {
   // takes the turn away from us). Extracted so neither path can forget a step.
   _closeMicHardware() {
     this._stopAudioSendDiagnostics();
+    this._micReq = null;     // (1.2.2) a getUserMedia() still pending opens nothing when it resolves
     if (this.localAudioStream) {
       this.localAudioStream.getTracks().forEach((track) => track.stop());
       this.localAudioStream = null;
     }
+    igMicReleaseOwner(this, null);
     if (this.audioTransceiver && this.audioTransceiver.sender && this.dummyAudioTrack) {
       // Goes back to the MUTED track instead of null: the transceiver must keep a live track
       // (the same muted-track+replaceTrack pattern that avoids renegotiating SDP, see
       // buildNativePeerConnection).
-      try { this.audioTransceiver.sender.replaceTrack(this.dummyAudioTrack); } catch (err) { /* best effort */ }
+      // replaceTrack() REJECTS (it does not throw) on a closed peer connection: the promise's own catch,
+      // or the page gets an unhandled rejection (1.2.2: this now also runs after a failed start).
+      try {
+        const pr = this.audioTransceiver.sender.replaceTrack(this.dummyAudioTrack);
+        if (pr && pr.catch) pr.catch(() => {});
+      } catch (err) { /* best effort */ }
     }
+  }
+
+  // (1.2.2) The ONE definition of "this view may hold a live microphone track" (IG_MIC): a talk turn
+  // that is on, in a view that is on the page, not paused, not destroyed, with a session, in a
+  // visible document. Anything else and the watchdog stops the track.
+  _micAllowed() {
+    if (this._destroyed || !this.isConnected || this._pauseState || !this.pc || !this.talkActive) return false;
+    return !(typeof document !== 'undefined' && document.visibilityState === 'hidden');
+  }
+
+  // Called by the watchdog after it stopped one of this view's tracks: the UI and the turn follow.
+  _onMicForcedOff() {
+    if (this.localAudioStream && this.localAudioStream.getTracks().every((t) => t.readyState === 'ended')) this.localAudioStream = null;
+    if (!this._destroyed && (this.talkActive || this._talkHeld || this._talkPending)) this._stopTalk();
   }
 
   async _stopTalk() {
@@ -5788,6 +5957,11 @@ class IgDoorbellView extends HTMLElement {
     // unfair talk_denied. It's sent even in "listen only" mode (turn denied) in case the
     // device had granted it to us right after - it's idempotent.
     this.sendNativeSignal({ type: 'talk_release' });
+    // (1.2.2) A turn still REQUESTED is cancelled too: before, pausing within the 3 s of a request left
+    // _talkPending and its timer alive, and the timer (or a late talk_granted) opened the mic on the
+    // hidden, paused page (IG_MIC, leak 1).
+    if (this._talkTimer) { clearTimeout(this._talkTimer); this._talkTimer = null; }
+    this._talkPending = false;
     this._talkHeld = false;
     this._listenOnly = false;
     this.talkActive = false;
@@ -6900,7 +7074,7 @@ class IgDoorbellCard extends HTMLElement {
           const e = all[eid];
           if (e && e.device_id === haId && e.platform === IG_DOMAIN) ents.push(eid);
         }
-        base.push({ id, name, ents });
+        base.push({ id, name, ents, ha: haId });
       }
       base.sort((a, b) => (a.name || '~').localeCompare(b.name || '~') || a.id.localeCompare(b.id));
       this._cache = { devices: hass.devices, entities: hass.entities, base };
@@ -6909,20 +7083,34 @@ class IgDoorbellCard extends HTMLElement {
     return this._cache.base.map((d) => {
       const knownStates = d.ents.map((e) => states[e]).filter(Boolean);
       const available = knownStates.length ? knownStates.some((st) => st.state !== 'unavailable') : null;
-      return { id: d.id, name: d.name, available };
+      return { id: d.id, name: d.name, available, ha: d.ha };
     });
   }
 
   // The call page (ig-doorbell-panel.js, 1.2.0) says WHICH doorbell rang: a ring notification opens
   // the page for that doorbell, and with two doorbells the remembered selection could be the other
   // one. For this element only and NEVER saved: the dashboard card keeps the owner's own choice.
+  //
+  // ⚠️ (1.2.2) A REQUESTED DOORBELL THAT IS NOT HERE NEVER BECOMES ANOTHER ONE. Until 1.2.1 an unknown
+  // id fell through to the remembered selection or the first doorbell: /ig-doorbell?device=<typo>
+  // showed ANOTHER doorbell and connected to it without a word - and that page has a microphone button.
+  // Once this setter has been called (even with null) the element is in "forced" mode: it shows the
+  // doorbell asked for, resolved EXPLICITLY by the doorbell id or by Home Assistant's device id, or
+  // a clear error with no session and no microphone. There is no fallback, and there must not be.
   set forcedDoorbell(id) {
+    this._forcedMode = true;
     this._forced = id ? String(id) : null;
     this._sync();
   }
 
+  // The doorbell id for the requested one, or null. Explicit mapping only: our id, or HA's device id.
+  _resolveForced(list) {
+    if (!this._forced) return null;
+    const d = list.find((x) => x.id === this._forced) || list.find((x) => x.ha === this._forced);
+    return d ? d.id : null;
+  }
+
   _defaultDoorbell(list) {
-    if (this._forced && list.some((d) => d.id === this._forced)) return this._forced;
     let savedValue = null;
     try { savedValue = localStorage.getItem(SELECTION_KEY); } catch (err) { /* no storage */ }
     if (savedValue && list.some((d) => d.id === savedValue)) return savedValue;
@@ -6938,8 +7126,26 @@ class IgDoorbellCard extends HTMLElement {
       if (!this._view) this._paintEmpty();
       return;
     }
-    this._removeEmpty();
     const cur = this._view && this._view.config ? this._view.config.device_id : null;
+    if (this._forcedMode) {
+      const target = this._resolveForced(list);
+      if (!target) {
+        // No session, no microphone: the view (if any) is destroyed - hung up, mic released.
+        if (this._view) this._switchTo(null, 'the requested doorbell is not set up in Home Assistant');
+        this._paintEmpty('db_not_setup');
+        if (this._warnedForced !== this._forced) {
+          this._warnedForced = this._forced;
+          console.warn(`[ig-doorbell-card] requested doorbell "${this._forced}" is not set up in this Home Assistant: showing nothing (never another doorbell)`);
+        }
+        return;
+      }
+      this._removeEmpty();
+      if (cur === target) { this._view._setDoorbells(list, this._onPick); return; }
+      if (!this.isConnected) return;
+      this._switchTo(target, 'the page asked for this doorbell');
+      return;
+    }
+    this._removeEmpty();
     if (cur && list.some((d) => d.id === cur)) {
       this._view._setDoorbells(list, this._onPick);
       return;
@@ -6954,6 +7160,8 @@ class IgDoorbellCard extends HTMLElement {
     const list = this._listDoorbells();
     if (!list.some((d) => d.id === id)) return;
     try { localStorage.setItem(SELECTION_KEY, id); } catch (err) { /* no storage: this session only */ }
+    // On the call page the person's own pick becomes the requested doorbell (an explicit choice).
+    if (this._forcedMode) this._forced = id;
     this._switchTo(id, 'chosen in the selector');
   }
 
@@ -6979,13 +7187,15 @@ class IgDoorbellCard extends HTMLElement {
     this._view = v;
   }
 
-  _paintEmpty() {
+  _paintEmpty(key) {
     if (!this._emptyCard) {
       this._emptyCard = document.createElement('ha-card');
       this._emptyCard.style.cssText = 'display:block;padding:16px;';
+      this._emptyCard.className = 'ig-empty';
       this.appendChild(this._emptyCard);
     }
-    this._emptyCard.textContent = getLocalText(this._hass, 'no_doorbells');
+    this._emptyCard.dataset.reason = key || 'no_doorbells';
+    this._emptyCard.textContent = getLocalText(this._hass, key || 'no_doorbells');
   }
 
   _removeEmpty() {

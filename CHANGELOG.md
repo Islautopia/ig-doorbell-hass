@@ -6,6 +6,19 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.2] — unreleased
+
+### Fixed
+
+- **Privacy: the microphone could stay open with no call.** Several paths (leaving the view while
+  a talk request was pending, the microphone permission answered after the talk was stopped, a
+  second start, a failed start, closing the page) could leave a microphone capture running on a
+  hidden page. The microphone is now open only during an active talk turn, and a watchdog stops
+  (and logs) any microphone left open without one within 2 seconds, at once when the page is hidden.
+- **The call page never shows another doorbell.** `/ig-doorbell?device=<id>` with an unknown id
+  showed a different doorbell. It now says "This doorbell isn't set up in Home Assistant", with no
+  video and no microphone. The Home Assistant device id is also accepted.
+
 ## [1.2.1] — unreleased
 
 ### Fixed

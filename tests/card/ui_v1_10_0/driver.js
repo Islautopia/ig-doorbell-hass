@@ -40,7 +40,15 @@ function mutate(src, name) {
     return swap('      oldView._destroy(`doorbell change: ${reason}`);\n', '');
   }
   if (name === 'M3') {
-    return swap('if (this._destroyed || genMic !== this._connGen) {', 'if (false) {');
+    // (1.2.2) Since then four things each release a mic granted after a switch: the generation, the
+    // request token and the allowed-state checks after the permission resolves, and the release in
+    // the catch (replaceTrack() on the closed peer rejects). The mutant removes all four (the
+    // watchdog behind them acts only after 2 s; T6 looks at 200 ms).
+    src = swap('if (this._destroyed || genMic !== this._connGen) {', 'if (false) {');
+    src = swap('if (micReq !== this._micReq) {', 'if (false) {');
+    src = swap('if (!this._micAllowed()) {\n          // Paused', 'if (false) {\n          // Paused');
+    // (The pre-check at the top of _startTalk stays: T6 starts the talk BEFORE the switch.)
+    return swap('a track already obtained is stopped.\n        this._closeMicHardware();', 'a track already obtained is stopped.');
   }
   return src;
 }

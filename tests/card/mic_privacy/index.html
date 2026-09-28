@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.2.2: microphone privacy and the requested doorbell</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // THE INSTRUMENT: every audio track getUserMedia() hands to ANYONE on this page is recorded here,
+    // at the moment it exists (before any artificial delay), so "live microphone tracks" is counted
+    // by the browser's own readyState - not by what the card believes.
+    window.__micTracks = [];
+    window.__gumDelay = 0;
+    const realGum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (c) => {
+      const s = await realGum(c);
+      s.getAudioTracks().forEach((t) => window.__micTracks.push(t));
+      if (window.__gumDelay) await new Promise((r) => setTimeout(r, window.__gumDelay));
+      return s;
+    };
+    window.tLiveMic = () => window.__micTracks.filter((t) => t.readyState === 'live').length;
+    window.tStopAllMic = () => window.__micTracks.forEach((t) => t.stop());
+    // The document's visibility, emulated (headless Chromium is always "visible").
+    window.__vis = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__vis === 'hidden' });
+    window.tSetVisible = (v) => { window.__vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

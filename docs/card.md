@@ -10,6 +10,49 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## PRIVACY: the microphone lives only inside an active talk turn; the call page never falls back (1.2.2, 2026-09-28)
+
+**Symptom** (salon wall tablet, Android HA app WebView): a HIDDEN page held the microphone capture
+open for over an hour, until it was reloaded; the night before, two captures at once. Separately,
+`/ig-doorbell?device=<unknown id>` showed another doorbell and connected to it without a word.
+
+**What the code did** (the card has exactly ONE `getUserMedia()`, in `_startTalk`). Five ways a
+track outlived its talk turn, every one reproduced against the 1.2.1 build by
+`tests/card/mic_privacy` (L = live mic tracks, counted by the browser's `readyState`):
+1. pausing (hide, leave the view) while the turn was still REQUESTED: `_stopTalk()` left
+   `_talkPending` and its 3 s timer alive, and the timer or a late `talk_granted` opened the mic on
+   the hidden page (P8: L=1, getUserMedia called while hidden);
+2. the permission resolving after the talk was stopped: the stream was kept (P9: L=1);
+3. a second `_startTalk()` overwrote `localAudioStream` without stopping the first - an orphan no
+   teardown can reach, which is exactly "two captures" and "until reload" (P10: L=2, then 1 after stop);
+4. no audio sender / `replaceTrack()` failing: the catch never stopped the track (P11: L=1);
+5. `pagehide` did not stop it (P5: L=1). Also: the hide/hang-up deadlines are `setTimeout`s, which a
+   WebView in the background freezes, so "5 minutes" can be hours.
+Not proven: which of these fired on the tablet. The capture's attribution to a page whose document
+had no card defined cannot be right for OUR code (no card, no `getUserMedia`); Android attributes a
+capture to the app, not to a page, so the owner was probably another card instance in the same
+WebView (believed, not measured). Measuring that needs the tablet (WebView debugging).
+
+**Fix.** Each path stops its own tracks (request token checked when the permission resolves;
+`_stopTalk` cancels a pending request; never overwrite a live stream; the catch releases; teardown
+forgets the pending request), AND a per-window registry (`IG_MIC`, shared with a duplicate copy of
+the module) holds every track `getUserMedia()` returns with its owner view. `_micAllowed()` is the
+one definition: talking, on the page, not paused, not destroyed, session up, document visible.
+A track outside it is stopped by the watchdog after 2 s, and at once on `visibilitychange` to hidden
+and on `pagehide` (window listeners, so a view that left the DOM without its cleanup is covered).
+Every stop by the registry logs `PRIVACY: stopped a live microphone track` - that line is a bug to
+fix, not noise. `_resume()` checks the grace by wall clock: past it, a new session, never a turn
+re-requested hours later.
+
+**The call page.** `forcedDoorbell` puts the card in forced mode: the doorbell is resolved
+EXPLICITLY (doorbell id or Home Assistant device id) or the card shows "This doorbell isn't set up in
+Home Assistant" (`db_not_setup`, six languages) with no view, no session and no mic. A change of
+`?device=` on an open page is followed. Kept on purpose: no `device` with exactly ONE doorbell shows it
+(docs/ring-notifications.md, kiosk bookmark) - there is no other one to confuse it with.
+
+**Tests.** `tests/card/mic_privacy` (P0-P14, D1-D5, mutants MA-MG; `CARD_FILE=<old build>` runs it
+against another build). `ui_v1_10_0` M3 now removes all four layers that release a late permission.
+
 ## "Custom element doesn't exist" from a STALE PAGE, not from the card (1.2.1, 2026-09-28)
 
 **Symptom** (the day after 1.1.2): Iñaki's desktop Chrome (the installed Home Assistant app,

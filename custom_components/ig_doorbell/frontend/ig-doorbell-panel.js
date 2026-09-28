@@ -24,7 +24,13 @@ class IgDoorbellPanel extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._built) this._build();
-    if (this._card) this._card.hass = hass;
+    if (this._card) {
+      // Home Assistant can keep this element when only the query changes (?device=A -> ?device=B):
+      // the card follows the URL, never the other way round (1.2.2).
+      const id = this._deviceId();
+      if (id !== this._builtId) { this._builtId = id; this._eventsId = undefined; this._card.forcedDoorbell = id; }
+      this._card.hass = hass;
+    }
     this._watchRing(hass);
   }
 
@@ -45,7 +51,8 @@ class IgDoorbellPanel extends HTMLElement {
         const e = hass.entities[eid];
         if (!e || e.platform !== 'ig_doorbell' || !eid.startsWith('event.')) continue;
         const dev = hass.devices[e.device_id];
-        if (dev && (dev.identifiers || []).some((x) => x && x[0] === 'ig_doorbell' && x[1] === id)) { found = eid; break; }
+        // Our doorbell id, or Home Assistant's device id (both accepted by the card, explicitly).
+        if (dev && (e.device_id === id || (dev.identifiers || []).some((x) => x && x[0] === 'ig_doorbell' && x[1] === id))) { found = eid; break; }
       }
     }
     this._eventsId = found;
@@ -82,11 +89,16 @@ class IgDoorbellPanel extends HTMLElement {
   set narrow(_n) { /* full-screen either way */ }
   set route(_r) { /* the device comes from the query string */ }
 
+  // ⚠️ (1.2.2) NEVER A FALLBACK TO ANOTHER DOORBELL. A `device` that is given is passed to the card AS
+  // IS, even if it is unknown: the card resolves it explicitly (our doorbell id or Home Assistant's
+  // device id) or shows "This doorbell isn't set up in Home Assistant" with no stream and no mic.
+  // Until 1.2.1 an unknown id silently showed - and connected to - another doorbell.
+  // The only case without the parameter that shows a doorbell is an installation with exactly ONE
+  // (an iPad bookmark, a kiosk URL; docs/ring-notifications.md): there is no other one to confuse it
+  // with. With two or more, no parameter = the "no doorbell chosen" message.
   _deviceId() {
     const q = new URLSearchParams(window.location.search);
-    const d = q.get('device');
-    if (d) return d;
-    // One doorbell only: the page works without the parameter (an iPad bookmark, a kiosk URL).
+    if (q.has('device')) return (q.get('device') || '').trim() || null;
     const list = (this._panel && this._panel.config && this._panel.config.devices) || [];
     return list.length === 1 ? list[0] : null;
   }
@@ -112,6 +124,7 @@ class IgDoorbellPanel extends HTMLElement {
     btn.textContent = tr(this._hass, 'close');
     btn.addEventListener('click', () => this._leave());
     const id = this._deviceId();
+    this._builtId = id;
     const host = root.querySelector('.card');
     if (!id) { host.innerHTML = `<div class="none"></div>`; host.firstChild.textContent = tr(this._hass, 'none'); return; }
     // (1.2.1) The card normally arrives with the page (an extra module in its HTML). That HTML can be
