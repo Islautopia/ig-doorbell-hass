@@ -114,6 +114,15 @@ class IgDoorbellPanel extends HTMLElement {
     const id = this._deviceId();
     const host = root.querySelector('.card');
     if (!id) { host.innerHTML = `<div class="none"></div>`; host.firstChild.textContent = tr(this._hass, 'none'); return; }
+    // (1.2.1) The card normally arrives with the page (an extra module in its HTML). That HTML can be
+    // a stale copy from Home Assistant's service worker that imports no card at all (card.py): then
+    // this would wait forever on a black page - and this page is where a ring sends the wall panel.
+    // The panel config comes over the websocket, so its URL is the current one; the same URL as
+    // the extra module, so when the page did import it this is the same module and runs nothing.
+    const cardUrl = this._panel && this._panel.config && this._panel.config.card_url;
+    if (!customElements.get('ig-doorbell-card') && cardUrl) {
+      import(cardUrl).catch((err) => console.warn(`[ig-doorbell-panel] could not load the card: ${err && err.message}`));
+    }
     await customElements.whenDefined('ig-doorbell-card');
     const card = document.createElement('ig-doorbell-card');
     // The card has no options (1.10.0): the doorbell is given through `forcedDoorbell`, which is

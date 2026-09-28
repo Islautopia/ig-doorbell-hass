@@ -2,7 +2,8 @@
   "domain": "ig_doorbell",
   "name": "Islautopia Garage Doorbell",
   "after_dependencies": [
-    "frontend"
+    "frontend",
+    "lovelace"
   ],
   "codeowners": [
     "@Islautopia"
@@ -18,7 +19,7 @@
   "requirements": [
     "segno>=1.5.2"
   ],
-  "version": "1.2.0",
+  "version": "1.2.1",
   "zeroconf": [
     "_igdoorbell._tcp.local."
   ]

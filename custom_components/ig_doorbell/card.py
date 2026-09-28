@@ -17,11 +17,25 @@ CACHE BUSTING. The module URL carries `?v=<first 12 hex of the file's SHA-256>`.
 not the version number, because what the browser must not reuse is a different FILE: a build
 that forgot to bump the version (or a local edit while debugging) still changes the hash. A new
 integration version needs a Home Assistant restart anyway (new Python), and on that restart the
-new URL goes into the page; `add_extra_js_url` also notifies pages that are already open.
+new URL goes into the page. A page that stays open keeps the build it loaded (Home Assistant
+2026.9.3's frontend does not pick up new extra modules; docs/card.md).
 
 The static route is registered WITHOUT long-lived cache headers (`cache_headers=False`), so even
 a request for the same URL revalidates instead of trusting a month-old copy. Measured behaviour
 per update path is in docs/card.md ("Updating the card").
+
+ALSO A LOVELACE RESOURCE (1.2.1), because the extra module lives in the PAGE'S HTML and that HTML
+can be old. Home Assistant's service worker serves every page outside /static, /frontend_* and /api
+stale-while-revalidate, and the root route matches with `ignoreSearch` - so `/?homescreen=1` (the
+installed app's start URL) keeps getting whatever `/` was cached as, while each refresh is stored
+under `/?homescreen=1`, and that runtime cache has no expiry. A page cached before this integration
+added its module (before 1.0.0, or during the few seconds of a Home Assistant start before
+`async_setup` runs) imports no card at all: "Custom element doesn't exist" on every open, until a
+Ctrl+F5 - and the next launch is broken again. Measured on 2026-09-28 in a real desktop Chrome's
+cache (`/` from 2026-09-27 09:38 UTC, no card import) and reproduced on the real frontend (docs/
+card.md). Lovelace resources are NOT in the HTML: the dashboard asks for them over the websocket
+each time it loads, so the list is always the server's current one. The resource carries the same
+URL as the extra module; the browser's module map runs it once.
 """
 from __future__ import annotations
 
@@ -42,6 +56,7 @@ CARD_URL = f"/{DOMAIN}/{CARD_FILENAME}"
 # The module URL actually registered (with its ?v=); also a "done" marker so a reload of the
 # integration does not register the static route twice (aiohttp raises on a duplicate route).
 DATA_CARD_URL = f"{DOMAIN}_card_url"
+RESOURCE_TYPE = "module"
 
 
 def _file_digest(path: Path) -> str:
@@ -74,4 +89,59 @@ async def async_register_card(hass: HomeAssistant) -> str | None:
 
     add_extra_js_url(hass, url)
     _LOGGER.debug("Card served and added to the frontend as %s", url)
+    await async_sync_lovelace_resource(hass, url)
     return url
+
+
+def _lovelace_resources(hass: HomeAssistant):
+    """The Lovelace resource collection, or None when there is none we can write to.
+
+    `hass.data["lovelace"]` is a dict up to Home Assistant 2025.1 and a `LovelaceData` object after;
+    both carry `resources`. In YAML resource mode it is a read-only collection with no
+    `async_create_item`: then the user owns the list and we only have the extra module.
+    """
+    data = hass.data.get("lovelace")
+    resources = data.get("resources") if isinstance(data, dict) else getattr(data, "resources", None)
+    if resources is None or not hasattr(resources, "async_create_item"):
+        return None
+    return resources
+
+
+def _is_ours(item: dict) -> bool:
+    return str(item.get("url", "")).split("?", 1)[0] == CARD_URL
+
+
+async def async_sync_lovelace_resource(hass: HomeAssistant, url: str | None) -> None:
+    """Keep exactly one Lovelace resource for the card, at `url`; None removes it.
+
+    Best effort, never fatal: the extra module still loads the card from a fresh page, and a broken
+    integration setup would be a far worse failure than the one this guards against.
+    """
+    resources = _lovelace_resources(hass)
+    if resources is None:
+        if url is not None:
+            _LOGGER.debug("Lovelace resources are not writable (YAML mode?): the card is loaded "
+                          "by the extra module only")
+        return
+    try:
+        if not resources.loaded:
+            # What Home Assistant's own websocket handler does before listing them.
+            await resources.async_load()
+            resources.loaded = True
+        ours = [item for item in resources.async_items() if _is_ours(item)]
+        if url is None:
+            for item in ours:
+                await resources.async_delete_item(item["id"])
+            return
+        keep, extra = (ours[0], ours[1:]) if ours else (None, [])
+        for item in extra:
+            # Two entries would load two copies (the second only warns, but it is still a download).
+            await resources.async_delete_item(item["id"])
+        if keep is None:
+            await resources.async_create_item({"res_type": RESOURCE_TYPE, "url": url})
+            _LOGGER.info("Card added to the Lovelace resources as %s", url)
+        elif keep.get("url") != url or keep.get("type") != RESOURCE_TYPE:
+            await resources.async_update_item(keep["id"], {"res_type": RESOURCE_TYPE, "url": url})
+    except Exception:  # noqa: BLE001 - see the docstring: this must never take the setup down
+        _LOGGER.warning("Could not update the card's Lovelace resource; the card still loads "
+                        "from the page itself", exc_info=True)

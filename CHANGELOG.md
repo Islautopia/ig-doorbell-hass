@@ -6,6 +6,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.1] — unreleased
+
+### Fixed
+
+- **"Custom element doesn't exist: ig-doorbell-card" on every launch of the installed Home
+  Assistant app (or a wall panel), until Ctrl+F5.** Home Assistant's service worker can keep
+  serving an old copy of the page that was saved before this integration added the card to it -
+  and for the app's start page that copy never expires. The card is now also a Lovelace resource
+  (added and kept up to date automatically; removed with the last doorbell), which dashboards load
+  fresh each time, and the call page loads the card itself. With dashboards in YAML resource mode
+  nothing changes.
+
 ## [1.2.0] — unreleased
 
 ### Added

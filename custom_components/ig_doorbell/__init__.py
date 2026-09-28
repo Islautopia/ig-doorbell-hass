@@ -58,7 +58,7 @@ from .const import (
     DOORBELL_HOSTNAME_SUFFIX,
     MAX_ENTITIES,
 )
-from .card import async_register_card
+from .card import async_register_card, async_sync_lovelace_resource
 from .https_manager import async_setup_manager, get_manager
 from .https_views import async_register_https_views
 from .coordinator import DoorbellCoordinator
@@ -726,6 +726,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # The last doorbell gone: HTTPS stops (the setting is kept for a doorbell added later).
     if (mgr := get_manager(hass)) is not None:
         await mgr.async_apply()
+    # The last doorbell gone: the card's Lovelace resource goes too (card.py). The entry being
+    # removed is still listed at this point, hence the comparison. Removing the integration's files
+    # without removing its entries leaves the resource behind: a console error, nothing visible.
+    if not [e for e in hass.config_entries.async_entries(DOMAIN) if e.entry_id != entry.entry_id]:
+        await async_sync_lovelace_resource(hass, None)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

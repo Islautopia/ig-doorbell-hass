@@ -10,6 +10,56 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## "Custom element doesn't exist" from a STALE PAGE, not from the card (1.2.1, 2026-09-28)
+
+**Symptom** (the day after 1.1.2): Iñaki's desktop Chrome (the installed Home Assistant app,
+`https://hass.islautopia.com`) and the salon wall tablet showed the red error again, on 1.2.0 builds
+that carry the 1.1.2 registry fix. Ctrl+F5 fixed it; the next launch was broken again.
+
+**Evidence, from the real browser's disk** (`Default/Service Worker/CacheStorage` of that Chrome,
+read-only). The service worker's runtime cache held TWO copies of the start page: `/` saved on
+2026-09-27 09:38 UTC, whose HTML imports core, app, card-mod and iconset **and no card at all**,
+and `/?homescreen=1` (the app's start URL) saved today with the current card import. The card
+module itself was fine in cache (1.2.0, with the registry fix). So on those launches the card was
+never imported: no registry, no race - nothing to define.
+
+**Mechanism** (HA 2026.9.3 `sw-modern.js`, read from the served file):
+- every page outside `/static`, `/frontend_*` and `/api` is **stale-while-revalidate**: the cached
+  HTML is shown, the network copy only replaces it for the NEXT load;
+- the root route (`/`, `/?anything`) matches with **`ignoreSearch`** in a cache with **no expiry**.
+  `Cache.match('/?homescreen=1', {ignoreSearch: true})` returns the older `/` (measured), while each
+  refresh is stored under `/?homescreen=1`. The stale `/` is never replaced unless someone opens
+  exactly `/`. The Android companion's `/?external_auth=1` is the same route (the tablet: believed,
+  not measured - its WebView storage is not readable without root);
+- a page saved before the card was in it: before 1.0.0 (this case), or during the seconds of a Home
+  Assistant start before our `async_setup` calls `add_extra_js_url` (the HTML is rendered per
+  request from the current list; not measured with a restart);
+- Ctrl+F5 bypasses the service worker, which is why it "fixed" it for one load.
+
+Also measured on the way: Home Assistant 2026.9.3's frontend has **no** handler for new extra
+modules on an open page (no `subscribe_extra_js` in any of its 1,134 chunks): a page open across a
+restart keeps its old card until it reloads, as the table below already says.
+
+**Fix.** The card is ALSO a Lovelace resource (`card.async_sync_lovelace_resource`): one entry, at
+the same `?v=` URL as the extra module, created or updated at every start, duplicates removed,
+removed with the last doorbell; YAML resource mode is left alone (extra module only). Dashboards
+ask for resources over the websocket each time they load, so the list is the server's current one
+whatever HTML the browser was handed; the same URL means the browser's module map runs it once when
+the page did import it too. The call page (`/ig-doorbell`) is not a dashboard: its panel config now
+carries `card_url` and the panel imports the card itself if the page did not.
+
+**What does NOT help, so nobody adds it:** a remote "reload" for wall panels - a reload of a root URL
+gets the same stale `/` from the same cache. A panel stuck on a stale `/` recovers by opening
+exactly `/` twice (the first load refreshes the entry) or by clearing the site data.
+
+**Tests.** `tests/test_card_resource.py` on Home Assistant's real resource collection, mutants in
+`tools/mutants.py` (1.2.1 block). Real frontend: `tests/card/stale_document/run.js` (needs an https
+`HASS_URL` + `HASS_TOKEN`) seeds the service worker with the current page minus the card import and
+edits the websocket's resource list: S0 (control, no resource) must lose the element, S1 (resource)
+must have it, S2 fresh page + resource fetches the card once, S3 shows the `ignoreSearch` match.
+Its profile path is short on purpose: under the long scratch path Chromium's CacheStorage fails,
+the service worker never installs, and the bench would test nothing.
+
 ## "Configuration error" on load: the card registered in the wrong registry (1.1.2, 2026-09-27)
 
 **Symptom** (Iñaki, integration 1.1.1, HA 2026.9.3, desktop Chrome, zero-config panel card): some

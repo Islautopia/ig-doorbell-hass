@@ -18,6 +18,7 @@ from pathlib import Path
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
+from .card import DATA_CARD_URL
 from .const import CALL_PAGE_PATH, CONF_DEVICE_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,5 +72,8 @@ async def _async_register_locked(hass: HomeAssistant) -> None:
         sidebar_title=None,
         sidebar_icon=None,
         require_admin=False,
-        config={"devices": devices},
+        # card_url (1.2.1): the page imports the card itself when the document it was opened in
+        # does not (a stale copy served by Home Assistant's service worker; card.py). The panel
+        # list comes over the websocket, so this URL is always the server's current one.
+        config={"devices": devices, "card_url": hass.data.get(DATA_CARD_URL)},
     )
