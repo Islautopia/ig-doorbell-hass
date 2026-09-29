@@ -10,6 +10,122 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.3 (2026-09-29): §5 override - viewers pill back in simple mode
+
+Coordinator's `spec_modo_avanzado.md` §5, written later the same day, overrides one point of §4
+(and of 1.4.1's original wording): *"SIMPLE mode KEEPS the viewers indicator (audience pill),
+exactly where it already is, on the video"* - the exact opposite of 1.4.1's "no viewers pill" in
+simple mode. §5 also says WebRTC diagnostics stay hidden in simple mode and visible in advanced -
+this card has no such icon/overlay to begin with (unlike the apps), so there is nothing to change
+for that half of §5 here.
+
+- **`.clients-pill` (the viewers pill) is no longer in the `.ig-simple` force-hide CSS rule.** Its
+  own visibility (shown only once a real client count is known, `_paintClients()`) is unrelated to
+  simple/advanced and unchanged - it now simply behaves the same in both modes, in the same spot
+  inside `.hud-top-left`/`.hud-top` it already occupied. Nothing else about the pill (styling,
+  `.multi` highlight, `clients_tip` title) changed.
+- **Verification.** `tests/card/advanced_mode/harness.js` gained `tClients(id, n)` (simulates a
+  `session_info` client count the same way `tQuality()` simulates `quality_state`).
+  `tests/card/advanced_mode/driver.js` gained section "1b" (V1/V2): with a real client count, the
+  pill is visible in simple mode, stays inside `.hud-top`, and stays visible after switching to
+  advanced too. `run_all.js`: 20/20 green (unchanged count - checks added within the existing
+  bench). pytest (`igd-test` image): 180/180 green.
+
+## 1.4.2 (2026-09-29): Canonical layout - fixes the 5-buttons-in-one-row overflow
+
+Coordinator addendum to the spec below, written the same day after comparing the first
+screenshots of all three clients (`spec_modo_avanzado.md` §4, "Canonical layout" - overrides the
+1.4.1 wording). Card-only change; iOS/Android get the matching fix separately.
+
+- **Bug fixed**: at phone width, simple mode's `.actions-row` held 5 round buttons (sound/mic/door
+  + compact REC + compact Quick-replies) and the row didn't fit - "Escuchar"/"Respuestas rápidas"
+  rendered clipped at the edges (`card_simple.png` before this fix).
+- **Simple mode's main row is now EXACTLY the three round buttons** (sound/mic/door), same as
+  advanced mode - never a 4th or 5th. There is **no compact REC any more, anywhere** (canonical
+  layout §4 point 3, Iñaki: "menos es más" - a call is already recorded without pressing REC): the
+  `#rec-action-compact` element is gone from the markup entirely, not just hidden.
+- **Quick replies moves to a wide row below the main buttons in simple mode too** - the SAME
+  `#bottom-row`/`qrButton` advanced mode uses, with Recordings force-hidden inside it
+  (`_updateRecordingsButton()`: `visible = isAdmin && !simple`, no Recordings in simple mode even
+  for an admin). The lone visible button fills the width for free via the pre-existing `flex: 1`
+  rule on `.quick-btn.half` - no new CSS needed for that part.
+- **Fullscreen unchanged in spirit but now precisely scoped**: keeps sound/mic/door plus a compact
+  Quick-replies icon action only (it has no wide row below the video to use instead) - it never had
+  REC before this whole feature existed (1.4.0 and earlier), so none was added.
+  `_isCompactActionsContext()` now means "fullscreen" (was "`!advanced || fullscreen`").
+- **`_planLayout()`'s space estimate had a landmine**: `hasBottom` was computed as `!simple && ...`,
+  a leftover from when `#bottom-row` really was fully hidden in simple mode. Once simple mode
+  started showing it too (this same change), the estimate silently under-reserved space for a row
+  that WAS actually there, and simple mode's video came out smaller than advanced's at some sizes -
+  caught by the pre-existing `tests/card/advanced_mode` L2 check going red during this work. Fixed
+  by reading `#bottom-row`'s real visibility instead of assuming it from `simple` (`topH` still
+  correctly assumes `simple -> 0`, that invariant didn't change).
+- Dead CSS cleaned up: every `.btn.rec` selector (there is no element with that class any more).
+- **Verification.** `tests/card/advanced_mode/driver.js` rewritten for the new shape: A3 checks the
+  main row is exactly 3 buttons, A4/A5 check the wide Quick-replies row and the absence of REC
+  anywhere in simple mode (including a DOM-absence check for `#rec-action-compact`, not just
+  hidden), AD/F sections drop the retired REC-compact assertions. New O1-O3 checks
+  (`tRowClipped()` in harness.js, comparing each visible child's `getBoundingClientRect()` against
+  its container's - `scrollWidth` was rejected as unreliable for an `overflow: visible` flex row):
+  no clipping at 320px width, both as the real viewport and as a narrow host width simulating a
+  Sections/Masonry column, across simple/advanced/fullscreen. Validated as a real instrument before
+  trusting it: run against a copy of the pre-fix 1.4.1 card, it correctly reported clipping with
+  all 5 old buttons visible. `run_all.js`: 20/20 green. pytest (`igd-test` image): 180/180 green.
+
+## 1.4.1 (2026-09-29): Simple mode by default, Advanced toggle, no fixed quality chip
+
+Shared spec with the iOS/Android apps ("Live view: simple mode by default, 'Advanced' toggle, no
+fixed quality chip", Iñaki 2026-09-29). Applies ONLY to the live view - no other screen changed.
+
+- **Simple mode (default, per-browser, `localStorage['ig-doorbell-advanced']`, try/catch)**: the
+  live view shows only sound/mic/door + REC (admin) + Quick replies (Iñaki's later clarification:
+  "Quick replies are part of simple mode too") + the new Advanced button. Hidden: doorbell picker,
+  mode chip, viewers pill (`.clients-pill`), Recordings, the bell - `#top-row`/`#bottom-row` are
+  CSS-hidden under a new `.ig-simple` class (`_applyModeVisibility()`), computed as `!advanced &&
+  !fullscreen`. The card has no pairing flow, so unlike the apps it never starts in Advanced -
+  always the remembered per-browser choice, default simple.
+- **Advanced button** (`#adv-btn`, `mdi:tune-variant`, bottom-right HUD next to fullscreen):
+  toggles `_advanced`, highlighted (`.on`) when ON, hidden in fullscreen by CSS - fullscreen is
+  unaffected by the toggle (spec: "full-screen view stays as it is").
+- **REC and Quick replies gained a compact copy** in `.actions-row` (same handlers as the header
+  pill / wide `#bottom-row` button, `_isCompactActionsContext()` = `!advanced || fullscreen`):
+  fullscreen never had either control before (both lived in `#top-row`/`#bottom-row`, which it
+  already hid), so this also fixes that pre-existing gap, not just simple mode.
+- **The permanent quality selector's last remnants removed** (dead since 1.9.2 - see that entry:
+  the markup was already gone, only `_renderQualityMenu`/`_toggleQualityMenu`/`_paintQuality` and
+  their `#hud-quality`/`#q-*` querySelectors survived, always resolving to `null`). Replaced by a
+  **temporary chip** (`.quality-toast`, top-centre, ~4s fade, `_showQualityChip()`), shown only on
+  a real tier change of `quality_state.mode` (`_maybeShowQualityChip()`, tier 2=full/auto,
+  1=low, 0=audio_only) - never on the session's first confirmation, debounced >= 5s between chips.
+  Mapping: tier drop to 0 -> `chip_audio_only`; drop but >= 1 -> `chip_quality_down`; rise from 0
+  -> `chip_video_back`; rise from >= 1 -> `chip_quality_restored`. No new firmware signal: same
+  `quality_state` the retired selector already consumed.
+- `_planLayout()` made simple-mode aware (`topH`/`hasBottom` = 0 when simple, non-fullscreen):
+  without it the estimate still reserved ~34-44px for the invisible header. Fullscreen already
+  short-circuits to a fixed plan before `_planLayout` runs, so `!this._advanced` alone means true
+  simple mode there.
+- 7 new translation keys x 6 languages (`adv_label`/`adv_off`/`adv_on`,
+  `chip_quality_down`/`chip_quality_restored`/`chip_audio_only`/`chip_video_back`).
+- **Verification.** `tests/card/advanced_mode/driver.js` (new): default simple with no
+  localStorage, persistence across a rebuild, `.ig-simple` hides top-row/bottom-row/clients-pill
+  and shows the compact REC/Quick-replies actions, Advanced hides in fullscreen, the quality chip
+  appears on a simulated `quality_state` tier change and fades after ~4s, the 5s debounce drops a
+  second transition arriving immediately after, and a same-tier `quality_state` (e.g. `auto` while
+  already `full`) shows nothing. Layout dimension: the same stream/size is measured in both modes
+  at stack/overlay/side width; simple mode's video is never smaller than advanced's at the same
+  size, and exactly one layout class applies in both (reuses `_planLayout`'s existing invariants,
+  not a second engine). The six pre-existing offline suites that exercise the advanced-only
+  controls (`ui_v1_9_2/_5/_7/_8`, `ui_v1_10_0`, `ui_v1_11_0`) now force `advanced=1` via
+  `page.addInitScript()` in their setup - they are about that feature set, not the new toggle.
+  `run_all.js` unchanged in structure; `advanced_mode` added to its `JOBS`.
+
+## 1.4.0 (2026-09-28): no card code change; REC now reads the doorbell's own `rec`
+
+The card is unchanged except `CARD_VERSION`. Its REC button still follows the `switch` with translation key
+`rec`, but since integration 1.4.0 that switch no longer holds a signalling session: it is the doorbell's
+`get_states.rec` (firmware 0.103.1, `POST /api/call_action`), so it also shows a call's recording and turns
+off by itself. Quick replies still go through the `play_sequence` action (now over HTTP, by id or name).
+
 ## A wall panel is identified by its companion login, not its user agent (1.2.4, 2026-09-28)
 
 1.2.3 matched the page by HA user + the model in the user agent: works on the Android panel, never

@@ -16,13 +16,15 @@ import logging
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.restore_state import RestoreEntity
 
-from . import api
+from . import api, quick_replies
 from .const import DOMAIN, MODES
 from .coordinator import DoorbellCoordinator
-from .entity import AddEntities, DoorbellEntity
+from .entity import AddEntities, AdminEntity, DoorbellEntity, SourceEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +33,81 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntities
 ) -> None:
     c: DoorbellCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    async_add_entities([ModeSelect(c)])
+    async_add_entities([
+        ModeSelect(c),
+        StateSelect(c, "timestamp_position", "tspos", TIMESTAMP_POSITIONS, "mdi:clock-outline"),
+        StateSelect(c, "lock_type", "door_m", LOCK_TYPES, "mdi:lock-question"),
+        StateSelect(c, "main_stream_rate_control", "rc", RATE_CONTROL, "mdi:tune", enabled=False),
+        ExposureModeSelect(c),
+        QuickReplySelect(c),
+    ])
+
+
+class QuickReplySelect(SourceEntity, SelectEntity, RestoreEntity):
+    """Which quick reply the "Play quick reply" button plays (1.4.0). Any role: the doorbell lets anyone read
+    the list (§1.18.8) and play one (§1.4-quinquies).
+
+    Picking an option plays NOTHING - it only chooses. Playing is the button (or the `play_sequence` action):
+    a select that spoke at the street every time someone scrolled through it on a dashboard would be a
+    loudspeaker any stray tap can fire.
+
+    The options are the doorbell's own labels, read from the doorbell (`/api/sequences?quick=1`, every ~5 min),
+    so a quick reply added or renamed in the app shows up here by itself.
+    """
+
+    _source = "quick"
+    _attr_translation_key = "quick_reply"
+    _attr_icon = "mdi:message-reply-text"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "quick_reply")
+        self._restored: str | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state not in ("unknown", "unavailable"):
+            self._restored = last.state
+
+    @property
+    def _map(self) -> dict[str, int]:
+        return quick_replies.option_labels(quick_replies.quick_list(self.coordinator))
+
+    @property
+    def options(self) -> list[str]:
+        return list(self._map)
+
+    @property
+    def current_option(self) -> str | None:
+        m = self._map
+        if not m:
+            return None
+        sel = self.coordinator.selected_quick_reply
+        if sel is None and self._restored in m:
+            # The choice survives a restart; it is resolved to the doorbell's id the first time the list is read.
+            sel = self.coordinator.selected_quick_reply = m[self._restored]
+        for label, seq_id in m.items():
+            if seq_id == sel:
+                return label
+        # The chosen one was deleted on the doorbell: the first one, shown as such - never a label that plays
+        # something else than it says.
+        return next(iter(m))
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        m = self._map
+        cur = self.current_option
+        return {"seq_id": m[cur]} if cur in m else None
+
+    async def async_select_option(self, option: str) -> None:
+        m = self._map
+        if option not in m:
+            raise HomeAssistantError(f"The doorbell has no quick reply '{option}'.")
+        self.coordinator.selected_quick_reply = m[option]
+        self._restored = option
+        self.async_write_ha_state()
+        # the button reads the same choice; its state does not change, but its attributes might
+        self.coordinator.async_update_listeners()
 
 
 class ModeSelect(DoorbellEntity, SelectEntity):
@@ -108,3 +184,90 @@ class ModeSelect(DoorbellEntity, SelectEntity):
                 f"The doorbell did not apply the mode '{option}' (it reports "
                 f"'{MODES.get(state.get('m'), state.get('m'))}')."
             )
+
+
+
+# ==================================================================================================
+# DOORBELL SETTINGS (1.3.0). Admin only; states are translation keys (the stable value an automation
+# stores), mapped to the doorbell's numbers here and nowhere else. Plan rule R5: none is a secret,
+# irreversible or an editor.
+# ==================================================================================================
+
+# `tspos` (§1.2): where the clock is drawn on the picture.
+TIMESTAMP_POSITIONS: dict[int, str] = {
+    0: "top_left", 1: "top_center", 2: "top_right",
+    3: "bottom_left", 4: "bottom_center", 5: "bottom_right",
+}
+# `door_m` (§1.2). Choosing `none` REMOVES the lock entity (§1.4-ter): the entry reloads by itself
+# (__init__._watch_doorbell). `home_assistant` opens through the entity picked in the apps (`ha_e`),
+# which must be one of the entities this integration gives the doorbell (options).
+LOCK_TYPES: dict[int, str] = {0: "relay", 1: "home_assistant", 2: "none"}
+# `rc` (§1.2): the main stream's rate control. VBR is the recommended one.
+RATE_CONTROL: dict[int, str] = {0: "vbr", 1: "cbr"}
+
+
+class StateSelect(AdminEntity, SelectEntity):
+    """A `get_states` field with a closed set of values."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: DoorbellCoordinator, key: str, field: str,
+                 values: dict[int, str], icon: str, *, enabled: bool = True) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._values = values
+        self._attr_translation_key = key
+        self._attr_options = list(values.values())
+        self._attr_icon = icon
+        self._attr_entity_registry_enabled_default = enabled
+
+    @property
+    def available(self) -> bool:
+        return super().available and (self.coordinator.data or {}).get(self._field) is not None
+
+    @property
+    def current_option(self) -> str | None:
+        # None, not a made-up label, for a value this integration does not know (a newer firmware).
+        return self._values.get((self.coordinator.data or {}).get(self._field))
+
+    async def async_select_option(self, option: str) -> None:
+        number = next((k for k, v in self._values.items() if v == option), None)
+        if number is None:
+            raise HomeAssistantError(f"Unknown option: {option}")
+        data = self.coordinator.data or {}
+        if self._field == "door_m" and number == 1 and not data.get("ha_e"):
+            # The doorbell would store it and then answer every opening with `ha_not_configured`:
+            # the door would stop opening with nothing on screen saying why.
+            raise HomeAssistantError(
+                "Pick the Home Assistant entity that opens the door in the app first "
+                "(Settings > Door); then choose this lock type."
+            )
+        await self.coordinator.async_save_states({self._field: str(number)},
+                                                 self._attr_translation_key.replace("_", " "))
+
+
+class ExposureModeSelect(AdminEntity, SelectEntity):
+    """`auto` (the doorbell's own loop, with EV compensation) or `manual` (fixed time + gain)."""
+
+    _source = "img"
+    _attr_translation_key = "exposure_mode"
+    _attr_icon = "mdi:camera-iris"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = ["auto", "manual"]
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "exposure_mode")
+
+    @property
+    def available(self) -> bool:
+        return super().available and bool((self.source or {}).get("sensor_soportado"))
+
+    @property
+    def current_option(self) -> str | None:
+        mode = (self.source or {}).get("mode")
+        return mode if mode in self._attr_options else None
+
+    async def async_select_option(self, option: str) -> None:
+        if option not in self._attr_options:
+            raise HomeAssistantError(f"Unknown exposure mode: {option}")
+        await self.coordinator.async_save_img({"mode": option}, "the exposure mode")

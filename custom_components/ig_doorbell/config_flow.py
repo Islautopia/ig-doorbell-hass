@@ -417,6 +417,10 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
                             # Only things that turn on and off (const.py, ALLOWED_DOMAINS).
                             # The user types part of the name and picks it: the native selector.
                             domain=list(ALLOWED_DOMAINS),
+                            # Never this integration's own entities (1.3.0): the doorbell's own
+                            # lock as the door's HA entity would loop /open -> HA -> /open. The
+                            # webhook refuses it too (webhook._act_on_entity).
+                            exclude_entities=_own_entities(self.hass),
                             multiple=True,
                         )
                     )
@@ -546,3 +550,10 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders={"host": self._entry.data.get(CONF_HOST_HINT) or ""},
         )
+
+
+def _own_entities(hass) -> list[str]:
+    """Every entity this integration provides (for any doorbell)."""
+    from homeassistant.helpers import entity_registry as er  # noqa: PLC0415
+
+    return [e.entity_id for e in er.async_get(hass).entities.values() if e.platform == DOMAIN]

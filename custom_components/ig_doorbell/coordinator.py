@@ -21,18 +21,57 @@ was already measured with the recordings listing, where a 0.31 s `/api/device_id
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
+from typing import Callable
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import api
 from .const import DOMAIN, POLL_INTERVAL, generic_name
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# ==================================================================================================
+# THE SLOW SOURCES (1.3.0, Phase 1 of the parity plan)
+#
+# Everything an entity reads that `get_states` does not carry. Three rules, and each is load-bearing:
+#
+# 1. A source is read ONLY WHILE AN ENTITY WANTS IT (`want()`, called from `async_added_to_hass`).
+#    A disabled entity is never added, so the memory/boot diagnostics - disabled by default - cost
+#    the doorbell NOTHING until someone enables one. `esp_http_server` serves one request at a time
+#    (§1.0-quinquies): a request nobody looks at still delays one somebody needs.
+# 2. ONE request per source per `every` polls, whatever the number of entities reading it. Adding an
+#    entity never adds a request.
+# 3. `admin` sources are not even asked for with a `user` pairing: the doorbell would answer 403 every
+#    time. Their entities go unavailable instead (entity.py), which is what "you may not" looks like.
+# ==================================================================================================
+
+
+@dataclass(frozen=True)
+class Source:
+    path: str
+    every: int            # polls (x POLL_INTERVAL s) between reads
+    admin: bool = False   # the doorbell refuses it to a `user` pairing
+
+
+SOURCES: dict[str, Source] = {
+    "storage": Source("/api/storage_info", 10),                # SD card, ~5 min
+    "detect": Source("/api/detect_config", 10),                # detection per class
+    "img": Source("/api/img_settings", 10, admin=True),        # exposure
+    "mode_rules": Source("/api/mode_rules", 10, admin=True),   # why the mode is what it is
+    "mem": Source("/api/mem_stats", 10),                       # memory (disabled by default)
+    "boot": Source("/api/debug/boot", 20),                     # reset reason (disabled by default)
+    # 1.4.0: the quick replies (§1.18.8, any role, `id` + `label` only). The picker and its button read it.
+    "quick": Source("/api/sequences?quick=1", 10),
+}
 
 
 class DoorbellCoordinator(DataUpdateCoordinator[dict]):
@@ -78,6 +117,15 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         # request against a device that serves one at a time.
         self._cycles_until_role = 0
         self._role = "unknown"
+        # The slow sources (see SOURCES): what was read, who wants it, and when it is due.
+        self.extra: dict[str, dict] = {}
+        self._wanted: dict[str, int] = {}
+        self._due: dict[str, int] = {}
+        self._kick: asyncio.Task | None = None
+        self._source_lock = asyncio.Lock()
+        # 1.4.0: the quick reply picked in the select, played by the button (both entities read THIS, so
+        # they can never disagree about which one "the selected quick reply" is). None = the first one.
+        self.selected_quick_reply: int | None = None
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -112,15 +160,177 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
             self._cycles_until_firmware -= 1
 
         if self._cycles_until_role <= 0:
-            self._role = await api.async_get_role(self._session, self.device_id, self.credential)
+            role = await api.async_get_role(self._session, self.device_id, self.credential)
+            # "unknown" is ALSO what a failed read returns (api.async_get_role never raises). Once
+            # the doorbell has said admin or user, a failed read must not turn every admin control
+            # unavailable for ten minutes: a role never goes back to "unknown" on its own.
+            if role != "unknown" or self._role == "unknown":
+                self._role = role
             self._cycles_until_role = 20     # ~10 minutes, same as firmware_info
         else:
             self._cycles_until_role -= 1
+
+        previous_mode = (self.data or {}).get("m")
+        async with self._source_lock:
+            for name in list(self._wanted):
+                due = self._due.get(name, 0) - 1
+                # The mode changed since the last poll (the doorbell's own dashboard, its
+                # scheduler): the reason travels with it, so it is read now, not in five minutes.
+                if (name == "mode_rules" and previous_mode is not None
+                        and state.get("m") != previous_mode):
+                    due = 0
+                self._due[name] = due
+                if due <= 0:
+                    await self._read_source(name)
 
         # Mixed into a single dict so the entities do not have to know which of the two routes
         # each field comes from. `get_states` wins: if the two ever returned the same key, the
         # state one is the one refreshed every 30 s.
         return {**self._firmware, **state}
+
+    # -- the slow sources ------------------------------------------------------------------------
+
+    async def _read_source(self, name: str) -> None:
+        source = SOURCES[name]
+        self._due[name] = source.every
+        if source.admin and self._role != "admin":
+            self.extra.pop(name, None)
+            return
+        try:
+            self.extra[name] = await api.async_get_json(
+                self._session, self.device_id, self.credential, source.path
+            )
+        except api.NotAllowedError:
+            self.extra.pop(name, None)
+        except api.DoorbellApiError:
+            # Kept as it was: one failed read of a slow source is not a reason to blank the SD card
+            # or the thresholds. Retried on the next poll instead of in five minutes.
+            _LOGGER.debug("Could not read %s; will retry", source.path, exc_info=True)
+            self._due[name] = 1
+
+    @callback
+    def want(self, name: str) -> Callable[[], None]:
+        """An entity reads source `name` from now on. Returns the undo (for async_on_remove)."""
+        self._wanted[name] = self._wanted.get(name, 0) + 1
+        if name not in self.extra and self._kick is None:
+            # Read at once, not at the next poll: without this every new entity would show
+            # "unavailable" for up to 30 s after a restart. ONE task for all the entities being
+            # added in the same moment (they arrive one by one while the platforms set up).
+            # Tied to the entry: cancelled if the entry unloads before it runs.
+            self._kick = self.config_entry.async_create_task(
+                self.hass, self._async_kick(), f"{self.name}_first_read"
+            )
+
+        @callback
+        def _undo() -> None:
+            count = self._wanted.get(name, 0) - 1
+            if count <= 0:
+                self._wanted.pop(name, None)
+            else:
+                self._wanted[name] = count
+
+        return _undo
+
+    async def _async_kick(self) -> None:
+        try:
+            await asyncio.sleep(0.2)
+            if not self.last_update_success:
+                return
+            async with self._source_lock:
+                for name in list(self._wanted):
+                    if name not in self.extra:
+                        await self._read_source(name)
+            self.async_update_listeners()
+        finally:
+            self._kick = None
+
+    async def async_refresh_firmware(self) -> None:
+        """Read `firmware_info` now (after an install, or when the update entity needs a fresh answer)."""
+        try:
+            self._firmware = await api.async_get_firmware_info(
+                self._session, self.device_id, self.credential
+            )
+            self._cycles_until_firmware = 20
+        except api.DoorbellApiError:
+            self._cycles_until_firmware = 0      # retried on the next poll
+            raise
+        self.async_set_updated_data({**(self.data or {}), **self._firmware})
+
+    def firmware_due_now(self) -> None:
+        """The next successful poll reads `firmware_info` (the doorbell is rebooting into a new image)."""
+        self._cycles_until_firmware = 0
+
+    async def async_refresh_source(self, name: str) -> None:
+        """Read one source now (after a write, or when the webhook says it changed)."""
+        async with self._source_lock:
+            await self._read_source(name)
+        self.async_update_listeners()
+
+    # -- writes: always the doorbell's own validation, always read back ---------------------------
+
+    @staticmethod
+    def _write_error(err: api.DoorbellApiError, what: str) -> HomeAssistantError:
+        if isinstance(err, api.NotAllowedError):
+            return HomeAssistantError(
+                f"This pairing is not an administrator of the doorbell, so it cannot change {what}. "
+                "Re-pair it from an administrator account."
+            )
+        return HomeAssistantError(f"Could not change {what}: {err}")
+
+    async def async_save_states(self, fields: dict[str, str], what: str) -> None:
+        """PARTIAL `save_states`, then the doorbell's state read back and published at once.
+
+        ⚠️ Read back, never assumed: `save_states` ignores a field it does not accept WITHOUT an
+        error status (§1.2), so only the read-back tells "applied" from "silently dropped". A field
+        the doorbell did not take fails the service call with a readable reason (same rule as the
+        mode select, 0.7.4). And only the fields that change go: sending the whole state would turn
+        a reading up to 30 s old into a write that stomps what someone else just changed.
+        """
+        try:
+            answer = await api.async_save_states(
+                self._session, self.device_id, self.credential, fields
+            )
+        except api.DoorbellApiError as err:
+            raise self._write_error(err, what) from err
+        refused = (answer or {}).get("refused")
+        try:
+            state = await api.async_get_states(self._session, self.device_id, self.credential)
+        except api.DoorbellApiError:
+            await self.async_request_refresh()
+            state = None
+        if state is not None:
+            self.async_set_updated_data({**(self.data or {}), **state})
+        if refused:
+            raise HomeAssistantError(f"The doorbell refused {what}: {refused}")
+        if state is not None:
+            for key, sent in fields.items():
+                got = state.get(key)
+                if got is None:
+                    continue
+                if str(got) != str(sent) and not _same_number(got, sent):
+                    raise HomeAssistantError(
+                        f"The doorbell did not apply {what} (it reports {key}={got})."
+                    )
+
+    async def async_save_detect(self, fields: dict[str, str], what: str) -> None:
+        """POST /api/detect_config, then read it back (the entities show what the doorbell has)."""
+        try:
+            await api.async_post_detect_config(
+                self._session, self.device_id, self.credential, fields
+            )
+        except api.DoorbellApiError as err:
+            raise self._write_error(err, what) from err
+        await self.async_refresh_source("detect")
+
+    async def async_save_img(self, fields: dict[str, str], what: str) -> None:
+        """POST /api/img_settings, then read it back."""
+        try:
+            await api.async_post_img_settings(
+                self._session, self.device_id, self.credential, fields
+            )
+        except api.DoorbellApiError as err:
+            raise self._write_error(err, what) from err
+        await self.async_refresh_source("img")
 
     # -- helpers several entities use -----------------------------------------------------------
 
@@ -156,3 +366,10 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         disappoint.
         """
         return (self.data or {}).get("door_m", 2) != 2
+
+
+def _same_number(a, b) -> bool:
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return False

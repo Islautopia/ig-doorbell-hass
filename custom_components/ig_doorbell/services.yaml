@@ -5,12 +5,17 @@ play_sequence:
       selector:
         device:
           integration: ig_doorbell
+    sequence:
+      required: false
+      example: "Leave it at the door"
+      selector:
+        text:
     seq_id:
-      required: true
+      required: false
       selector:
         number:
-          min: 0
-          max: 9999
+          min: 1
+          max: 65535
           mode: box
 play_audio:
   fields:

@@ -71,11 +71,18 @@
       },
       "fingerprint_reader": {
         "name": "Leitor de impressões digitais"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Abrir porta"
+      },
+      "ringing": {
+        "name": "A tocar"
+      },
+      "flip_vertical": {
+        "name": "Inversão vertical"
+      },
+      "flip_horizontal": {
+        "name": "Espelho horizontal"
+      },
+      "in_call": {
+        "name": "Em chamada"
       }
     },
     "event": {
@@ -104,7 +111,8 @@
               "key_locked": "Teclado bloqueado",
               "call_answered": "Chamada atendida",
               "call_declined": "Chamada recusada",
-              "call_missed": "Chamada perdida"
+              "call_missed": "Chamada perdida",
+              "call_finished": "Chamada terminada"
             }
           }
         }
@@ -113,6 +121,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Painéis de parede: voltar à página inicial após"
+      },
+      "brightness": {
+        "name": "Brilho"
+      },
+      "contrast": {
+        "name": "Contraste"
+      },
+      "saturation": {
+        "name": "Saturação"
+      },
+      "hue": {
+        "name": "Matiz"
+      },
+      "door_open_time": {
+        "name": "Tempo de abertura"
+      },
+      "main_stream_fps": {
+        "name": "Fotogramas do fluxo principal"
+      },
+      "main_stream_bitrate": {
+        "name": "Taxa do fluxo principal"
+      },
+      "sub_stream_fps": {
+        "name": "Fotogramas do subfluxo"
+      },
+      "sub_stream_bitrate": {
+        "name": "Taxa do subfluxo"
+      },
+      "person_threshold": {
+        "name": "Limiar de pessoa"
+      },
+      "package_threshold": {
+        "name": "Limiar de encomenda"
+      },
+      "detection_min_area": {
+        "name": "Tamanho mínimo de deteção"
+      },
+      "exposure_compensation": {
+        "name": "Compensação de exposição"
+      },
+      "manual_exposure": {
+        "name": "Exposição manual"
+      },
+      "manual_gain": {
+        "name": "Ganho manual"
       }
     },
     "select": {
@@ -124,6 +177,42 @@
           "do_not_disturb": "Não incomodar",
           "custom": "Personalizado"
         }
+      },
+      "timestamp_position": {
+        "name": "Posição da hora",
+        "state": {
+          "top_left": "Em cima à esquerda",
+          "top_center": "Em cima ao centro",
+          "top_right": "Em cima à direita",
+          "bottom_left": "Em baixo à esquerda",
+          "bottom_center": "Em baixo ao centro",
+          "bottom_right": "Em baixo à direita"
+        }
+      },
+      "lock_type": {
+        "name": "Tipo de fechadura",
+        "state": {
+          "relay": "Relé da campainha",
+          "home_assistant": "Entidade do Home Assistant",
+          "none": "Sem fechadura"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Controlo de taxa do fluxo principal",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Modo de exposição",
+        "state": {
+          "auto": "Automática",
+          "manual": "Manual"
+        }
+      },
+      "quick_reply": {
+        "name": "Resposta rápida"
       }
     },
     "sensor": {
@@ -135,16 +224,120 @@
       },
       "panel_firmware": {
         "name": "Firmware do painel"
+      },
+      "wifi_ssid": {
+        "name": "Rede Wi-Fi"
+      },
+      "ip_address": {
+        "name": "Endereço IP"
+      },
+      "pairing_role": {
+        "name": "Função deste emparelhamento",
+        "state": {
+          "admin": "Administrador",
+          "user": "Utilizador",
+          "unknown": "Desconhecido"
+        }
+      },
+      "mode_reason": {
+        "name": "Motivo do modo",
+        "state": {
+          "manual": "Definido à mão",
+          "schedule": "Horário",
+          "no_clock": "Ainda sem hora",
+          "none": "Nenhuma regra"
+        }
+      },
+      "sd_state": {
+        "name": "Cartão SD",
+        "state": {
+          "absent": "Sem cartão",
+          "mounted": "A funcionar",
+          "formatting": "A formatar",
+          "blank": "Cartão em branco",
+          "unreadable": "Ilegível: formate-o na app",
+          "format_failed": "A formatação falhou"
+        }
+      },
+      "sd_total": {
+        "name": "Tamanho do cartão SD"
+      },
+      "sd_free": {
+        "name": "Espaço livre no cartão SD"
+      },
+      "mic_gain": {
+        "name": "Ganho do microfone"
+      },
+      "internal_free": {
+        "name": "RAM interna livre"
+      },
+      "internal_largest_block": {
+        "name": "Maior bloco de RAM interna"
+      },
+      "psram_free": {
+        "name": "PSRAM livre"
+      },
+      "last_boot": {
+        "name": "Último arranque"
+      },
+      "reset_reason": {
+        "name": "Motivo do último reinício"
       }
     },
     "switch": {
       "rec": {
         "name": "Gravação manual"
+      },
+      "night_mode": {
+        "name": "Preto e branco"
+      },
+      "timestamp": {
+        "name": "Hora no vídeo"
+      },
+      "car_open": {
+        "name": "Abrir a partir do carro"
+      },
+      "sub_stream": {
+        "name": "Subfluxo"
+      },
+      "person_detection": {
+        "name": "Deteção de pessoas"
+      },
+      "package_detection": {
+        "name": "Deteção de encomendas"
       }
     },
     "image": {
       "visitor": {
         "name": "Visitante"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Reiniciar"
+      },
+      "play_quick_reply": {
+        "name": "Reproduzir resposta rápida"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Instantâneo"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Porta"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Nome da campainha"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
       }
     }
   },

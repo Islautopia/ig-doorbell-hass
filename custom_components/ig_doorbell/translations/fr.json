@@ -71,11 +71,18 @@
       },
       "fingerprint_reader": {
         "name": "Lecteur d'empreintes"
-      }
-    },
-    "button": {
-      "open_door": {
-        "name": "Ouvrir la porte"
+      },
+      "ringing": {
+        "name": "Sonnerie en cours"
+      },
+      "flip_vertical": {
+        "name": "Retournement vertical"
+      },
+      "flip_horizontal": {
+        "name": "Miroir horizontal"
+      },
+      "in_call": {
+        "name": "En communication"
       }
     },
     "event": {
@@ -104,7 +111,8 @@
               "key_locked": "Clavier bloqué",
               "call_answered": "Appel pris",
               "call_declined": "Appel refusé",
-              "call_missed": "Appel manqué"
+              "call_missed": "Appel manqué",
+              "call_finished": "Appel terminé"
             }
           }
         }
@@ -113,6 +121,51 @@
     "number": {
       "live_view_timeout": {
         "name": "Panneaux muraux : retour à la page d'accueil après"
+      },
+      "brightness": {
+        "name": "Luminosité"
+      },
+      "contrast": {
+        "name": "Contraste"
+      },
+      "saturation": {
+        "name": "Saturation"
+      },
+      "hue": {
+        "name": "Teinte"
+      },
+      "door_open_time": {
+        "name": "Durée d'ouverture"
+      },
+      "main_stream_fps": {
+        "name": "Images/s du flux principal"
+      },
+      "main_stream_bitrate": {
+        "name": "Débit du flux principal"
+      },
+      "sub_stream_fps": {
+        "name": "Images/s du sous-flux"
+      },
+      "sub_stream_bitrate": {
+        "name": "Débit du sous-flux"
+      },
+      "person_threshold": {
+        "name": "Seuil de détection de personne"
+      },
+      "package_threshold": {
+        "name": "Seuil de détection de colis"
+      },
+      "detection_min_area": {
+        "name": "Taille minimale de détection"
+      },
+      "exposure_compensation": {
+        "name": "Correction d'exposition"
+      },
+      "manual_exposure": {
+        "name": "Temps d'exposition manuel"
+      },
+      "manual_gain": {
+        "name": "Gain manuel"
       }
     },
     "select": {
@@ -124,6 +177,42 @@
           "do_not_disturb": "Ne pas déranger",
           "custom": "Personnalisé"
         }
+      },
+      "timestamp_position": {
+        "name": "Position de l'horodatage",
+        "state": {
+          "top_left": "En haut à gauche",
+          "top_center": "En haut au centre",
+          "top_right": "En haut à droite",
+          "bottom_left": "En bas à gauche",
+          "bottom_center": "En bas au centre",
+          "bottom_right": "En bas à droite"
+        }
+      },
+      "lock_type": {
+        "name": "Type de serrure",
+        "state": {
+          "relay": "Relais de la sonnette",
+          "home_assistant": "Entité Home Assistant",
+          "none": "Pas de serrure"
+        }
+      },
+      "main_stream_rate_control": {
+        "name": "Contrôle du débit du flux principal",
+        "state": {
+          "vbr": "VBR",
+          "cbr": "CBR"
+        }
+      },
+      "exposure_mode": {
+        "name": "Mode d'exposition",
+        "state": {
+          "auto": "Automatique",
+          "manual": "Manuelle"
+        }
+      },
+      "quick_reply": {
+        "name": "Réponse rapide"
       }
     },
     "sensor": {
@@ -135,16 +224,120 @@
       },
       "panel_firmware": {
         "name": "Firmware du panneau"
+      },
+      "wifi_ssid": {
+        "name": "Réseau Wi-Fi"
+      },
+      "ip_address": {
+        "name": "Adresse IP"
+      },
+      "pairing_role": {
+        "name": "Rôle de cet appairage",
+        "state": {
+          "admin": "Administrateur",
+          "user": "Utilisateur",
+          "unknown": "Inconnu"
+        }
+      },
+      "mode_reason": {
+        "name": "Raison du mode",
+        "state": {
+          "manual": "Réglé à la main",
+          "schedule": "Planning",
+          "no_clock": "Pas encore d'heure",
+          "none": "Aucune règle"
+        }
+      },
+      "sd_state": {
+        "name": "Carte SD",
+        "state": {
+          "absent": "Pas de carte",
+          "mounted": "Opérationnelle",
+          "formatting": "Formatage en cours",
+          "blank": "Carte vierge",
+          "unreadable": "Illisible : formatez-la depuis l'app",
+          "format_failed": "Échec du formatage"
+        }
+      },
+      "sd_total": {
+        "name": "Taille de la carte SD"
+      },
+      "sd_free": {
+        "name": "Espace libre sur la carte SD"
+      },
+      "mic_gain": {
+        "name": "Gain du microphone"
+      },
+      "internal_free": {
+        "name": "RAM interne libre"
+      },
+      "internal_largest_block": {
+        "name": "Plus grand bloc de RAM interne"
+      },
+      "psram_free": {
+        "name": "PSRAM libre"
+      },
+      "last_boot": {
+        "name": "Dernier démarrage"
+      },
+      "reset_reason": {
+        "name": "Raison du dernier redémarrage"
       }
     },
     "switch": {
       "rec": {
         "name": "Enregistrement manuel"
+      },
+      "night_mode": {
+        "name": "Noir et blanc"
+      },
+      "timestamp": {
+        "name": "Horodatage sur la vidéo"
+      },
+      "car_open": {
+        "name": "Ouvrir depuis la voiture"
+      },
+      "sub_stream": {
+        "name": "Sous-flux"
+      },
+      "person_detection": {
+        "name": "Détection de personnes"
+      },
+      "package_detection": {
+        "name": "Détection de colis"
       }
     },
     "image": {
       "visitor": {
         "name": "Visiteur"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Redémarrer"
+      },
+      "play_quick_reply": {
+        "name": "Lire la réponse rapide"
+      }
+    },
+    "camera": {
+      "snapshot": {
+        "name": "Instantané"
+      }
+    },
+    "lock": {
+      "door": {
+        "name": "Porte"
+      }
+    },
+    "text": {
+      "device_name": {
+        "name": "Nom de la sonnette"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
       }
     }
   },

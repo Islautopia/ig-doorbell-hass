@@ -57,6 +57,9 @@ async function run(browser, variant) {
   const results = [];
   const check = (id, label, cond) => results.push({ id, label, ok: !!cond });
   const page = await browser.newPage({ viewport: { width: 420, height: 900 } });
+  // Advanced mode (2026-09-29): default is simple, which hides the picker/REC/mode-chip this
+  // whole suite (doorbell switching) is about - force Advanced ON. See ui_v1_9_2/driver.js.
+  await page.addInitScript(() => { try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ } });
   if (variant !== 'real') {
     const body = mutate(fs.readFileSync(DIST, 'utf8'), variant);
     await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));

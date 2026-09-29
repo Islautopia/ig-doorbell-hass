@@ -33,6 +33,7 @@ from aiohttp import web
 from homeassistant.components import webhook
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
@@ -104,6 +105,16 @@ async def _act_on_entity(
         _LOGGER.warning("%s is not from a domain that turns on and off: doing nothing",
                         entity_id)
         return False, "bad_domain"
+
+    # ⚠️ NEVER ONE OF THIS INTEGRATION'S OWN ENTITIES (1.3.0). The doorbell's own `lock` opens the
+    # door through `/open`; if that same lock were the door's HA entity (`door_m=1`), `/open` would
+    # ask Home Assistant to unlock it, which calls `/open` again: a loop that ends only when the
+    # doorbell's 9 s wait gives up, with the relay clicking - or not - somewhere in between.
+    registered = er.async_get(hass).async_get(entity_id)
+    if registered is not None and registered.platform == DOMAIN:
+        _LOGGER.warning("The doorbell asks for %s, which is one of this integration's own "
+                        "entities: refused (it would loop back to the doorbell)", entity_id)
+        return False, "own_entity"
 
     state = hass.states.get(entity_id)
     if state is None:

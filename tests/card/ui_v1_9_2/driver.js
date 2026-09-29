@@ -27,6 +27,11 @@ function check(label, cond) {
 
 async function newPage(browser) {
   const page = await browser.newPage();
+  // Advanced mode (2026-09-29, simple/advanced live view): default is now simple, which hides the
+  // header/#bottom-row controls this whole suite is about (picker, REC pill, Recordings, Quick
+  // reply). Force Advanced ON before the card ever reads localStorage - the checks below are
+  // about the ADVANCED feature set, not the new toggle itself (that has its own bench).
+  await page.addInitScript(() => { try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ } });
   page.on('console', (msg) => {
     const t = msg.text();
     if (t.startsWith('TESTLOG')) console.log(t.replace(/^TESTLOG /, ''));
@@ -169,7 +174,12 @@ async function main() {
     const ids = Array.from(c.querySelectorAll('.actions-row .action button')).map((b) => b.id);
     return { ids, recInHeader: !!c.querySelector('#top-row #rec-button'), recInActionsRow: !!c.querySelector('.actions-row #rec-button') };
   });
-  check(`real order: ${JSON.stringify(order.ids)}`, JSON.stringify(order.ids) === JSON.stringify(['snd-btn', 'mic-button', 'unlock-button']));
+  // (2026-09-29) The row also holds the compact REC/Quick-replies actions now (simple mode /
+  // fullscreen, see docs/card.md 1.4.1) - real DOM nodes always exist, only their visibility
+  // changes, so they follow the original three. This check is still about the ORDER of the three
+  // call buttons the v1.9.2 change actually moved (sound joining mic/unlock), not about the full
+  // list - the first three ids are what that order claim is about.
+  check(`real order: ${JSON.stringify(order.ids)}`, JSON.stringify(order.ids.slice(0, 3)) === JSON.stringify(['snd-btn', 'mic-button', 'unlock-button']));
   check('REC lives in the header (#top-row), not in the button row (v1.9.5)', order.recInHeader === true && order.recInActionsRow === false);
 
   console.log('\n########## 8. Fullscreen: toggling throws no exception and leaves a consistent state ##########');

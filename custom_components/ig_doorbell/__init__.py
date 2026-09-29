@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
+from typing import Callable
 from ipaddress import ip_address, ip_network
 from urllib.parse import urlparse
 
@@ -44,6 +45,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
@@ -57,10 +59,12 @@ from .const import (
     ALLOWED_DOMAINS,
     DOORBELL_HOSTNAME_SUFFIX,
     MAX_ENTITIES,
+    SIGNAL_EVENT,
 )
 from .card import async_register_card, async_sync_lovelace_resource
 from .https_manager import async_setup_manager, get_manager
 from .https_views import async_register_https_views
+from .call_state import CallState
 from .coordinator import DoorbellCoordinator
 from .announce import async_serve_sound
 from .notify_ring import RingNotifier
@@ -73,7 +77,8 @@ from .websocket_api import async_register_websocket_commands
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[str] = [
-    "binary_sensor", "button", "event", "image", "number", "select", "sensor", "switch",
+    "binary_sensor", "button", "camera", "event", "image", "lock", "number", "select", "sensor",
+    "switch", "text", "update",
 ]
 
 
@@ -208,6 +213,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "session": session,
     }
 
+    # Is it ringing? Shared by the "Ringing" binary sensor and the snapshot camera (call_state.py).
+    call_state = CallState(hass, coordinator)
+    hass.data[DOMAIN][entry.entry_id]["call_state"] = call_state
+    entry.async_on_unload(call_state.async_start())
+    entry.async_on_unload(_watch_doorbell(hass, entry, coordinator))
+
     _adopt_door_entity(hass, entry, coordinator)
     if not await _async_configure_doorbell(hass, entry, coordinator, first_time=True):
         _schedule_retry(hass, entry, coordinator)
@@ -241,6 +252,52 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # The first doorbell added at runtime starts HTTPS if it was left enabled.
         hass.async_create_task(mgr.async_apply(), eager_start=False)
     return True
+
+
+def _watch_doorbell(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: DoorbellCoordinator
+) -> Callable[[], None]:
+    """Two things that follow the doorbell's state and are not an entity's business (1.3.0).
+
+    - **The lock appears and disappears with `door_m`.** With `door_m=2` there is no lock entity at
+      all (§1.4-ter: a control that cannot work is not offered), so when the lock type changes - from
+      the "Lock type" select, or from an app - the entry is reloaded ONCE and the lock is created or
+      removed. Rare by nature: it is how the house is wired.
+    - **`mode_changed` on the webhook** re-reads the mode's REASON at once (it is not in
+      `get_states`, coordinator.SOURCES), so "why" never lags five minutes behind "what".
+    """
+    had_lock = coordinator.has_lock if coordinator.data else None
+
+    @callback
+    def _on_update() -> None:
+        nonlocal had_lock
+        if not coordinator.data or not coordinator.last_update_success:
+            return
+        now = coordinator.has_lock
+        if had_lock is not None and now != had_lock:
+            _LOGGER.info("%s: lock type changed (door_m=%s): reloading to %s the lock entity",
+                         coordinator.device_id, coordinator.data.get("door_m"),
+                         "add" if now else "remove")
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+        had_lock = now
+
+    @callback
+    def _on_event(envelope: dict) -> None:
+        if envelope.get("ev") == "mode_changed":
+            entry.async_create_task(hass, coordinator.async_refresh_source("mode_rules"))
+
+    unsubs = [
+        coordinator.async_add_listener(_on_update),
+        async_dispatcher_connect(hass, SIGNAL_EVENT.format(device_id=coordinator.device_id),
+                                 _on_event),
+    ]
+
+    @callback
+    def _stop() -> None:
+        for unsub in unsubs:
+            unsub()
+
+    return _stop
 
 
 async def _lan_address(hass: HomeAssistant, entry: ConfigEntry) -> str | None:

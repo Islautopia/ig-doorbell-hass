@@ -6,10 +6,10 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.2.4';
+const CARD_VERSION = '1.4.3';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-28-ig-doorbell`;
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-29-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -258,7 +258,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "Grabando", rec_start_tip: "Empezar a grabar", rec_stop_tip: "Parar la grabación", rec_no_answer: "Home Assistant no aceptó la orden de grabar", recordings_title: "Grabaciones",
     quick_reply_title: "Respuestas rápidas", qr_empty: "El portero no tiene respuestas rápidas configuradas", qr_load_error: "No se pudo obtener la lista del portero", qr_no_answer: "El portero no aceptó la respuesta rápida",
     db_not_setup: "Este portero no está configurado en Home Assistant.",
-    db_switch: "Cambiar de portero", db_unnamed: "Portero sin nombre", no_doorbells: "No hay ningún portero. Añade la integración Islautopia Garage Doorbell en Ajustes › Dispositivos y servicios.", ed_nothing: "Esta tarjeta no tiene nada que configurar: muestra todos tus porteros y se cambia de uno a otro desde la propia tarjeta. Los ajustes están en la integración: Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar."
+    db_switch: "Cambiar de portero", db_unnamed: "Portero sin nombre", no_doorbells: "No hay ningún portero. Añade la integración Islautopia Garage Doorbell en Ajustes › Dispositivos y servicios.", ed_nothing: "Esta tarjeta no tiene nada que configurar: muestra todos tus porteros y se cambia de uno a otro desde la propia tarjeta. Los ajustes están en la integración: Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar.",
+    adv_label: "Avanzado", adv_off: "Vista avanzada", adv_on: "Vista sencilla",
+    chip_quality_down: "Calidad reducida — conexión lenta", chip_quality_restored: "Calidad restablecida", chip_audio_only: "Solo audio — conexión demasiado lenta para vídeo", chip_video_back: "Vídeo de vuelta"
   },
   en: { // English (global fallback)
     connecting: "Connecting...", live: "Live", open: "Comms Open", error_cam: "Error", no_lock: "No lock configured",
@@ -280,7 +282,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "Recording", rec_start_tip: "Start recording", rec_stop_tip: "Stop recording", rec_no_answer: "Home Assistant did not accept the recording request", recordings_title: "Recordings",
     quick_reply_title: "Quick replies", qr_empty: "The doorbell has no quick replies configured", qr_load_error: "Could not load the list from the doorbell", qr_no_answer: "The doorbell did not accept the quick reply",
     db_not_setup: "This doorbell isn't set up in Home Assistant.",
-    db_switch: "Switch doorbell", db_unnamed: "Unnamed doorbell", no_doorbells: "No doorbell found. Add the Islautopia Garage Doorbell integration in Settings › Devices & services.", ed_nothing: "There is nothing to configure in this card: it shows all your doorbells and you switch between them from the card itself. Settings live in the integration: Settings › Devices & services › Islautopia Garage Doorbell › Configure."
+    db_switch: "Switch doorbell", db_unnamed: "Unnamed doorbell", no_doorbells: "No doorbell found. Add the Islautopia Garage Doorbell integration in Settings › Devices & services.", ed_nothing: "There is nothing to configure in this card: it shows all your doorbells and you switch between them from the card itself. Settings live in the integration: Settings › Devices & services › Islautopia Garage Doorbell › Configure.",
+    adv_label: "Advanced", adv_off: "Advanced view", adv_on: "Simple view",
+    chip_quality_down: "Lower quality — slow connection", chip_quality_restored: "Quality restored", chip_audio_only: "Audio only — connection too slow for video", chip_video_back: "Video back"
   },
   pt: { // Portuguese
     connecting: "Conectando...", live: "Ao vivo", open: "Comms Abertas", error_cam: "Erro", no_lock: "Sem fechadura configurada",
@@ -302,7 +306,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "A gravar", rec_start_tip: "Começar a gravar", rec_stop_tip: "Parar a gravação", rec_no_answer: "O Home Assistant não aceitou o pedido de gravação", recordings_title: "Gravações",
     quick_reply_title: "Respostas rápidas", qr_empty: "A campainha não tem respostas rápidas configuradas", qr_load_error: "Não foi possível obter a lista da campainha", qr_no_answer: "A campainha não aceitou a resposta rápida",
     db_not_setup: "Esta campainha não está configurada no Home Assistant.",
-    db_switch: "Mudar de campainha", db_unnamed: "Campainha sem nome", no_doorbells: "Nenhuma campainha encontrada. Adicione a integração Islautopia Garage Doorbell em Definições › Dispositivos e serviços.", ed_nothing: "Este cartão não tem nada para configurar: mostra todas as suas campainhas e muda-se de uma para outra no próprio cartão. As definições estão na integração: Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar."
+    db_switch: "Mudar de campainha", db_unnamed: "Campainha sem nome", no_doorbells: "Nenhuma campainha encontrada. Adicione a integração Islautopia Garage Doorbell em Definições › Dispositivos e serviços.", ed_nothing: "Este cartão não tem nada para configurar: mostra todas as suas campainhas e muda-se de uma para outra no próprio cartão. As definições estão na integração: Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar.",
+    adv_label: "Avançado", adv_off: "Vista avançada", adv_on: "Vista simples",
+    chip_quality_down: "Qualidade reduzida — ligação lenta", chip_quality_restored: "Qualidade restabelecida", chip_audio_only: "Só áudio — ligação demasiado lenta para vídeo", chip_video_back: "Vídeo de volta"
   },
   de: { // German
     connecting: "Verbinde...", live: "Live", open: "Komm. offen", error_cam: "Fehler", no_lock: "Kein Schloss konfiguriert",
@@ -324,7 +330,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "Aufnahme läuft", rec_start_tip: "Aufnahme starten", rec_stop_tip: "Aufnahme stoppen", rec_no_answer: "Home Assistant hat die Aufnahme-Anfrage nicht angenommen", recordings_title: "Aufnahmen",
     quick_reply_title: "Schnellantworten", qr_empty: "Für die Klingel sind keine Schnellantworten eingerichtet", qr_load_error: "Liste konnte nicht von der Klingel geladen werden", qr_no_answer: "Die Klingel hat die Schnellantwort nicht angenommen",
     db_not_setup: "Diese Türklingel ist in Home Assistant nicht eingerichtet.",
-    db_switch: "Klingel wechseln", db_unnamed: "Klingel ohne Namen", no_doorbells: "Keine Klingel gefunden. Füge die Integration Islautopia Garage Doorbell unter Einstellungen › Geräte & Dienste hinzu.", ed_nothing: "Diese Karte hat keine Einstellungen: Sie zeigt alle deine Klingeln, und du wechselst direkt in der Karte zwischen ihnen. Die Einstellungen liegen in der Integration: Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren."
+    db_switch: "Klingel wechseln", db_unnamed: "Klingel ohne Namen", no_doorbells: "Keine Klingel gefunden. Füge die Integration Islautopia Garage Doorbell unter Einstellungen › Geräte & Dienste hinzu.", ed_nothing: "Diese Karte hat keine Einstellungen: Sie zeigt alle deine Klingeln, und du wechselst direkt in der Karte zwischen ihnen. Die Einstellungen liegen in der Integration: Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren.",
+    adv_label: "Erweitert", adv_off: "Erweiterte Ansicht", adv_on: "Einfache Ansicht",
+    chip_quality_down: "Geringere Qualität — langsame Verbindung", chip_quality_restored: "Qualität wiederhergestellt", chip_audio_only: "Nur Audio — Verbindung zu langsam für Video", chip_video_back: "Video wieder da"
   },
   fr: { // French
     connecting: "Connexion...", live: "En direct", open: "Comms Ouvertes", error_cam: "Erreur", no_lock: "Aucune serrure configurée",
@@ -346,7 +354,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "Enregistrement", rec_start_tip: "Démarrer l'enregistrement", rec_stop_tip: "Arrêter l'enregistrement", rec_no_answer: "Home Assistant n'a pas accepté la demande d'enregistrement", recordings_title: "Enregistrements",
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
     db_not_setup: "Cette sonnette n'est pas configurée dans Home Assistant.",
-    db_switch: "Changer de sonnette", db_unnamed: "Sonnette sans nom", no_doorbells: "Aucune sonnette trouvée. Ajoutez l'intégration Islautopia Garage Doorbell dans Paramètres › Appareils et services.", ed_nothing: "Cette carte n'a rien à configurer : elle affiche toutes vos sonnettes et l'on passe de l'une à l'autre depuis la carte elle-même. Les réglages sont dans l'intégration : Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer."
+    db_switch: "Changer de sonnette", db_unnamed: "Sonnette sans nom", no_doorbells: "Aucune sonnette trouvée. Ajoutez l'intégration Islautopia Garage Doorbell dans Paramètres › Appareils et services.", ed_nothing: "Cette carte n'a rien à configurer : elle affiche toutes vos sonnettes et l'on passe de l'une à l'autre depuis la carte elle-même. Les réglages sont dans l'intégration : Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer.",
+    adv_label: "Avancé", adv_off: "Vue avancée", adv_on: "Vue simple",
+    chip_quality_down: "Qualité réduite — connexion lente", chip_quality_restored: "Qualité rétablie", chip_audio_only: "Audio seul — connexion trop lente pour la vidéo", chip_video_back: "Vidéo de retour"
   },
   it: { // Italian
     connecting: "Connessione...", live: "In diretta", open: "Comunicazione aperta", error_cam: "Errore", no_lock: "Nessuna serratura configurata",
@@ -368,7 +378,9 @@ const igLocales = {
     lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
     quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
     db_not_setup: "Questo videocitofono non è configurato in Home Assistant.",
-    db_switch: "Cambia videocitofono", db_unnamed: "Videocitofono senza nome", no_doorbells: "Nessun videocitofono trovato. Aggiungi l'integrazione Islautopia Garage Doorbell in Impostazioni › Dispositivi e servizi.", ed_nothing: "Questa card non ha nulla da configurare: mostra tutti i tuoi videocitofoni e si passa dall'uno all'altro dalla card stessa. Le impostazioni sono nell'integrazione: Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura."
+    db_switch: "Cambia videocitofono", db_unnamed: "Videocitofono senza nome", no_doorbells: "Nessun videocitofono trovato. Aggiungi l'integrazione Islautopia Garage Doorbell in Impostazioni › Dispositivi e servizi.", ed_nothing: "Questa card non ha nulla da configurare: mostra tutti i tuoi videocitofoni e si passa dall'uno all'altro dalla card stessa. Le impostazioni sono nell'integrazione: Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura.",
+    adv_label: "Avanzate", adv_off: "Vista avanzata", adv_on: "Vista semplice",
+    chip_quality_down: "Qualità ridotta — connessione lenta", chip_quality_restored: "Qualità ripristinata", chip_audio_only: "Solo audio — connessione troppo lenta per il video", chip_video_back: "Video di nuovo attivo"
   }
 };
 
@@ -616,27 +628,33 @@ function currentFullscreenElement() {
 // SAME signaling channel the card already used (local SSE+POST / remote relay WS), with
 // no new endpoint or transport - see handleNativeSignal() below.
 //
-// Quality modes, in the exact order they're rendered in the selector above the video. `wire` is
-// the literal value of the JSON `mode` field; `key` is the translation key. `expectsVideo`
+// Quality modes. `wire` is the literal value of the JSON `mode` field. `expectsVideo`
 // exists for a real, non-cosmetic reason: in 'audio_only' the device does NOT send a single
 // video packet to this client, so the life watchdog (which measures progress of
 // packetsReceived on the VIDEO INBOUND-RTP) would read that expected silence as a dead
-// session and reconnect in a loop every 20s. See _checkLifeWatchdog().
-// Each mode ALSO carries an explanatory line (`sub`) rendered under its name in the menu -
-// parity with the Android app, and for a specific reason: "Low" is NOT smooth video at lower
-// quality, it's ~1 frame per second (the device sends only keyframes, §1.4-ter). Without
-// explaining it, a user who turns it on would think the device had broken. For the same reason,
-// labels like HD/SD are avoided on purpose: they suggest a RESOLUTION change when what actually
-// changes is the FRAME RATE.
+// session and reconnect in a loop every 20s. See _checkLifeWatchdog(). `tier` ranks the
+// user-visible video quality (0 = no video, 2 = full) and is what drives the temporary quality
+// chip (§1 of the simple/advanced spec, 2026-09-29, see _maybeShowQualityChip()) - the OLD
+// permanent selector this table used to feed (icon/sub-label per option, rendered in a dropdown
+// above the video) was removed from the markup in 1.9.2; this table is now purely internal
+// bookkeeping, no UI reads `wire`/`tier` directly except through the two functions below.
 const QUALITY_MODES = [
-  { wire: 'auto', key: 'q_auto', sub: 'q_auto_sub', icon: 'mdi:auto-fix', expectsVideo: true },
-  { wire: 'full', key: 'q_full', sub: 'q_full_sub', icon: 'mdi:video', expectsVideo: true },
-  { wire: 'low', key: 'q_low', sub: 'q_low_sub', icon: 'mdi:image-filter-tilt-shift', expectsVideo: true },
-  { wire: 'audio_only', key: 'q_audio_only', sub: 'q_audio_only_sub', icon: 'mdi:volume-high', expectsVideo: false },
+  { wire: 'auto', expectsVideo: true, tier: 2 },
+  { wire: 'full', expectsVideo: true, tier: 2 },
+  { wire: 'low', expectsVideo: true, tier: 1 },
+  { wire: 'audio_only', expectsVideo: false, tier: 0 },
 ];
 
 function qualityModeMeta(wire) {
   return QUALITY_MODES.find((m) => m.wire === wire) || null;
+}
+
+// Tier used only to decide WHICH of the four chip messages applies to a transition - see
+// _maybeShowQualityChip(). Unknown/never-confirmed modes count as full (2): the safe default is
+// "no chip", not a false "audio only" on a mode this card has never heard of.
+function qualityTier(wire) {
+  const meta = qualityModeMeta(wire);
+  return meta ? meta.tier : 2;
 }
 
 // Mode chips (2026-07-10) - same
@@ -809,7 +827,15 @@ class IgDoorbellView extends HTMLElement {
     this._qualitySupported = null; // null = not confirmed yet; false = firmware without quality support
     this._qualityProbeTimer = null;
     this._qualityProbeAttempts = 0;
-    this._qualityMenuOpen = false;
+    // Temporary quality chip (2026-09-29, "simple/advanced live view"): the permanent
+    // selector/status was already gone from the UI since 1.9.2 (dead markup, see qualityCtl
+    // below). What replaces it is a chip that only speaks WHEN the effective mode changes tier
+    // (video <-> low <-> audio-only) - see _maybeShowQualityChip()/_showQualityChip(). Debounced
+    // (>= 5 s between chips, never the same key twice) and NOT per-session state on purpose: a
+    // reconnection alone must not spam a chip nobody asked to see.
+    this._qualityChipLastAt = 0;
+    this._qualityChipLastKey = null;
+    this._qualityChipHideTimer = null;
 
     // ---- Full screen (2026-07-29) -----------------------------------------------------
     // Unlike the block above, this is NOT per-session state: it's a user display
@@ -820,6 +846,14 @@ class IgDoorbellView extends HTMLElement {
     this._fsNative = false;      // true = real browser fullscreen; false = CSS fallback
     this._fsUnavailable = false; // neither native API nor a usable fallback: the icon hides itself
     this._wakeLock = null;
+
+    // ---- Simple / Advanced (2026-09-29, Iñaki: same behaviour as the iOS/Android live view) ----
+    // Default OFF (simple): the card has no pairing flow, so unlike the apps (which start in
+    // Advanced until a doorbell is paired) it always just follows the per-browser remembered
+    // choice, default simple - see the spec note in docs/card.md. Per-browser, not per-doorbell:
+    // one localStorage key for every view this browser ever opens, on purpose (switching
+    // doorbells shouldn't re-ask).
+    this._advanced = this._loadAdvancedPref();
 
     // Doorbell lock type: 0 = physical relay, 1 = Home Assistant entity, 2 = none.
     // With 2, the open button must NOT be drawn, instead of being drawn and failing.
@@ -1371,7 +1405,7 @@ class IgDoorbellView extends HTMLElement {
   // for a user with Home Assistant in Spanish. Most texts got saved incidentally
   // because something repaints them on connection (the badge, the button labels, the status
   // line); the ones that don't depend on state - the fullscreen button's title, the
-  // client counter's, the quality menu - stayed in English forever, silently.
+  // client counter's, the Advanced button - stayed in English forever, silently.
   // The effectively-painted language is compared so nothing is redone on every HA state tick,
   // which can be very frequent.
   _repaintTextsIfLanguageChanged() {
@@ -1380,8 +1414,7 @@ class IgDoorbellView extends HTMLElement {
     this._paintedLang = lang;
     this._paintFullscreenButton();
     if (this.clientsPill) this.clientsPill.setAttribute('title', getLocalText(this._hass, 'clients_tip'));
-    if (this.qualityBtn) this.qualityBtn.setAttribute('title', getLocalText(this._hass, 'q_label'));
-    if (this.qualityMenu) { this._renderQualityMenu(); this._paintQuality(); }
+    this._applyModeVisibility(); // repaints the Advanced button's title/aria-label
     // The two pills over the video are in the initial HTML and nobody ever repaints them: they're
     // fixed text, only shown and hidden. Without this they stayed in English just like the rest
     // - and "Audio active" over the video is one of the most visible things this card has.
@@ -1399,6 +1432,8 @@ class IgDoorbellView extends HTMLElement {
     // Quick reply (v1.9.8): same pattern as Recordings just above.
     const qrLbl = this.qrButton && this.qrButton.querySelector('.quick-btn-label');
     if (qrLbl) qrLbl.textContent = getLocalText(this._hass, 'quick_reply_title');
+    // Compact Quick replies action (simple mode / fullscreen, see _updateQuickReplyButton()).
+    if (this.qrLblCompact) this.qrLblCompact.textContent = getLocalText(this._hass, 'quick_reply_title');
     if (this._bellBtn) this._paintBell();
     this._lastPickerSig = null; this._paintPicker();
     if (this._evOpen) this._renderEvents();
@@ -1763,6 +1798,74 @@ class IgDoorbellView extends HTMLElement {
   }
 
   // ==============================================================================
+  // SIMPLE / ADVANCED (2026-09-29, shared spec with the iOS/Android live view; canonical layout
+  // per the coordinator's §4 addendum the same day, which OVERRIDES the original wording below).
+  //
+  // Simple mode shows ONLY the live image, ring/call UI, temporary chips, and exactly:
+  //   - the three round buttons Listen / Microphone / Door (same row as advanced mode - NEVER a
+  //     4th or 5th round button there, that overflowed at phone width, see the fixed bug in the
+  //     card_simple.png screenshot from before this addendum);
+  //   - below them, a wide "Quick replies" button filling the width (the SAME #bottom-row/
+  //     qrButton advanced mode uses, just with Recordings force-hidden - see
+  //     _updateRecordingsButton());
+  //   - the Advanced button, in the image's bottom-right corner.
+  // NO REC in simple mode, admin or not (Iñaki, 2026-09-29: "menos es más" - a call is already
+  // recorded without pressing REC). REC lives only in the header pill, which simple mode already
+  // hides entirely (#top-row) - there is no compact substitute for it anywhere any more.
+  //
+  // Fullscreen keeps its own pre-existing controls (sound/mic/door) plus Quick replies ONLY, as a
+  // compact icon action - it has no wide row below the video to put it in. It never had REC
+  // before this whole feature (2026-09-29) and does not gain it now - see _isCompactActionsContext().
+  //
+  // Per-BROWSER, not per-doorbell (one localStorage key regardless of which doorbell this view
+  // is showing) and per-browser only, never asking the VPS: this card has no pairing flow, so
+  // unlike the apps (default Advanced until a doorbell is paired) it always just follows the
+  // remembered choice, default simple - see docs/card.md's spec note, §3 clarifications.
+  // ==============================================================================
+  _loadAdvancedPref() {
+    try { return localStorage.getItem('ig-doorbell-advanced') === '1'; } catch (err) { return false; }
+  }
+
+  _saveAdvancedPref(v) {
+    try { localStorage.setItem('ig-doorbell-advanced', v ? '1' : '0'); } catch (err) { /* private browsing / disabled storage: the choice just won't survive a reload */ }
+  }
+
+  // Whether the round button row must also carry the compact Quick-replies action (see its
+  // markup comment in render()): only fullscreen, which has no wide #bottom-row to put it in
+  // instead. Simple mode's own Quick replies lives in the wide row below the video (canonical
+  // layout §4), not here - so this is no longer "simple-normal OR fullscreen", just fullscreen.
+  _isCompactActionsContext() {
+    return this._fsActive;
+  }
+
+  _applyModeVisibility() {
+    if (this.advBtn) {
+      this.advBtn.classList.toggle('on', this._advanced);
+      this.advBtn.setAttribute('aria-pressed', this._advanced ? 'true' : 'false');
+      this.advBtn.setAttribute('title', getLocalText(this._hass, this._advanced ? 'adv_on' : 'adv_off'));
+      this.advBtn.setAttribute('aria-label', getLocalText(this._hass, 'adv_label'));
+    }
+    // True "simple" only in the normal (non-fullscreen) view: fullscreen is untouched by the
+    // toggle by spec, it hides the header/#top-row unconditionally already (see the existing
+    // .ig-fs rules) and gains the compact Quick-replies action unconditionally too
+    // (_isCompactActionsContext()).
+    const simple = !this._advanced && !this._fsActive;
+    if (this.content) this.content.classList.toggle('ig-simple', simple);
+    // Recordings depends on `simple` too (never shown there, canonical layout §4 point 4) -
+    // repainted immediately on every toggle, not just on the next hass tick.
+    this._updateRecButton();
+    this._updateRecordingsButton();
+    this._updateQuickReplyButton();
+    // Marks the row as holding 4 buttons instead of 3 (sound/mic/door plus the compact Quick
+    // replies) - see the '.actions-row.has-compact' breakpoint in injectStyles(): the 380px
+    // threshold below it was measured for 3 buttons (2026-09-25) and is deliberately left alone;
+    // this is a SEPARATE, wider one so fullscreen's 4th button gets the same "shrink instead of
+    // overflow" treatment without touching that calibration. Never applies in simple-normal any
+    // more (it has 3 buttons too now, exactly like advanced-normal).
+    if (this.actionsRow) this.actionsRow.classList.toggle('has-compact', this._isCompactActionsContext());
+  }
+
+  // ==============================================================================
   // REC (recordings v2, Iñaki 2026-09-25) - "the card SHOWS, the integration EXPOSES" (decision from
   // 2026-08-31, see hass_todo_en_la_integracion): unlike the apps (which talk rec_start/
   // rec_stop directly with the doorbell over the signaling session, WebRTCSession.swift /
@@ -1805,6 +1908,11 @@ class IgDoorbellView extends HTMLElement {
   // dot and the text, see CSS .rec-pill) and the title/aria-label, which DO get translated for whoever
   // uses a screen reader. The rest of the logic (gating by _connInfo.role, state read from the
   // ENTITY and never from the last tap) doesn't change from 1.9.4.
+  // (2026-09-29, canonical layout §4) There is no compact copy of REC any more: simple mode never
+  // shows it (Iñaki: "menos es más", a call is already recorded without pressing REC) and
+  // fullscreen never had one before this feature existed either, so none is added now. REC lives
+  // ONLY in this header pill, which simple mode (#top-row hidden) and fullscreen (.ig-fs .top-row
+  // hidden) already hide by themselves - no separate visibility rule needed here for that.
   _updateRecButton() {
     if (!this.recAction || !this.recButton) return;
     const entityId = this._entityFor('rec');
@@ -1827,11 +1935,18 @@ class IgDoorbellView extends HTMLElement {
   // recordings are "admin-only in the apps, with the same rule as REC". Unlike
   // REC it doesn't depend on any entity: it's just a link, so the role alone is enough
   // to decide whether to show it.
+  // (2026-09-29, canonical layout §4 point 4) Never shown in simple mode either way - admin or
+  // not: "no doorbell picker, no mode chip, no bell, no Recordings, no Settings". #bottom-row
+  // itself DOES stay visible in simple mode now (Quick replies moved there, see
+  // _applyModeVisibility()), so this needs its own explicit check rather than relying on the row
+  // being hidden wholesale the way it used to be.
   _updateRecordingsButton() {
     if (!this.recordingsButton) return;
     const isAdmin = !!(this._connInfo && this._connInfo.role === 'admin');
+    const simple = !this._advanced && !this._fsActive;
+    const visible = isAdmin && !simple;
     const displayBefore = this.recordingsButton.style.display;
-    this.recordingsButton.style.display = isAdmin ? '' : 'none';
+    this.recordingsButton.style.display = visible ? '' : 'none';
     if (displayBefore !== this.recordingsButton.style.display) this._scheduleFit();   // changes the height to distribute
     this._updateBottomRowVisibility();
   }
@@ -1843,6 +1958,10 @@ class IgDoorbellView extends HTMLElement {
   // share a visibility rule, and merging them into a single `if` is exactly how one of the two
   // rules gets lost the day someone only looks at one condition (see CLAUDE.md, the "defense
   // spread across places" landmines).
+  // (2026-09-29) The wide button (#bottom-row/qrButton) is now shown in BOTH simple and advanced
+  // mode - simple mode's row shows only this one (Recordings force-hidden above), taking the
+  // whole width for free via the existing flex:1 rule (see CSS .quick-btn.half). Fullscreen still
+  // hides #bottom-row entirely (no room below the video) and gets a compact icon copy instead.
   _updateQuickReplyButton() {
     if (!this.qrButton) return;
     const show = !!this._connInfo;
@@ -1850,6 +1969,14 @@ class IgDoorbellView extends HTMLElement {
     this.qrButton.style.display = show ? '' : 'none';
     if (displayBefore !== this.qrButton.style.display) this._scheduleFit();
     this._updateBottomRowVisibility();
+    // Compact copy: same "any connection" rule, only in fullscreen (_isCompactActionsContext()) -
+    // simple mode reaches Quick replies through the wide row above, not this one.
+    if (this.qrActionCompact) {
+      const compactVisible = show && this._isCompactActionsContext();
+      const compactBefore = this.qrActionCompact.style.display;
+      this.qrActionCompact.style.display = compactVisible ? '' : 'none';
+      if (compactBefore !== this.qrActionCompact.style.display) this._scheduleFit();
+    }
   }
 
   // The whole row is only visible if AT LEAST one of the two buttons is visible -- if Recordings is
@@ -2501,10 +2628,7 @@ class IgDoorbellView extends HTMLElement {
     this._quality = mode;
     this.sendNativeSignal({ type: 'quality', mode });
     if (this._qualityProbeTimer) { clearTimeout(this._qualityProbeTimer); this._qualityProbeTimer = null; }
-    if (this._qualitySupported === true) {
-      this._paintQuality();
-      return;
-    }
+    if (this._qualitySupported === true) return;
     this._qualityProbeTimer = setTimeout(() => {
       this._qualityProbeTimer = null;
       if (this._qualitySupported === true) return;
@@ -2514,19 +2638,19 @@ class IgDoorbellView extends HTMLElement {
         return;
       }
       this._qualitySupported = false;
-      this._paintQuality();
-      // No UI notice on purpose: the only path that reaches here is the automatic startup
-      // probe (once _qualitySupported is true the selector appears and this timer no longer
-      // gets armed; while it isn't, the selector stays hidden and the user can't request anything). A
-      // doorbell with older firmware works perfectly fine without this feature - bothering the
-      // user with a notice about something they never asked for would be noise, not information.
-      console.warn('[ig-doorbell-card] the device did not confirm any quality_state after 2 attempts - firmware predating the quality contract (2026-07-26): the quality selector is not shown in this session');
+      // No UI notice on purpose (unchanged since the permanent selector was removed in 1.9.2):
+      // this only means the temporary chip below never fires either, for a doorbell that never
+      // confirms quality_state - a doorbell with older firmware works perfectly fine without this
+      // feature, and bothering the user with a notice about something they never asked for would
+      // be noise, not information.
+      console.warn('[ig-doorbell-card] the device did not confirm any quality_state after 2 attempts - firmware predating the quality contract (2026-07-26): no quality chip will show in this session');
     }, 4000);
   }
 
   _handleQualityState(msg) {
     if (this._qualityProbeTimer) { clearTimeout(this._qualityProbeTimer); this._qualityProbeTimer = null; }
     this._qualitySupported = true;
+    const prevEffective = this._qualityEffective;
     if (typeof msg.mode === 'string' && msg.mode !== this._qualityEffective) {
       this._qualityEffective = msg.mode;
       // The life watchdog switches counters (video <-> audio) depending on the effective mode, see
@@ -2536,62 +2660,55 @@ class IgDoorbellView extends HTMLElement {
       this._prevPacketsReceived = null;
       this._recordLifeSignal();
     }
-    // If the device has decided on its own (auto_loss/auto_bandwidth), the mode the user requested
-    // does NOT change (it stays on 'auto'): what changes is the EFFECTIVE mode. An unexplained
-    // quality change is perceived as a bug, so the reason is stated.
-    const reason = msg.reason;
-    if (reason === 'auto_loss' || reason === 'auto_bandwidth') {
-      this._flashStatusLine(reason === 'auto_loss' ? 'q_auto_loss' : 'q_auto_bw', 6000);
+    // Temporary chip (2026-09-29, replaces the old bottom status-line flash for
+    // auto_loss/auto_bandwidth): only on a REAL tier change, and never on the very first
+    // quality_state of a session (prevEffective === null) - that one is just the startup
+    // confirmation, not something the user perceives as "changing".
+    if (prevEffective !== null && this._qualityEffective !== prevEffective) {
+      this._maybeShowQualityChip(qualityTier(prevEffective), qualityTier(this._qualityEffective));
     }
-    this._paintQuality();
   }
 
-  _renderQualityMenu() {
-    if (!this.qualityMenu) return;
-    this.qualityMenu.innerHTML = QUALITY_MODES.map((m) => (
-      `<button type="button" class="q-opt" data-mode="${m.wire}"><ha-icon icon="${m.icon}"></ha-icon>` +
-      `<span class="q-txt"><b>${getLocalText(this._hass, m.key)}</b><i>${getLocalText(this._hass, m.sub)}</i></span></button>`
-    )).join('');
-    this.qualityMenu.querySelectorAll('.q-opt').forEach((btn) => {
-      btn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        this._toggleQualityMenu(false);
-        const mode = btn.getAttribute('data-mode');
-        this._sendQuality(mode);
-        // Explicit notice when turning on "Low": ~1 frame/s is perceived as a malfunction if nobody has
-        // said that's what's expected (same criterion as the Android app). Only when TURNING IT ON, not on
-        // every repaint.
-        if (mode === 'low') this._flashStatusLine('q_low_warn', 6000);
-      });
-    });
+  // ==============================================================================
+  // TEMPORARY QUALITY CHIP (2026-09-29, spec "Live view: simple mode..., no fixed quality
+  // chip"). Four short, translated messages - see igLocales chip_quality_down/_restored/
+  // audio_only/video_back - top-centre over the image, ~4 s, then fades (CSS .quality-toast).
+  // Mapping (documented here because the spec asks for it): tier 2=full/auto, 1=low,
+  // 0=audio_only.
+  //   tier drops to 0            -> chip_audio_only  ("Audio only - connection too slow…")
+  //   tier drops but stays >= 1  -> chip_quality_down ("Lower quality - slow connection")
+  //   tier rises from 0          -> chip_video_back   ("Video back")
+  //   tier rises but started >= 1 -> chip_quality_restored ("Quality restored")
+  // Never invents a NEW firmware signal: this is the same quality_state this card already
+  // consumed since 2026-07-26 for the now-removed permanent selector - only the UI reading it
+  // changed.
+  // ==============================================================================
+  _maybeShowQualityChip(fromTier, toTier) {
+    if (toTier === fromTier) return;
+    const key = toTier < fromTier
+      ? (toTier === 0 ? 'chip_audio_only' : 'chip_quality_down')
+      : (fromTier === 0 ? 'chip_video_back' : 'chip_quality_restored');
+    this._showQualityChip(key);
   }
 
-  _toggleQualityMenu(force) {
-    const open = (typeof force === 'boolean') ? force : !this._qualityMenuOpen;
-    this._qualityMenuOpen = open;
-    if (this.qualityMenu) this.qualityMenu.style.display = open ? 'flex' : 'none';
-  }
-
-  _paintQuality() {
-    if (!this.qualityCtl) return;
-    this.qualityCtl.style.display = this._qualitySupported === true ? 'block' : 'none';
-    if (this._qualitySupported !== true) { this._toggleQualityMenu(false); return; }
-    // The REQUESTED mode is shown, and if the one confirmed by the device is different (today
-    // this can only happen with 'auto', which behaves like 'full', or when auto-degrade
-    // kicks in on its own in the future) it's added in parentheses: the card must never claim you're seeing
-    // something different from what the device says it's sending.
-    const req = qualityModeMeta(this._quality) || QUALITY_MODES[0];
-    const eff = qualityModeMeta(this._qualityEffective);
-    const showEff = eff && this._quality === 'auto' && this._qualityEffective !== 'auto';
-    if (this.qualityIcon) this.qualityIcon.setAttribute('icon', req.icon);
-    if (this.qualityLabel) {
-      this.qualityLabel.textContent = showEff
-        ? `${getLocalText(this._hass, req.key)} · ${getLocalText(this._hass, eff.key)}`
-        : getLocalText(this._hass, req.key);
-    }
-    this.qualityMenu.querySelectorAll('.q-opt').forEach((btn) => {
-      btn.classList.toggle('sel', btn.getAttribute('data-mode') === this._quality);
-    });
+  // Debounced: never less than 5 s after the previous chip (spec: "debounce flapping"). Repeating
+  // the SAME state is already impossible upstream (_maybeShowQualityChip only fires on a real
+  // tier change), so this only needs to guard against a burst of DIFFERENT transitions arriving
+  // faster than a person can read them. A dropped event during the cooldown is simply not shown -
+  // there is no queue, the next real change (checked against the tier at THAT time) gets its own chip.
+  _showQualityChip(key) {
+    if (!this.qualityToast) return;
+    const now = Date.now();
+    if (this._qualityChipLastAt && (now - this._qualityChipLastAt) < 5000) return;
+    this._qualityChipLastAt = now;
+    this._qualityChipLastKey = key;
+    if (this._qualityChipHideTimer) { clearTimeout(this._qualityChipHideTimer); this._qualityChipHideTimer = null; }
+    this.qualityToast.textContent = getLocalText(this._hass, key);
+    this.qualityToast.classList.add('show');
+    this._qualityChipHideTimer = setTimeout(() => {
+      this._qualityChipHideTimer = null;
+      if (this.qualityToast) this.qualityToast.classList.remove('show');
+    }, 4000);
   }
 
   // PER-SESSION state: the talk turn and quality live on the device per slot, and a
@@ -2623,7 +2740,6 @@ class IgDoorbellView extends HTMLElement {
     this._qualitySupported = null;
     this._qualityProbeAttempts = 0;
     this._paintClients();
-    this._paintQuality();
   }
 
   // ==============================================================================
@@ -2910,6 +3026,11 @@ class IgDoorbellView extends HTMLElement {
       document.body.classList.remove('ig-fs-body-lock');
     }
     this._paintFullscreenButton();
+    // Simple mode's "ig-simple" class is defined as !advanced && !fullscreen (see
+    // _applyModeVisibility()): entering/leaving fullscreen changes that even if the Advanced
+    // toggle itself didn't move, so it has to be recomputed on every transition, not just on a
+    // click of #adv-btn.
+    this._applyModeVisibility();
     // The zoom resets on entering and leaving: the frame's whole geometry changes, and a crop
     // meant for the panel makes no sense in fullscreen (nor the other way around).
     this._zoomReset();
@@ -4017,9 +4138,20 @@ class IgDoorbellView extends HTMLElement {
     const coarse = this._coarsePointer();
     const natural = width / aspect;
     const cap = this._feedCap();
-    // Header and Recordings row: measured where they normally live, estimated while they are
-    // somewhere else (inside the column, or Recordings inside the header).
-    const topH = (this.topRow && this.topRow.parentElement === this.content && this.topRow.offsetHeight) || (coarse ? 44 : 34);
+    // Header: measured where it normally lives, estimated while it's somewhere else (inside the
+    // column). In simple mode it's CSS-hidden (.ig-simple #top-row, see _applyModeVisibility())
+    // regardless of which container _placeControls() happens to have moved it into, so it reserves
+    // no chrome at all - this function is only ever reached outside fullscreen (_fitToSpace
+    // short-circuits fullscreen to a fixed plan before calling it), so `!this._advanced` alone
+    // means true simple mode here.
+    const simple = !this._advanced;
+    const topH = simple ? 0 : ((this.topRow && this.topRow.parentElement === this.content && this.topRow.offsetHeight) || (coarse ? 44 : 34));
+    // (2026-09-29, canonical layout §4) #bottom-row is NO LONGER simple-mode-hidden: it now carries
+    // the wide "Quick replies" button there too (only Recordings is force-hidden inside it, see
+    // _updateRecordingsButton()), so it reserves real chrome height in BOTH modes. Read its actual
+    // visibility instead of assuming "simple -> hidden" - that stale assumption (still correct for
+    // topH above) is exactly what made simple mode's video come out SMALLER than advanced's in a
+    // wide layout: the row was there taking space but the estimate said it wasn't.
     const hasBottom = !!this.recordingsAction && this.recordingsAction.style.display !== 'none';
     const bottomH = hasBottom ? ((this.recordingsAction.parentElement === this.content && this.recordingsAction.offsetHeight) || 52) : 0;
     const area = (h, w) => { const iw = Math.min(w, h * aspect); return iw * (iw / aspect); };
@@ -4751,6 +4883,12 @@ class IgDoorbellView extends HTMLElement {
                 <span>${getLocalText(this._hass, 'motion_detected')}</span>
               </div>
 
+              <!-- Temporary quality chip (2026-09-29): replaces the permanent selector removed in
+                   1.9.2. Empty/invisible at rest, shown for ~4s by _showQualityChip() on a real
+                   tier change (video <-> low <-> audio-only) - see _maybeShowQualityChip(). Never a
+                   fixed indicator: the 'show' class is the ONLY thing that makes it visible. -->
+              <div class="quality-toast" id="quality-toast"></div>
+
               <div class="hud-bottom">
                 <div class="audio-pill" id="audio-pill" style="display:none;">
                   <ha-icon icon="mdi:microphone"></ha-icon>
@@ -4761,6 +4899,13 @@ class IgDoorbellView extends HTMLElement {
                        via CSS the connection's data-state (already visible in the live-tag): they
                        were not RSSI nor the apps' quality chip, and did not respond to anything.
                        Removed (Inaki). -->
+                  <!-- Advanced toggle (2026-09-29, live view simple/advanced spec): lives in the
+                       normal (non-fullscreen) view only - hidden in .ig-fs by CSS, see
+                       _applyModeVisibility(). Highlighted (.on) while Advanced is ON. Placed right
+                       before fullscreen, the other "view utility" control in this same corner. -->
+                  <button type="button" class="hud-adv" id="adv-btn">
+                    <ha-icon icon="mdi:tune-variant"></ha-icon>
+                  </button>
                   <!-- Fullscreen. Last item of the right cluster, which is where anyone who has
                        used a video player expects it. Stays visible WHILE in the mode (switching
                        to "exit"): it is the only guaranteed way out, because ESC only exists with
@@ -4811,12 +4956,28 @@ class IgDoorbellView extends HTMLElement {
                   </button>
                   <span class="lbl" id="unlock-lbl">${getLocalText(this._hass, 'lbl_door_idle')}</span>
                 </div>
-                <!-- REC (recordings v2, Inaki 2026-09-25) NO LONGER LIVES HERE (v1.9.5, the same
-                     afternoon): see the rec-action block in the header (top-row) above, with its
-                     full reasoning. The button still calls the auto-detected rec_entity's service
-                     (_toggleRec()/_updateRecButton()) exactly as before - the only thing that
-                     changes is the look and where it lives, not the behavior ("the card DISPLAYS,
-                     the integration EXPOSES", decision 2026-08-31). -->
+                <!-- REC (recordings v2, Inaki 2026-09-25) lives ONLY in the rec-action pill in the
+                     header/top-row: see that block above for the full reasoning. There is no
+                     compact copy here (2026-09-29 canonical layout §4: "NO REC in simple mode,
+                     even for admin" - "menos es más", a call is already recorded without pressing
+                     REC - and fullscreen never had one before this feature existed either, so none
+                     was added). Simple mode and fullscreen both already hide the header pill
+                     entirely, so REC is simply absent from both, with no second element to keep
+                     in sync. -->
+                <!-- Quick replies (2026-09-29, simple/advanced spec, Iñaki: "Quick replies are part
+                     of simple mode"): a compact icon+label action, same family as sound/mic/door,
+                     shown ONLY in fullscreen (canonical layout §4: simple mode reaches Quick
+                     replies through the wide row below the video instead, same as advanced mode -
+                     see _updateQuickReplyButton()). Opens the SAME #qr-panel as the wide button
+                     (_openQuickReplies()) - no second implementation. Hidden everywhere else
+                     (simple-normal and advanced-normal), where the wide button already gives
+                     access. -->
+                <div class="action compact-only" id="qr-action-compact" style="display:none;">
+                  <button type="button" id="qr-button-compact" class="btn qr">
+                    <ha-icon icon="mdi:message-reply-text-outline"></ha-icon>
+                  </button>
+                  <span class="lbl" id="qr-lbl-compact"></span>
+                </div>
               </div>
             </div>
 
@@ -4911,20 +5072,34 @@ class IgDoorbellView extends HTMLElement {
       this.loader = this.querySelector('#ig-loader');
       this.clientsPill = this.querySelector('#clients-pill');
       this.clientsCount = this.querySelector('#clients-count');
-      this.qualityCtl = this.querySelector('#hud-quality');
-      this.qualityBtn = this.querySelector('#q-btn');
-      this.qualityIcon = this.querySelector('#q-icon');
-      this.qualityLabel = this.querySelector('#q-label');
-      this.qualityMenu = this.querySelector('#q-menu');
+      this.qualityToast = this.querySelector('#quality-toast');
+      this.advBtn = this.querySelector('#adv-btn');
       this.fsBtn = this.querySelector('#fs-btn');
       this.fsIcon = this.querySelector('#fs-icon');
 
+      // Advanced toggle (2026-09-29): see _applyModeVisibility() for what it hides/shows.
+      this.advBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this._advanced = !this._advanced;
+        this._saveAdvancedPref(this._advanced);
+        this._applyModeVisibility();
+        this._scheduleFit();
+      });
+
       // Fullscreen. The click carries stopPropagation for the same reason as the
-      // quality selector: there's a document-level listener that closes its menu.
+      // (retired) quality menu used to: there's a document-level listener that closes menus.
       this.fsBtn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         this._toggleFullscreen();
       });
+
+      // Compact Quick replies (2026-09-29, fullscreen only - see _isCompactActionsContext()):
+      // same handler as its wide #bottom-row counterpart, see _openQuickReplies() - this is only
+      // a second paint target. There is no compact REC any more (canonical layout §4).
+      this.qrActionCompact = this.querySelector('#qr-action-compact');
+      this.qrButtonCompact = this.querySelector('#qr-button-compact');
+      this.qrLblCompact = this.querySelector('#qr-lbl-compact');
+      this.qrButtonCompact.addEventListener('click', () => this._openQuickReplies());
 
       // Dropdown mode chip (v1.9.5): a click outside closes it, same criterion as the
       // (retired) quality menu from earlier versions. It's kept bound to the instance so it
@@ -5007,6 +5182,7 @@ class IgDoorbellView extends HTMLElement {
       this.recButton.addEventListener('click', () => this.toggleRec());
 
       this.injectStyles();
+      this._applyModeVisibility();
       this._updateHassBoundUI();
       if (!this._restoreSavedPause()) this.startWebRTC('render: first construction of the card\'s DOM');
     }
@@ -6474,10 +6650,53 @@ class IgDoorbellView extends HTMLElement {
       .hud-fs:hover { border-color: rgba(0,196,212,0.5); }
       .hud-fs.on { color: var(--ig-cyan); border-color: rgba(0,196,212,0.5); }
 
+      /* Advanced toggle (2026-09-29): same base look as fullscreen, its neighbour in this corner -
+         see _applyModeVisibility(). Hidden in fullscreen: the spec keeps fullscreen unchanged by
+         the toggle, and the button itself only belongs to the normal (non-fullscreen) view. */
+      .hud-adv {
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        background: rgba(7,13,26,0.55); border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 999px; padding: 5px; color: var(--ig-text); pointer-events: auto;
+        font-family: inherit;
+      }
+      .hud-adv ha-icon { --mdc-icon-size: 18px; }
+      .hud-adv:hover { border-color: rgba(0,196,212,0.5); }
+      .hud-adv.on { color: var(--ig-cyan); border-color: rgba(0,196,212,0.5); }
+      .ig-container.ig-fs .hud-adv { display: none !important; }
+
+      /* Simple mode (2026-09-29 spec; canonical layout in the coordinator's §4 addendum the same
+         day, ITSELF overridden the same day by §5 on this one point - see below): the header
+         (picker/mode chip/REC pill/bell) disappears entirely, same as fullscreen already does for
+         it - see the .ig-fs rule below and _applyModeVisibility() for how 'ig-simple' is computed
+         (!advanced && !fullscreen).
+         #bottom-row is deliberately NOT in this list any more (canonical layout §4 point 3): it
+         now carries the wide "Quick replies" button in simple mode too, filling the width -
+         Recordings is force-hidden there instead, see _updateRecordingsButton().
+         §5 (2026-09-29, same day, overrides §4's "no viewers pill"): the viewers pill
+         (.clients-pill) is explicitly KEPT in simple mode, in the same spot inside .hud-top it
+         already occupies - so it is deliberately absent from this force-hide list. Its own
+         visibility (shown once a real client count is known, see _paintClients())
+         is unchanged and unrelated to simple/advanced. This card has no WebRTC-diagnostics
+         icon/overlay to hide in simple mode - it never had one (unlike the apps); nothing to do
+         there. */
+      .ig-container.ig-simple #top-row { display: none !important; }
+
       /* Signal bars, bottom-right corner (mockup) - reflect the real connection state
          (data-state, also propagated to .feed-wrap from _setLiveState()) instead of a WiFi
          metric this card has no way to know - an honest adaptation of the element, not a
          literal imitation of a data point that doesn't exist here. */
+
+      /* Temporary quality chip (2026-09-29): invisible at rest (opacity 0, no pointer-events),
+         shown only by adding .show - see _showQualityChip(). Sits above the motion pill (which
+         starts lower, top:44px) so the two never overlap even if they were ever visible together. */
+      .quality-toast {
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%) translateY(-6px);
+        z-index: 9; max-width: 85%; text-align: center; pointer-events: none;
+        background: rgba(7,13,26,0.85); border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+        color: var(--ig-text); opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+      .quality-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
       .motion-pill {
         position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6;
@@ -6562,11 +6781,12 @@ class IgDoorbellView extends HTMLElement {
          approximated from the visual reconstruction) - see COORDINATION.md Q22-bis. Sound joined
          the row (2026-09-25 morning) with the same "secondary" size as the door; REC lived here
          for a few hours that same day and moved to the header that same afternoon (see .rec-pill
-         above) - "the look is very different from the apps'" compared to the real app. */
+         above) - "the look is very different from the apps'" compared to the real app. .btn.rec
+         no longer exists anywhere (2026-09-29 canonical layout §4: no compact REC copy). */
       .action .btn.mic { width: 80px; height: 80px; }
       .action .btn.mic ha-icon { --mdc-icon-size: 30px; }
-      .action .btn.door, .action .btn.snd { width: 60px; height: 60px; }
-      .action .btn.door ha-icon, .action .btn.snd ha-icon { --mdc-icon-size: 24px; }
+      .action .btn.door, .action .btn.snd, .action .btn.qr { width: 60px; height: 60px; }
+      .action .btn.door ha-icon, .action .btn.snd ha-icon, .action .btn.qr ha-icon { --mdc-icon-size: 24px; }
       .action .btn.active-talk { background: linear-gradient(135deg, var(--ig-cyan), var(--ig-blue)); border-color: transparent; box-shadow: 0 0 28px rgba(0,196,212,0.45), 0 8px 24px rgba(0,0,0,0.4); color: var(--ig-text); transform: scale(1.05); }
       .action .btn.active-unlock { background: linear-gradient(135deg, var(--ig-green), #388E3C); border-color: transparent; box-shadow: 0 0 22px rgba(76,175,80,0.5); color: var(--ig-text); transform: scale(1.05); }
       /* Street speaker (§1.10): same visual criterion as the rest - dull gray at rest
@@ -6603,8 +6823,24 @@ class IgDoorbellView extends HTMLElement {
         .actions-row { gap: 8px; }
         .action .btn.mic { width: 68px; height: 68px; }
         .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
-        .action .btn.door, .action .btn.snd { width: 52px; height: 52px; }
-        .action .btn.door ha-icon, .action .btn.snd ha-icon { --mdc-icon-size: 21px; }
+        .action .btn.door, .action .btn.snd, .action .btn.qr { width: 52px; height: 52px; }
+        .action .btn.door ha-icon, .action .btn.snd ha-icon, .action .btn.qr ha-icon { --mdc-icon-size: 21px; }
+      }
+      /* Fullscreen only (2026-09-29 spec; canonical layout §4 makes this explicit): the row can
+         hold 4 buttons (sound/mic/door PLUS the compact Quick-replies action, see '.has-compact'
+         in _applyModeVisibility()) instead of the 3 the 380px breakpoint above was measured for.
+         A wider, SEPARATE threshold - the 380px one is left untouched on purpose, it is calibrated
+         for the 3-button case that happens everywhere else (simple-normal now included: it has no
+         compact actions of its own any more, Quick replies moved to the wide row below the
+         video). */
+      @container igfeed (max-width: 460px) {
+        .actions-row.has-compact { gap: 8px; }
+        .actions-row.has-compact .action .btn.mic { width: 68px; height: 68px; }
+        .actions-row.has-compact .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
+        .actions-row.has-compact .action .btn.door, .actions-row.has-compact .action .btn.snd,
+        .actions-row.has-compact .action .btn.qr { width: 52px; height: 52px; }
+        .actions-row.has-compact .action .btn.door ha-icon, .actions-row.has-compact .action .btn.snd ha-icon,
+        .actions-row.has-compact .action .btn.qr ha-icon { --mdc-icon-size: 21px; }
       }
       @container igfeed (max-width: 300px) {
         .action .lbl { display: none; }
@@ -6716,6 +6952,25 @@ class IgDoorbellView extends HTMLElement {
       .ig-container.ig-fs .action .lbl {
         color: rgba(232,240,254,0.9); text-shadow: 0 1px 4px rgba(0,0,0,0.8);
       }
+      /* Fullscreen ALWAYS potentially shows 4 buttons now (2026-09-29 spec; canonical layout §4
+         makes it explicit: the compact Quick-replies action only, no REC - see '.has-compact' /
+         _isCompactActionsContext() - fullscreen never had another way to reach Quick replies).
+         The row's fixed 34px gap above was sized for the original 2-3 buttons and overflows a
+         narrow phone with 4: measured, 80+3x60+3x34=362px, wider than an iPhone SE/mini in
+         portrait once its own padding is subtracted. The selector needs an extra class
+         (.has-compact) to OUTRANK '.ig-container.ig-fs .actions-row' on SPECIFICITY, not just come
+         later in the file - a plain media/container query at equal specificity would lose to that
+         unconditional rule regardless of width, which is exactly what let this overflow slip
+         through the general 380/460px breakpoints above (their .has-compact selectors are 2
+         classes, fullscreen's plain rule is 3). Mic keeps its normal fullscreen size (the row's
+         star action, unaffected). */
+      .ig-container.ig-fs .actions-row.has-compact { gap: 10px; }
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.door,
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.snd,
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.qr { width: 48px; height: 48px; }
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.door ha-icon,
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.snd ha-icon,
+      .ig-container.ig-fs .actions-row.has-compact .action .btn.qr ha-icon { --mdc-icon-size: 20px; }
       /* The status line (door open, channel busy, no lock) also floats: it's where the user
          gets an answer when they press a button, and leaving it out of view in this mode would
          make it useless right when it's used the most. */
@@ -6861,8 +7116,8 @@ class IgDoorbellView extends HTMLElement {
       .ig-container.ig-stack .action .btn.mic ha-icon { --mdc-icon-size: 36px; }
       .ig-container.ig-stack .action .btn.door { width: 60px; height: 60px; }
       .ig-container.ig-stack .action .btn.door ha-icon { --mdc-icon-size: 26px; }
-      .ig-container.ig-stack .action .btn.snd { width: 48px; height: 48px; }
-      .ig-container.ig-stack .action .btn.snd ha-icon { --mdc-icon-size: 20px; }
+      .ig-container.ig-stack .action .btn.snd, .ig-container.ig-stack .action .btn.qr { width: 48px; height: 48px; }
+      .ig-container.ig-stack .action .btn.snd ha-icon, .ig-container.ig-stack .action .btn.qr ha-icon { --mdc-icon-size: 20px; }
       .ig-container.ig-stack .action .btn { background: linear-gradient(135deg, var(--ig-surf2), var(--ig-surf3)); backdrop-filter: none; box-shadow: none; }
       .ig-container.ig-stack .action .lbl { color: var(--ig-muted); text-shadow: none; font-size: 12px; }
       .ig-container.ig-stack .quick-btn { padding: 12px 14px; }
@@ -6991,7 +7246,7 @@ class IgDoorbellView extends HTMLElement {
         flex-direction: column; justify-content: center; align-items: center; gap: 10px;
         pointer-events: auto; flex: 1 1 auto; min-height: 0; padding: 0;
       }
-      .ig-container.ig-side .action .btn.door, .ig-container.ig-side .action .btn.snd { width: 56px; height: 56px; }
+      .ig-container.ig-side .action .btn.door, .ig-container.ig-side .action .btn.snd, .ig-container.ig-side .action .btn.qr { width: 56px; height: 56px; }
       .ig-container.ig-side .action .btn { background: linear-gradient(135deg, var(--ig-surf2), var(--ig-surf3)); backdrop-filter: none; box-shadow: none; }
       /* Low specificity ON PURPOSE: the state colours (.lbl.on-cyan/.on-green/.on-amber) must win. */
       .ig-side .lbl { color: var(--ig-muted); text-shadow: none; text-align: center; }
@@ -7017,8 +7272,8 @@ class IgDoorbellView extends HTMLElement {
       .ig-container.ig-side-compact .side-col .actions-row { gap: 8px; }
       .ig-container.ig-side-compact .action .btn.mic { width: 64px; height: 64px; }
       .ig-container.ig-side-compact .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
-      .ig-container.ig-side-compact .action .btn.door, .ig-container.ig-side-compact .action .btn.snd { width: 48px; height: 48px; }
-      .ig-container.ig-side-compact .action .btn.door ha-icon, .ig-container.ig-side-compact .action .btn.snd ha-icon { --mdc-icon-size: 20px; }
+      .ig-container.ig-side-compact .action .btn.door, .ig-container.ig-side-compact .action .btn.snd, .ig-container.ig-side-compact .action .btn.qr { width: 48px; height: 48px; }
+      .ig-container.ig-side-compact .action .btn.door ha-icon, .ig-container.ig-side-compact .action .btn.snd ha-icon, .ig-container.ig-side-compact .action .btn.qr ha-icon { --mdc-icon-size: 20px; }
       .ig-container.ig-side-compact .side-col .bottom-row { flex-direction: row; gap: 6px; }
       .ig-container.ig-side-compact .side-col .quick-btn.half { flex: 1 1 0; min-height: 44px; justify-content: center; padding: 6px 0; }
 
@@ -7067,12 +7322,12 @@ class IgDoorbellView extends HTMLElement {
       .ig-container.ig-split .stack-controls .action { max-width: 100%; gap: 4px; }
       .ig-container.ig-split .action .btn.mic { width: 56px; height: 56px; }
       .ig-container.ig-split .action .btn.mic ha-icon { --mdc-icon-size: 24px; }
-      .ig-container.ig-split .action .btn.door, .ig-container.ig-split .action .btn.snd { width: 48px; height: 48px; }
-      .ig-container.ig-split .action .btn.door ha-icon, .ig-container.ig-split .action .btn.snd ha-icon { --mdc-icon-size: 20px; }
+      .ig-container.ig-split .action .btn.door, .ig-container.ig-split .action .btn.snd, .ig-container.ig-split .action .btn.qr { width: 48px; height: 48px; }
+      .ig-container.ig-split .action .btn.door ha-icon, .ig-container.ig-split .action .btn.snd ha-icon, .ig-container.ig-split .action .btn.qr ha-icon { --mdc-icon-size: 20px; }
       .ig-container.ig-split-lbl .stack-controls .actions-row { gap: 10px; }
       .ig-container.ig-split-lbl .action .btn.mic { width: 64px; height: 64px; }
       .ig-container.ig-split-lbl .action .btn.mic ha-icon { --mdc-icon-size: 26px; }
-      .ig-container.ig-split-lbl .action .btn.door, .ig-container.ig-split-lbl .action .btn.snd { width: 52px; height: 52px; }
+      .ig-container.ig-split-lbl .action .btn.door, .ig-container.ig-split-lbl .action .btn.snd, .ig-container.ig-split-lbl .action .btn.qr { width: 52px; height: 52px; }
       .ig-container.ig-split .action .btn { background: linear-gradient(135deg, var(--ig-surf2), var(--ig-surf3)); backdrop-filter: none; box-shadow: none; }
       /* Low specificity ON PURPOSE (as .ig-side .lbl): the state colours must win. */
       .ig-split .lbl { color: var(--ig-muted); text-shadow: none; text-align: center; font-size: 11px; max-width: var(--ig-act-w, 88px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

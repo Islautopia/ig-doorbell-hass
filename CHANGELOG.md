@@ -6,6 +6,68 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] — unreleased
+
+Needs doorbell firmware **0.103.2** (0.103.1 for everything but *In call*). With an older firmware the new
+entities show as unavailable and the actions say the firmware is too old.
+
+### Added
+
+- **In call** binary sensor: on from the moment a ring is answered until the conversation ends — the person
+  who answered closes the microphone, leaves the live view or sends the app to the background, hangs up, or
+  drops, and nobody else takes over within 3 seconds. The doorbell itself reports the end (`call_finished`, a
+  new event type), and every poll corrects a lost notice. The last duration and how it ended are attributes.
+- **Quick reply** select and **Play quick reply** button. The list comes from the doorbell and follows the
+  app; picking one plays nothing, the button plays it.
+- **Firmware** update entity, read from the doorbell's own check (never from our servers). "Could not check"
+  shows as unknown, never as up to date. Administrator pairings can install; the doorbell downloads and
+  verifies the image itself, and the update is reported done only when it runs the new version.
+- `ig_doorbell.play_sequence` also takes the quick reply's **name** (`sequence`).
+
+### Changed
+
+- Quick replies, sequences and **Manual recording** use the doorbell's local route for them instead of a
+  signalling session. The recording switch now shows exactly what the doorbell records (a call's recording
+  too) and turns off by itself when the doorbell stops; it no longer ends when Home Assistant restarts.
+- Manual recording is unavailable, not failing, with a user pairing.
+
+## [1.3.0] — unreleased
+
+### Added
+
+- **Snapshot camera.** A still of the street for dashboards, notifications and voice devices. One
+  capture every 5 seconds at most, shared by every viewer; none while the doorbell rings (it shows
+  the ring's own picture instead), and none of the caller when the doorbell is set to send no
+  picture with a ring. No live stream: the live call stays in the card.
+- **Ringing** binary sensor, from the ring to its answer, decline or miss (with the outcome and who
+  answered). When no answer arrives, the doorbell is asked instead of guessing.
+- **The doorbell's settings as entities**, the same the apps change: image (brightness, contrast,
+  saturation, hue, black and white, exposure mode and compensation, manual exposure and gain),
+  timestamp and its position, detection per class with thresholds and minimum size, lock type,
+  door open time, opening from the car, the doorbell's name, and the video streams (disabled by
+  default). They need an administrator pairing and show as unavailable with any other.
+- **Restart** button (administrator pairings).
+- **Mode reason** sensor: why the doorbell is in its mode, and until when.
+- **Diagnostics**: SD card state, size and free space; Wi-Fi network and IP address; this pairing's
+  role; camera flips (read-only); and, disabled by default, memory, last start, last restart
+  reason and microphone gain (read-only).
+
+### Changed
+
+- **Opening the door is now a lock** (`lock.<doorbell>_door`) instead of the *Open door* button,
+  which is removed. Home Assistant asks for confirmation before opening. Unlock releases the door
+  for the open time set on the doorbell and it reports locked again by itself. Automations that
+  pressed `button.<doorbell>_open_door` must call `lock.unlock` (or `lock.open`) instead.
+- The privacy sentence: *we never store an image or a sound*. A still or clip that you save in your
+  own Home Assistant is your copy.
+
+### Fixed
+
+- Opening the door through a Home Assistant entity could be reported as failed after 8 seconds
+  when the doorbell was still waiting (up to ~9 s) for Home Assistant to confirm it.
+- The doorbell can no longer be pointed at one of this integration's own entities (its own lock
+  would loop back to the doorbell); they are left out of the entity picker and refused if asked.
+
 ## [1.2.4] — unreleased
 
 ### Fixed

@@ -93,11 +93,10 @@ function newCard() {
   // simulation would "find" something visible that in the real card is hidden from the start.
   c.clientsPill = fakeEl(); c.clientsPill.style.display = 'none';
   c.clientsCount = fakeEl();
-  c.qualityCtl = fakeEl(); c.qualityCtl.style.display = 'none';
-  c.qualityBtn = fakeEl();
-  c.qualityIcon = fakeEl();
-  c.qualityLabel = fakeEl();
-  c.qualityMenu = fakeEl();
+  // The permanent quality selector (qualityCtl/qualityBtn/qualityMenu...) was retired in 1.9.2 and
+  // its last dead querySelectors removed on 2026-09-29 (see docs/card.md, 1.4.1): what's left is
+  // the temporary chip, qualityToast - see _showQualityChip().
+  c.qualityToast = fakeEl();
   // Real getUserMedia doesn't exist here: _startTalk falls into its catch. It's replaced with a double
   // that only marks the logical state, which is what this simulation wants to verify.
   c._startTalk = async () => {
@@ -109,7 +108,8 @@ function newCard() {
     talkActive: false, _slot: null, _talkHeld: false, _talkPending: false, _talkTimer: null,
     _talkGrantedAt: 0, _talkUnsupported: false, _listenOnly: false, _talkerSlot: -1,
     _clients: null, _quality: 'auto', _qualityEffective: null, _qualitySupported: null,
-    _qualityProbeTimer: null, _qualityProbeAttempts: 0, _qualityMenuOpen: false,
+    _qualityProbeTimer: null, _qualityProbeAttempts: 0,
+    _qualityChipLastAt: 0, _qualityChipLastKey: null, _qualityChipHideTimer: null,
     localAudioStream: null, dummyAudioTrack: { id: 'dummy' }, audioTransceiver: null, pc: {},
   });
   return c;
@@ -193,23 +193,36 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('2nd tap is INSTANT (no new talk_request)',
     c.talkActive === true && !c.sent.slice(sentBefore).some((m) => m.type === 'talk_request'));
 
-  console.log('\n== 6. Quality: probe, confirmation and automatic changes ==');
+  console.log('\n== 6. Quality: probe, confirmation, and the temporary chip on a real tier change ==');
+  // 2026-09-29 (docs/card.md 1.4.1): the permanent selector is gone (retired 1.9.2, its last dead
+  // querySelectors removed now) - what's left of the UI is the temporary chip, only on a REAL
+  // tier change, never on the session's first confirmation. See _maybeShowQualityChip().
   c = newCard();
   c._slot = 0;
   c._probeQualitySupport();
   check('"auto" probe sent on startup', c.sent.some((m) => m.type === 'quality' && m.mode === 'auto'));
-  check('selector HIDDEN until confirmed', c.qualityCtl.style.display === 'none');
+  check('no chip before any confirmation', !c.qualityToast.classList.contains('show'));
   await c.handleNativeSignal({ type: 'quality_state', slot: 0, mode: 'auto', reason: 'user' });
-  check('selector visible after the first quality_state', c.qualityCtl.style.display === 'block');
   check('marked as supported', c._qualitySupported === true);
+  check('no chip on the session\'s FIRST quality_state (nothing perceived as "changing" yet)', !c.qualityToast.classList.contains('show'));
   c._sendQuality('low');
   check('manual change sent', c.sent.some((m) => m.type === 'quality' && m.mode === 'low'));
   await c.handleNativeSignal({ type: 'quality_state', slot: 0, mode: 'low', reason: 'user' });
   check('effective mode updated', c._qualityEffective === 'low');
+  check('real degrade (still video) shows chip_quality_down', c.qualityToast.classList.contains('show') && c.qualityToast.textContent === 'Calidad reducida — conexión lenta');
+  // Same mode, different reason: no state change, so no chip - the debounce below isn't even
+  // reached because _maybeShowQualityChip() is never called for a same-tier repeat.
   await c.handleNativeSignal({ type: 'quality_state', slot: 0, mode: 'low', reason: 'auto_loss' });
-  check('automatic change explained with its reason', c._flashes.includes('q_auto_loss'));
+  check('a same-mode quality_state (only the reason differs) shows no new chip', c._qualityEffective === 'low');
+  // Debounce reset (2026-09-29 spec: >= 5s between chips) so THIS transition is judged on its own
+  // merits, not swallowed by the chip just shown above - the 5s cooldown itself is a real-timer
+  // browser concern, covered end-to-end in tests/card/advanced_mode/driver.js.
+  c._qualityChipLastAt = 0;
   await c.handleNativeSignal({ type: 'quality_state', slot: 0, mode: 'audio_only', reason: 'auto_bandwidth' });
-  check('bandwidth reason explained', c._flashes.includes('q_auto_bw'));
+  check('drop to audio-only shows chip_audio_only', c.qualityToast.classList.contains('show') && c.qualityToast.textContent === 'Solo audio — conexión demasiado lenta para vídeo');
+  c._qualityChipLastAt = 0;
+  await c.handleNativeSignal({ type: 'quality_state', slot: 0, mode: 'full', reason: 'user' });
+  check('recovery from audio-only shows chip_video_back', c.qualityToast.classList.contains('show') && c.qualityToast.textContent === 'Vídeo de vuelta');
 
   console.log('\n== 7. Quality with OLD FIRMWARE (nobody answers) ==');
   c = newCard();
@@ -218,7 +231,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(8600); // 2 attempts x 4s
   check('retry before giving up', c.sent.filter((m) => m.type === 'quality').length === 2);
   check('marked as NOT supported', c._qualitySupported === false);
-  check('selector hidden, no dead button', c.qualityCtl.style.display === 'none');
+  check('no chip, no dead button', !c.qualityToast.classList.contains('show'));
   check('no notices bothering the user', c._flashes.length === 0);
 
   console.log('\n== 8. Life watchdog in audio_only (must not loop-reconnect) ==');

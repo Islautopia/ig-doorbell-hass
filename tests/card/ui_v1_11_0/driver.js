@@ -113,6 +113,12 @@ const ORIENTS = { portrait: { w: 1080, h: 1920 }, near_square: { w: 1080, h: 120
 // ---- in-page helpers --------------------------------------------------------------------------
 function pageMount({ kind, sim }) {
   window.tReset();
+  // (2026-09-29) tReset() clears ALL of localStorage (ui_v1_10_0/harness.js), which wipes the
+  // 'advanced' choice the addInitScript in run() set for this whole matrix - re-assert it on
+  // every mount. Without this the FIRST pageMount() call already drops the card back to simple
+  // mode (top-row/#bottom-row hidden, only 3+compact buttons in a stack), which this matrix isn't
+  // testing and isn't sized for at every breakpoint.
+  try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ }
   // The narrow case uses a long doorbell name, like the real 'Doorbell Waveshare' that exposed the squeeze.
   window.__db.aaaa1111.name = kind === 'narrow' ? 'Doorbell Waveshare Front' : 'Ermita 10';
   window.tRebuild();
@@ -256,6 +262,11 @@ async function run(browser, variant) {
   const body = variant === 'real' ? null : mutate(fs.readFileSync(DIST, 'utf8'), variant);
   for (const touch of [true, false]) {
     const ctx = await browser.newContext({ viewport: { width: 800, height: 800 }, isMobile: touch, hasTouch: touch, deviceScaleFactor: 1 });
+    // Advanced mode (2026-09-29): default is simple, which would drop the picker/REC/Recordings/
+    // Quick-replies/bell out of the `ids` whitelist pageMeasure() checks (L4 needs >= 8 visible
+    // reachable controls) - force Advanced ON, this whole matrix is about the layout, not the new
+    // toggle (which has its own bench). Harmless against an older CARD_FILE/mutant build.
+    await ctx.addInitScript(() => { try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ } });
     const page = await ctx.newPage();
     if (!body && CARD_FILE) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(CARD_FILE, 'utf8') }));
     if (body) await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));

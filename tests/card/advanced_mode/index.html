@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>advanced_mode harness (simple/advanced live view, network doubled)</title></head>
+<body>
+  <div id="host"></div>
+  <!-- Loads the REAL dist/ file (not a copy). Only fetch/EventSource/WebSocket and the
+       hass.connection.sendMessagePromise bridge are doubled - same criterion as
+       tests/card/ui_v1_9_2, so the real card can be built and attached with no real Home
+       Assistant or doorbell in front of it. -->
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+  <script src="harness.js"></script>
+</body>
+</html>

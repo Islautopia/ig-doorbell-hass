@@ -25,6 +25,10 @@ function check(label, cond) {
 
 async function newPage(browser, viewport) {
   const page = await browser.newPage({ viewport });
+  // Advanced mode (2026-09-29): default is simple, which hides Quick replies/Recordings/REC -
+  // force Advanced ON, this suite is about the advanced feature set. See ui_v1_9_2/driver.js.
+  // Harmless against the older CARD_FILE control build: it predates the key and ignores it.
+  await page.addInitScript(() => { try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ } });
   if (CARD_FILE) {
     await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(CARD_FILE, 'utf8') }));
   }
