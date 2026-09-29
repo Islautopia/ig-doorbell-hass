@@ -6,7 +6,25 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.4.0] — unreleased
+## [1.4.3] — 2026-09-29
+
+First published release since 1.1.2: it also ships everything listed under 1.2.0–1.4.0 below, which were never
+released on their own. Needs doorbell firmware **0.103.2** or later for every entity (0.105.1 recommended).
+
+### Added
+
+- **Simple live view in the card**, the default: the picture, Listen, Microphone and Door, and a wide
+  **Quick replies** button. The **Advanced** button (sliders icon, next to full screen on the picture) brings
+  back the full view: doorbell picker, mode, bell, recordings and REC. The choice is remembered per browser.
+- A short notice over the picture when the stream quality changes, and why (slow connection, audio only,
+  restored). The permanent quality chip is gone.
+
+### Changed
+
+- The viewers counter and the IG Doorbell logo show in both simple and advanced mode.
+- Full screen shows Listen, Microphone, Door and Quick replies.
+
+## [1.4.0] — shipped in 1.4.3
 
 Needs doorbell firmware **0.103.2** (0.103.1 for everything but *In call*). With an older firmware the new
 entities show as unavailable and the actions say the firmware is too old.
@@ -31,7 +49,7 @@ entities show as unavailable and the actions say the firmware is too old.
   too) and turns off by itself when the doorbell stops; it no longer ends when Home Assistant restarts.
 - Manual recording is unavailable, not failing, with a user pairing.
 
-## [1.3.0] — unreleased
+## [1.3.0] — shipped in 1.4.3
 
 ### Added
 
@@ -68,7 +86,7 @@ entities show as unavailable and the actions say the firmware is too old.
 - The doorbell can no longer be pointed at one of this integration's own entities (its own lock
   would loop back to the doorbell); they are left out of the entity picker and refused if asked.
 
-## [1.2.4] — unreleased
+## [1.2.4] — shipped in 1.4.3
 
 ### Fixed
 
@@ -79,7 +97,7 @@ entities show as unavailable and the actions say the firmware is too old.
   first time the call page is opened from that panel's own ring notification. A computer, a phone
   or a device that cannot be identified is never treated as a panel.
 
-## [1.2.3] — unreleased
+## [1.2.3] — shipped in 1.4.3
 
 ### Fixed
 
@@ -93,7 +111,7 @@ entities show as unavailable and the actions say the firmware is too old.
   never navigates a page the user went to by hand, and a page keeps a single back-home timer even
   with several cards on it.
 
-## [1.2.2] — unreleased
+## [1.2.2] — shipped in 1.4.3
 
 ### Fixed
 
@@ -115,7 +133,7 @@ entities show as unavailable and the actions say the firmware is too old.
   showed a different doorbell. It now says "This doorbell isn't set up in Home Assistant", with no
   video and no microphone. The Home Assistant device id is also accepted.
 
-## [1.2.1] — unreleased
+## [1.2.1] — shipped in 1.4.3
 
 ### Fixed
 
@@ -127,7 +145,7 @@ entities show as unavailable and the actions say the firmware is too old.
   fresh each time, and the call page loads the card itself. With dashboards in YAML resource mode
   nothing changes.
 
-## [1.2.0] — unreleased
+## [1.2.0] — shipped in 1.4.3
 
 ### Added
 
