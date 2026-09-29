@@ -165,5 +165,34 @@ window.tLayoutInfo = function (id) {
   const layouts = ['ig-stack', 'ig-side', 'ig-split'].filter((k) => c.classList.contains(k));
   return { layouts, feedH: view.feedWrap.getBoundingClientRect().height, cls: c.className };
 };
+// Constrains #host's own width (independent of the viewport) to simulate a narrow Sections/
+// Masonry column on an otherwise wide screen - the card is `display:block; width:100%`, so its
+// own width just follows whatever #host gives it. Pass a falsy value to remove the constraint.
+window.tSetHostWidth = function (px) {
+  document.getElementById('host').style.width = px ? px + 'px' : '';
+};
+// Direct reproduction of the "5 buttons in one row" bug (card_simple.png, fixed 2026-09-29,
+// canonical layout §4): the round-button row (and the wide Quick-replies row) never get a
+// scrollbar - their ancestors either clip with `overflow:hidden` (.feed-wrap) or don't constrain
+// width at all - so a row too wide for its box doesn't scroll, it just renders some of its
+// children PARTIALLY OUTSIDE that box ("Escuchar"/"Respuestas rápidas" clipped at the edges).
+// `scrollWidth` is unreliable here (browsers don't consistently report overflow past a box with
+// `overflow: visible`), so this checks actual geometry instead: every visible child of `selector`
+// must stay fully within `boundsSelector`'s own rendered box.
+window.tRowClipped = function (id, selector, boundsSelector) {
+  const card = window.__cards[id];
+  const bounds = card && card.querySelector(boundsSelector);
+  const row = card && card.querySelector(selector);
+  if (!bounds || !row) return false;
+  const b = bounds.getBoundingClientRect();
+  const items = Array.from(row.children).filter((el) => {
+    const cs = getComputedStyle(el);
+    return cs.display !== 'none' && el.offsetWidth > 0;
+  });
+  return items.some((el) => {
+    const r = el.getBoundingClientRect();
+    return r.left < b.left - 0.5 || r.right > b.right + 0.5;
+  });
+};
 
 log('harness ready');

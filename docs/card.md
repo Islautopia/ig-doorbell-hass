@@ -10,6 +10,47 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.2 (2026-09-29): Canonical layout - fixes the 5-buttons-in-one-row overflow
+
+Coordinator addendum to the spec below, written the same day after comparing the first
+screenshots of all three clients (`spec_modo_avanzado.md` §4, "Canonical layout" - overrides the
+1.4.1 wording). Card-only change; iOS/Android get the matching fix separately.
+
+- **Bug fixed**: at phone width, simple mode's `.actions-row` held 5 round buttons (sound/mic/door
+  + compact REC + compact Quick-replies) and the row didn't fit - "Escuchar"/"Respuestas rápidas"
+  rendered clipped at the edges (`card_simple.png` before this fix).
+- **Simple mode's main row is now EXACTLY the three round buttons** (sound/mic/door), same as
+  advanced mode - never a 4th or 5th. There is **no compact REC any more, anywhere** (canonical
+  layout §4 point 3, Iñaki: "menos es más" - a call is already recorded without pressing REC): the
+  `#rec-action-compact` element is gone from the markup entirely, not just hidden.
+- **Quick replies moves to a wide row below the main buttons in simple mode too** - the SAME
+  `#bottom-row`/`qrButton` advanced mode uses, with Recordings force-hidden inside it
+  (`_updateRecordingsButton()`: `visible = isAdmin && !simple`, no Recordings in simple mode even
+  for an admin). The lone visible button fills the width for free via the pre-existing `flex: 1`
+  rule on `.quick-btn.half` - no new CSS needed for that part.
+- **Fullscreen unchanged in spirit but now precisely scoped**: keeps sound/mic/door plus a compact
+  Quick-replies icon action only (it has no wide row below the video to use instead) - it never had
+  REC before this whole feature existed (1.4.0 and earlier), so none was added.
+  `_isCompactActionsContext()` now means "fullscreen" (was "`!advanced || fullscreen`").
+- **`_planLayout()`'s space estimate had a landmine**: `hasBottom` was computed as `!simple && ...`,
+  a leftover from when `#bottom-row` really was fully hidden in simple mode. Once simple mode
+  started showing it too (this same change), the estimate silently under-reserved space for a row
+  that WAS actually there, and simple mode's video came out smaller than advanced's at some sizes -
+  caught by the pre-existing `tests/card/advanced_mode` L2 check going red during this work. Fixed
+  by reading `#bottom-row`'s real visibility instead of assuming it from `simple` (`topH` still
+  correctly assumes `simple -> 0`, that invariant didn't change).
+- Dead CSS cleaned up: every `.btn.rec` selector (there is no element with that class any more).
+- **Verification.** `tests/card/advanced_mode/driver.js` rewritten for the new shape: A3 checks the
+  main row is exactly 3 buttons, A4/A5 check the wide Quick-replies row and the absence of REC
+  anywhere in simple mode (including a DOM-absence check for `#rec-action-compact`, not just
+  hidden), AD/F sections drop the retired REC-compact assertions. New O1-O3 checks
+  (`tRowClipped()` in harness.js, comparing each visible child's `getBoundingClientRect()` against
+  its container's - `scrollWidth` was rejected as unreliable for an `overflow: visible` flex row):
+  no clipping at 320px width, both as the real viewport and as a narrow host width simulating a
+  Sections/Masonry column, across simple/advanced/fullscreen. Validated as a real instrument before
+  trusting it: run against a copy of the pre-fix 1.4.1 card, it correctly reported clipping with
+  all 5 old buttons visible. `run_all.js`: 20/20 green. pytest (`igd-test` image): 180/180 green.
+
 ## 1.4.1 (2026-09-29): Simple mode by default, Advanced toggle, no fixed quality chip
 
 Shared spec with the iOS/Android apps ("Live view: simple mode by default, 'Advanced' toggle, no

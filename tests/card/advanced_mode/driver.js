@@ -1,21 +1,33 @@
 // Real-browser check of the 2026-09-29 "simple/advanced live view, no fixed quality chip" change
-// (spec shared with the iOS/Android apps). Loads the REAL dist/ file; harness.js only doubles the
-// network layer, same criterion as tests/card/ui_v1_9_2.
+// (spec shared with the iOS/Android apps), UPDATED the same day for the coordinator's "canonical
+// layout" addendum (spec §4, written after comparing the first screenshots): simple mode's main
+// row must be EXACTLY the three round buttons (sound/mic/door), Quick replies moves to a wide row
+// below them (same #bottom-row advanced mode uses, Recordings force-hidden), and REC never has a
+// compact copy anywhere any more (not in simple mode, not in fullscreen - it never had one there
+// before this feature existed either). The ORIGINAL 5-buttons-in-one-row layout (sound/mic/door +
+// compact REC + compact Quick-replies) overflowed at phone width - see card_simple.png before this
+// fix: "Escuchar"/"Respuestas rápidas" clipped at the edges.
+//
+// Loads the REAL dist/ file; harness.js only doubles the network layer, same criterion as
+// tests/card/ui_v1_9_2.
 //
 // RUN: cd tests/card && npm install && node run_all.js       (serves the repo itself)
 // Standalone (from the worktree root): python -m http.server 8799, then node advanced_mode/driver.js
 //
 // CHECKS:
-//   A1-A4  default is simple with no localStorage: header/#bottom-row/viewers pill hidden, the
-//          three main buttons + compact REC/Quick-replies + Advanced stay, no permanent quality
-//          indicator survives anywhere (#hud-quality never existed).
+//   A1-A7  default is simple with no localStorage: header hidden, viewers pill hidden, the three
+//          main buttons only (no compact anything) shown, a wide Quick-replies row below them
+//          (Recordings force-hidden even for an admin), REC absent everywhere (no header pill, no
+//          compact copy - the element itself no longer exists), Advanced button shown, no
+//          permanent quality indicator survives anywhere (#hud-quality never existed).
 //   P1-P2  the Advanced choice persists in localStorage across a rebuild of the element (the
 //          card's own model of "restart" - see ui_v1_10_0, which reuses this same idea).
-//   AD1-AD2 Advanced mode shows the header/#bottom-row and hides the compact copies (no duplicate
-//          controls).
+//   AD1-AD2 Advanced mode shows the header/#bottom-row (Recordings back too) and hides the
+//          compact Quick-replies copy (no duplicate controls).
 //   F1-F3  fullscreen is unaffected by the toggle (Advanced button hidden, header/#bottom-row
-//          stay hidden) but gains the compact REC/Quick-replies regardless of simple/advanced -
-//          fullscreen never had them before either.
+//          stay hidden) but gains the compact Quick-replies action regardless of simple/advanced -
+//          fullscreen never had another way to reach it. REC never appears there either (no
+//          compact copy exists, same rule as simple mode).
 //   Q1-Q6  the temporary quality chip: silent on the session's first quality_state, shows on a
 //          real tier change with the right translated text, fades after ~4s, debounces a second
 //          transition inside 5s, and shows the next real one once the cooldown has passed. A
@@ -23,6 +35,14 @@
 //   L1-L2  layout dimension: the same stream/viewport is measured in both modes at two sizes
 //          (wide -> side/overlay, narrow -> stack); at most one layout class applies in both, and
 //          simple mode's video is never smaller (removing the header can only give it more room).
+//   O1-O3  no overflow/clipping at 320px width, both as the real viewport AND as a narrow
+//          Sections/Masonry column on an otherwise wide screen (spec §4, last line) - in simple,
+//          advanced and fullscreen. Validated as a real instrument, not just written and trusted:
+//          run once against the pre-fix 1.4.1 card (fixtures would need a CARD_FILE hook this
+//          bench doesn't have; verified instead with an ad-hoc copy during development) with the
+//          same check and it correctly reported clipping with all 5 old buttons visible - see
+//          tRowClipped()'s own comment in harness.js for why scrollWidth was rejected as the
+//          measurement.
 const { chromium } = require('playwright-core');
 
 const EXE = process.env.PLAYWRIGHT_CHROMIUM_PATH
@@ -65,39 +85,47 @@ async function main() {
   }));
   check('A1: starts in simple mode (no stored preference)', a1.simpleClass === true && a1.advanced === false);
   check('A2: header (#top-row) hidden', !(await ev(() => window.tVisible('a', '#top-row'))));
-  check('A2: wide Recordings/Quick-replies row (#bottom-row) hidden', !(await ev(() => window.tVisible('a', '#bottom-row'))));
   check('A2: viewers pill (.clients-pill) hidden', !(await ev(() => window.tVisible('a', '.clients-pill'))));
-  check('A3: sound/mic/door still shown', await ev(() => window.tVisible('a', '#snd-btn') && window.tVisible('a', '#mic-button') && window.tVisible('a', '#unlock-button')));
-  check('A3: compact REC shown (admin role + rec entity present)', await ev(() => window.tVisible('a', '#rec-action-compact')));
-  check('A3: compact Quick replies shown', await ev(() => window.tVisible('a', '#qr-action-compact')));
-  check('A3: Advanced button shown, not highlighted', await ev(() => window.tVisible('a', '#adv-btn') && !window.tView('a').advBtn.classList.contains('on')));
-  check('A4: no permanent quality indicator exists anywhere (#hud-quality/#q-btn/#q-menu)', await ev(() =>
+  check('A3: main row shows exactly sound/mic/door - never a 4th or 5th round button',
+    await ev(() => {
+      const row = window.tView('a').querySelector('.actions-row');
+      const visible = Array.from(row.children).filter((el) => getComputedStyle(el).display !== 'none');
+      return visible.length === 3 && window.tVisible('a', '#snd-btn') && window.tVisible('a', '#mic-button') && window.tVisible('a', '#unlock-button');
+    }));
+  check('A4: wide "Quick replies" row (#bottom-row) shown, filling the width', await ev(() => window.tVisible('a', '#bottom-row') && window.tVisible('a', '#qr-button')));
+  check('A4: Recordings hidden inside it even for an admin pairing (canonical layout §4: "no Recordings" in simple mode)',
+    !(await ev(() => window.tVisible('a', '#recordings-button'))));
+  check('A5: no REC anywhere in simple mode, even for an admin pairing ("menos es más" - Iñaki, 2026-09-29)',
+    !(await ev(() => window.tVisible('a', '#rec-action'))));
+  check('A5: no compact REC element exists in the DOM at all (removed entirely, not just hidden)',
+    await ev(() => !window.tView('a').querySelector('#rec-action-compact')));
+  check('A6: Advanced button shown, not highlighted', await ev(() => window.tVisible('a', '#adv-btn') && !window.tView('a').advBtn.classList.contains('on')));
+  check('A7: no permanent quality indicator exists anywhere (#hud-quality/#q-btn/#q-menu)', await ev(() =>
     !window.tView('a').querySelector('#hud-quality') && !window.tView('a').querySelector('#q-btn') && !window.tView('a').querySelector('#q-menu')));
 
-  console.log('\n########## 2. Advanced ON: header/#bottom-row back, compact actions hide ##########');
+  console.log('\n########## 2. Advanced ON: header/#bottom-row (with Recordings) back, compact Quick replies hides ##########');
   await ev(() => window.tClick('a', '#adv-btn'));
   await sleep(50);
   check('AD1: header shown', await ev(() => window.tVisible('a', '#top-row')));
-  check('AD1: #bottom-row shown', await ev(() => window.tVisible('a', '#bottom-row')));
+  check('AD1: #bottom-row shown, Recordings back now that role is admin', await ev(() => window.tVisible('a', '#bottom-row') && window.tVisible('a', '#recordings-button')));
   check('AD1: Advanced button highlighted', await ev(() => window.tView('a').advBtn.classList.contains('on')));
-  check('AD2: compact REC hidden (header pill already covers it)', !(await ev(() => window.tVisible('a', '#rec-action-compact'))));
   check('AD2: compact Quick replies hidden (#bottom-row already covers it)', !(await ev(() => window.tVisible('a', '#qr-action-compact'))));
-  check('AD2: no duplicate REC/Quick-replies visible at once', await ev(() => {
+  check('AD2: no duplicate Quick-replies visible at once (REC has no compact copy to duplicate any more)', await ev(() => {
     const v = window.tView('a');
-    const recCount = [v.querySelector('#rec-action'), v.querySelector('#rec-action-compact')].filter((el) => el && window.tVisible('a', '#' + el.id)).length;
     const qrCount = [v.querySelector('#bottom-row'), v.querySelector('#qr-action-compact')].filter((el) => el && window.tVisible('a', '#' + el.id)).length;
-    return recCount === 1 && qrCount === 1;
+    return qrCount === 1;
   }));
 
-  console.log('\n########## 3. Fullscreen: unaffected by the toggle, gains the compact actions ##########');
+  console.log('\n########## 3. Fullscreen: unaffected by the toggle, gains compact Quick replies only (never REC) ##########');
   await ev(() => window.tSetFullscreen('a', true));
   check('F1: Advanced button hidden in fullscreen', !(await ev(() => window.tVisible('a', '#adv-btn'))));
   check('F1: header/#bottom-row still hidden in fullscreen (pre-existing .ig-fs rule)', !(await ev(() => window.tVisible('a', '#top-row') || window.tVisible('a', '#bottom-row'))));
-  check('F2: compact REC shown in fullscreen even though Advanced is ON', await ev(() => window.tVisible('a', '#rec-action-compact')));
   check('F2: compact Quick replies shown in fullscreen even though Advanced is ON', await ev(() => window.tVisible('a', '#qr-action-compact')));
+  check('F2: REC never appears in fullscreen - no compact copy exists, and the header pill stays hidden',
+    await ev(() => !window.tView('a').querySelector('#rec-action-compact') && !window.tVisible('a', '#rec-action')));
   await ev(() => window.tSetFullscreen('a', false));
-  check('F3: leaving fullscreen restores Advanced-mode visibility (Advanced button back, compact actions hidden again)',
-    await ev(() => window.tVisible('a', '#adv-btn') && !window.tVisible('a', '#rec-action-compact')));
+  check('F3: leaving fullscreen restores Advanced-mode visibility (Advanced button back, compact Quick replies hidden again)',
+    await ev(() => window.tVisible('a', '#adv-btn') && !window.tVisible('a', '#qr-action-compact')));
   await ev(() => window.tClick('a', '#adv-btn')); // back to simple, for the persistence check below
 
   console.log('\n########## 4. Persistence across a rebuild (the card\'s own model of "restart") ##########');
@@ -159,6 +187,37 @@ async function main() {
     check(`L1: ${label}: at most one layout class in simple (${infoS.layouts.join(',') || 'overlay'})`, infoS.layouts.length <= 1);
     check(`L1: ${label}: at most one layout class in advanced (${infoV.layouts.join(',') || 'overlay'})`, infoV.layouts.length <= 1);
     check(`L2: ${label}: simple's video is not smaller than advanced's (${Math.round(infoS.feedH)} vs ${Math.round(infoV.feedH)})`, infoS.feedH >= infoV.feedH - 1);
+  }
+
+  console.log('\n########## 7. No overflow/clipping at 320px - real viewport AND a narrow column ##########');
+  // Reproduces the fixed bug directly: at card_simple.png's width the OLD 5-button row rendered
+  // sound/mic/door + compact REC + compact Quick-replies with "Escuchar"/"Respuestas rápidas"
+  // clipped at the edges (tRowClipped() against a pre-fix copy of the card confirms this check
+  // goes RED there - see this file's header comment). Runs fresh, in simple mode.
+  await ev(() => { window.tCreateCard('o', {}); window.tAttach('o'); });
+  await sleep(200);
+  const scenarios = [
+    ['320px viewport', async () => page.setViewportSize({ width: 320, height: 640 })],
+    ['320px column inside a wide viewport (Sections/Masonry)', async () => {
+      await page.setViewportSize({ width: 900, height: 700 });
+      await ev(() => window.tSetHostWidth(320));
+    }],
+  ];
+  for (const [label, setup] of scenarios) {
+    await setup();
+    await sleep(100);
+    check(`O1: ${label}: simple mode's main row (sound/mic/door) is not clipped`, !(await ev(() => window.tRowClipped('o', '.actions-row', '.feed-wrap'))));
+    check(`O1: ${label}: simple mode's wide Quick-replies row is not clipped`, !(await ev(() => window.tRowClipped('o', '#bottom-row', '.ig-container'))));
+    await ev(() => window.tClick('o', '#adv-btn'));
+    await sleep(50);
+    check(`O2: ${label}: advanced mode's main row is not clipped`, !(await ev(() => window.tRowClipped('o', '.actions-row', '.feed-wrap'))));
+    check(`O2: ${label}: advanced mode's #bottom-row (Recordings + Quick replies) is not clipped`, !(await ev(() => window.tRowClipped('o', '#bottom-row', '.ig-container'))));
+    await ev(() => window.tSetFullscreen('o', true));
+    await sleep(50);
+    check(`O3: ${label}: fullscreen's main row (sound/mic/door + compact Quick replies) is not clipped`, !(await ev(() => window.tRowClipped('o', '.actions-row', '.feed-wrap'))));
+    await ev(() => window.tSetFullscreen('o', false));
+    await ev(() => window.tClick('o', '#adv-btn')); // back to simple for the next scenario
+    await ev(() => window.tSetHostWidth(null)); // undo the narrow-column constraint if it was set
   }
 
   await browser.close();
