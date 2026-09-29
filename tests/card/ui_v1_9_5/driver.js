@@ -22,6 +22,9 @@ function check(label, cond) {
 
 async function newPage(browser) {
   const page = await browser.newPage();
+  // Advanced mode (2026-09-29): default is simple, which hides REC/mode-chip/Recordings - force
+  // Advanced ON, this suite is about the advanced feature set. See ui_v1_9_2/driver.js.
+  await page.addInitScript(() => { try { localStorage.setItem('ig-doorbell-advanced', '1'); } catch (e) { /* ignore */ } });
   page.on('console', (msg) => {
     const t = msg.text();
     if (t.startsWith('TESTLOG')) console.log(t.replace(/^TESTLOG /, ''));

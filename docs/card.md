@@ -10,6 +10,53 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.1 (2026-09-29): Simple mode by default, Advanced toggle, no fixed quality chip
+
+Shared spec with the iOS/Android apps ("Live view: simple mode by default, 'Advanced' toggle, no
+fixed quality chip", Iñaki 2026-09-29). Applies ONLY to the live view - no other screen changed.
+
+- **Simple mode (default, per-browser, `localStorage['ig-doorbell-advanced']`, try/catch)**: the
+  live view shows only sound/mic/door + REC (admin) + Quick replies (Iñaki's later clarification:
+  "Quick replies are part of simple mode too") + the new Advanced button. Hidden: doorbell picker,
+  mode chip, viewers pill (`.clients-pill`), Recordings, the bell - `#top-row`/`#bottom-row` are
+  CSS-hidden under a new `.ig-simple` class (`_applyModeVisibility()`), computed as `!advanced &&
+  !fullscreen`. The card has no pairing flow, so unlike the apps it never starts in Advanced -
+  always the remembered per-browser choice, default simple.
+- **Advanced button** (`#adv-btn`, `mdi:tune-variant`, bottom-right HUD next to fullscreen):
+  toggles `_advanced`, highlighted (`.on`) when ON, hidden in fullscreen by CSS - fullscreen is
+  unaffected by the toggle (spec: "full-screen view stays as it is").
+- **REC and Quick replies gained a compact copy** in `.actions-row` (same handlers as the header
+  pill / wide `#bottom-row` button, `_isCompactActionsContext()` = `!advanced || fullscreen`):
+  fullscreen never had either control before (both lived in `#top-row`/`#bottom-row`, which it
+  already hid), so this also fixes that pre-existing gap, not just simple mode.
+- **The permanent quality selector's last remnants removed** (dead since 1.9.2 - see that entry:
+  the markup was already gone, only `_renderQualityMenu`/`_toggleQualityMenu`/`_paintQuality` and
+  their `#hud-quality`/`#q-*` querySelectors survived, always resolving to `null`). Replaced by a
+  **temporary chip** (`.quality-toast`, top-centre, ~4s fade, `_showQualityChip()`), shown only on
+  a real tier change of `quality_state.mode` (`_maybeShowQualityChip()`, tier 2=full/auto,
+  1=low, 0=audio_only) - never on the session's first confirmation, debounced >= 5s between chips.
+  Mapping: tier drop to 0 -> `chip_audio_only`; drop but >= 1 -> `chip_quality_down`; rise from 0
+  -> `chip_video_back`; rise from >= 1 -> `chip_quality_restored`. No new firmware signal: same
+  `quality_state` the retired selector already consumed.
+- `_planLayout()` made simple-mode aware (`topH`/`hasBottom` = 0 when simple, non-fullscreen):
+  without it the estimate still reserved ~34-44px for the invisible header. Fullscreen already
+  short-circuits to a fixed plan before `_planLayout` runs, so `!this._advanced` alone means true
+  simple mode there.
+- 7 new translation keys x 6 languages (`adv_label`/`adv_off`/`adv_on`,
+  `chip_quality_down`/`chip_quality_restored`/`chip_audio_only`/`chip_video_back`).
+- **Verification.** `tests/card/advanced_mode/driver.js` (new): default simple with no
+  localStorage, persistence across a rebuild, `.ig-simple` hides top-row/bottom-row/clients-pill
+  and shows the compact REC/Quick-replies actions, Advanced hides in fullscreen, the quality chip
+  appears on a simulated `quality_state` tier change and fades after ~4s, the 5s debounce drops a
+  second transition arriving immediately after, and a same-tier `quality_state` (e.g. `auto` while
+  already `full`) shows nothing. Layout dimension: the same stream/size is measured in both modes
+  at stack/overlay/side width; simple mode's video is never smaller than advanced's at the same
+  size, and exactly one layout class applies in both (reuses `_planLayout`'s existing invariants,
+  not a second engine). The six pre-existing offline suites that exercise the advanced-only
+  controls (`ui_v1_9_2/_5/_7/_8`, `ui_v1_10_0`, `ui_v1_11_0`) now force `advanced=1` via
+  `page.addInitScript()` in their setup - they are about that feature set, not the new toggle.
+  `run_all.js` unchanged in structure; `advanced_mode` added to its `JOBS`.
+
 ## 1.4.0 (2026-09-28): no card code change; REC now reads the doorbell's own `rec`
 
 The card is unchanged except `CARD_VERSION`. Its REC button still follows the `switch` with translation key

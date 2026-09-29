@@ -71,6 +71,7 @@ const JOBS = [
   { name: 'ui_v1_9_8', bench: 'ui_v1_9_8', args: ['ui_v1_9_8/driver.js'], expect: 0 },
   { name: 'ui_v1_9_7', bench: 'ui_v1_9_7', args: ['ui_v1_9_7/driver.js'], expect: 0 },
   { name: 'ui_v1_9_5', bench: 'ui_v1_9_5', args: ['ui_v1_9_5/driver.js'], expect: 0 },
+  { name: 'advanced_mode', bench: 'advanced_mode', args: ['advanced_mode/driver.js'], expect: 0 },
   { name: 'ui_v1_9_2', bench: 'ui_v1_9_2', args: ['ui_v1_9_2/driver.js'], expect: 0 },
   { name: 'mount_sessions (+ mutants X1-X3)', bench: 'mount_sessions', args: ['mount_sessions/driver.js'], expect: 0 },
   { name: 'idle_release_network', bench: 'idle_release_network', args: ['idle_release_network/driver.js'], expect: 0 },
