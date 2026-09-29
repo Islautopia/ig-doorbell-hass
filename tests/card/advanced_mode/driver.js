@@ -85,7 +85,8 @@ async function main() {
   }));
   check('A1: starts in simple mode (no stored preference)', a1.simpleClass === true && a1.advanced === false);
   check('A2: header (#top-row) hidden', !(await ev(() => window.tVisible('a', '#top-row'))));
-  check('A2: viewers pill (.clients-pill) hidden', !(await ev(() => window.tVisible('a', '.clients-pill'))));
+  check('A2: viewers pill (.clients-pill) hidden while no session_info has arrived yet (unrelated to mode - see V1/V2 below for the actual §5 check)',
+    !(await ev(() => window.tVisible('a', '.clients-pill'))));
   check('A3: main row shows exactly sound/mic/door - never a 4th or 5th round button',
     await ev(() => {
       const row = window.tView('a').querySelector('.actions-row');
@@ -102,6 +103,24 @@ async function main() {
   check('A6: Advanced button shown, not highlighted', await ev(() => window.tVisible('a', '#adv-btn') && !window.tView('a').advBtn.classList.contains('on')));
   check('A7: no permanent quality indicator exists anywhere (#hud-quality/#q-btn/#q-menu)', await ev(() =>
     !window.tView('a').querySelector('#hud-quality') && !window.tView('a').querySelector('#q-btn') && !window.tView('a').querySelector('#q-menu')));
+
+  console.log('\n########## 1b. §5 (2026-09-29, overrides §4 on this one point): viewers pill stays visible in simple mode ##########');
+  // §4's "no viewers pill" in simple mode was overridden the same day by §5 ("SIMPLE mode KEEPS
+  // the viewers indicator, exactly where it already is, on the video") - this section is the
+  // regression check for that reversal. Note there is no WebRTC-diagnostics icon/overlay in this
+  // card to check the opposite of (§5's other clause) - this card never had one, unlike the apps.
+  await ev(() => window.tClients('a', 1));
+  await sleep(30);
+  check('V1: with a real client count, the viewers pill is visible in simple mode', await ev(() => window.tVisible('a', '.clients-pill')));
+  check('V1: it renders inside .hud-top, in the same spot as always (not moved)', await ev(() => {
+    const pill = window.tView('a').querySelector('.clients-pill');
+    return !!(pill && pill.closest('.hud-top'));
+  }));
+  await ev(() => window.tClick('a', '#adv-btn')); // simple -> advanced
+  await sleep(30);
+  check('V2: still visible in advanced mode too (unchanged there)', await ev(() => window.tVisible('a', '.clients-pill')));
+  await ev(() => window.tClick('a', '#adv-btn')); // back to simple for the rest of section 1's flow
+  await sleep(30);
 
   console.log('\n########## 2. Advanced ON: header/#bottom-row (with Recordings) back, compact Quick replies hides ##########');
   await ev(() => window.tClick('a', '#adv-btn'));

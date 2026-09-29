@@ -10,6 +10,27 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.3 (2026-09-29): §5 override - viewers pill back in simple mode
+
+Coordinator's `spec_modo_avanzado.md` §5, written later the same day, overrides one point of §4
+(and of 1.4.1's original wording): *"SIMPLE mode KEEPS the viewers indicator (audience pill),
+exactly where it already is, on the video"* - the exact opposite of 1.4.1's "no viewers pill" in
+simple mode. §5 also says WebRTC diagnostics stay hidden in simple mode and visible in advanced -
+this card has no such icon/overlay to begin with (unlike the apps), so there is nothing to change
+for that half of §5 here.
+
+- **`.clients-pill` (the viewers pill) is no longer in the `.ig-simple` force-hide CSS rule.** Its
+  own visibility (shown only once a real client count is known, `_paintClients()`) is unrelated to
+  simple/advanced and unchanged - it now simply behaves the same in both modes, in the same spot
+  inside `.hud-top-left`/`.hud-top` it already occupied. Nothing else about the pill (styling,
+  `.multi` highlight, `clients_tip` title) changed.
+- **Verification.** `tests/card/advanced_mode/harness.js` gained `tClients(id, n)` (simulates a
+  `session_info` client count the same way `tQuality()` simulates `quality_state`).
+  `tests/card/advanced_mode/driver.js` gained section "1b" (V1/V2): with a real client count, the
+  pill is visible in simple mode, stays inside `.hud-top`, and stays visible after switching to
+  advanced too. `run_all.js`: 20/20 green (unchanged count - checks added within the existing
+  bench). pytest (`igd-test` image): 180/180 green.
+
 ## 1.4.2 (2026-09-29): Canonical layout - fixes the 5-buttons-in-one-row overflow
 
 Coordinator addendum to the spec below, written the same day after comparing the first

@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.4.2';
+const CARD_VERSION = '1.4.3';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-29-ig-doorbell`;
@@ -6665,15 +6665,21 @@ class IgDoorbellView extends HTMLElement {
       .ig-container.ig-fs .hud-adv { display: none !important; }
 
       /* Simple mode (2026-09-29 spec; canonical layout in the coordinator's §4 addendum the same
-         day): the header (picker/mode chip/REC pill/bell) disappears entirely, same as fullscreen
-         already does for it - see the .ig-fs rule below and _applyModeVisibility() for how
-         'ig-simple' is computed (!advanced && !fullscreen). The viewers pill is explicit in the
-         spec ("no viewers pill") and lives inside .hud-top, which otherwise stays.
+         day, ITSELF overridden the same day by §5 on this one point - see below): the header
+         (picker/mode chip/REC pill/bell) disappears entirely, same as fullscreen already does for
+         it - see the .ig-fs rule below and _applyModeVisibility() for how 'ig-simple' is computed
+         (!advanced && !fullscreen).
          #bottom-row is deliberately NOT in this list any more (canonical layout §4 point 3): it
          now carries the wide "Quick replies" button in simple mode too, filling the width -
-         Recordings is force-hidden there instead, see _updateRecordingsButton(). */
-      .ig-container.ig-simple #top-row,
-      .ig-container.ig-simple .clients-pill { display: none !important; }
+         Recordings is force-hidden there instead, see _updateRecordingsButton().
+         §5 (2026-09-29, same day, overrides §4's "no viewers pill"): the viewers pill
+         (.clients-pill) is explicitly KEPT in simple mode, in the same spot inside .hud-top it
+         already occupies - so it is deliberately absent from this force-hide list. Its own
+         visibility (shown once a real client count is known, see _paintClients())
+         is unchanged and unrelated to simple/advanced. This card has no WebRTC-diagnostics
+         icon/overlay to hide in simple mode - it never had one (unlike the apps); nothing to do
+         there. */
+      .ig-container.ig-simple #top-row { display: none !important; }
 
       /* Signal bars, bottom-right corner (mockup) - reflect the real connection state
          (data-state, also propagated to .feed-wrap from _setLiveState()) instead of a WiFi

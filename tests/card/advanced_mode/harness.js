@@ -134,6 +134,13 @@ window.tQuality = function (id, mode, reason) {
   const view = window.__cards[id];
   view._handleQualityState(reason ? { mode, reason } : { mode });
 };
+// Simulates a session_info arriving over signalling (API_CONTRACT.md §1.4-ter #2) carrying a
+// client count - same white-box criterion as tQuality above, for §5's "viewers pill stays
+// visible in simple mode" check (2026-09-29 spec).
+window.tClients = function (id, n) {
+  const view = window.__cards[id];
+  view._handleSessionInfo({ clients: n }); // calls _paintClients() itself
+};
 // Simulates entering/leaving fullscreen without the real Fullscreen API (headless Chromium
 // without a user gesture would reject requestFullscreen() outright) - _applyFullscreenUI() only
 // reads/writes `_fsActive` and paints classes, it never calls the browser API itself (that lives
