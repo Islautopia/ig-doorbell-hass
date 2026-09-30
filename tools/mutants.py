@@ -371,6 +371,19 @@ MUTANTS = [
     ("re-pairing opens a new slot instead of reusing the stored label", PKG + "config_flow.py",
      "            self._entry.data.get(CONF_LABEL) or DEFAULT_PAIR_LABEL,",
      "            await _new_label(self.hass),"),
+    # --- 1.4.6: deleting an entry cleans up after itself on the doorbell (removal.py) ---------------
+    ("deleting clears the webhook even when it belongs to another Home Assistant", PKG + "removal.py",
+     "        if ours is not None and current == ours:", "        if True:"),
+    ("deleting does not revoke this Home Assistant's pairing", PKG + "removal.py",
+     "    released = await api.async_unpair_self(session, device_id, credential)",
+     "    released = False"),
+    ("an unreachable doorbell leaves no notice", PKG + "removal.py",
+     "    if done:\n        ir.async_delete_issue", "    if True:\n        ir.async_delete_issue"),
+    ("the deletion budget grows past five seconds", PKG + "const.py",
+     "REMOVE_TIMEOUT = 5  # seconds", "REMOVE_TIMEOUT = 30  # seconds"),
+    ("self-unpair names a slot (an admin operation on any pairing)", PKG + "api.py",
+     '    async with session.post(url, data=b"", timeout=_TIMEOUT) as resp:\n        if resp.status == 200:\n            return True',
+     '    async with session.post(url, data={"slot": "0"}, timeout=_TIMEOUT) as resp:\n        if resp.status == 200:\n            return True'),
 ]
 
 

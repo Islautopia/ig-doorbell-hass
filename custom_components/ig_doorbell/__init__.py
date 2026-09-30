@@ -51,7 +51,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
-from . import api, net, turn_cloud, webhook
+from . import api, net, removal, turn_cloud, webhook
 from .const import (
     CONF_CREDENTIAL,
     CONF_DEVICE_ID,
@@ -750,42 +750,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """On UNINSTALL: tells the doorbell to stop writing here.
+    """On DELETE: the doorbell forgets this Home Assistant (removal.py, 1.4.6).
 
-    ⚠️ THIS IS NOT A COURTESY: it is the other half of the marker the webhook returns. Home
-    Assistant answers `200` to a webhook that no longer exists - on purpose, so nobody can
-    enumerate them - so a doorbell told nothing would keep firing into the void forever. The
-    marker turns that invisible failure into a visible one; this is what prevents it from
-    existing.
+    Clears the doorbell's webhook if it still points here, then revokes this Home Assistant's own
+    pairing. ⚠️ Clearing the webhook IS NOT A COURTESY: Home Assistant answers `200` to a webhook
+    that no longer exists - on purpose, so nobody can enumerate them - so a doorbell told nothing
+    would keep firing into the void forever. The marker the webhook returns turns that invisible
+    failure into a visible one; this is what prevents it from existing.
 
-    Best-effort: if the doorbell is not reachable right now, it is stated and moved on. Preventing
-    someone from uninstalling an integration because a device is off would be worse.
+    Bounded and best-effort: a doorbell that is off never stops the deletion; a Repairs notice then
+    names the pairing to revoke from the app.
     """
-    address_map = {}
-    hint = entry.data.get(CONF_HOST_HINT) or entry.options.get(CONF_HOST_HINT)
-    if net.is_address(hint):
-        address_map[api.doorbell_hostname(entry.data[CONF_DEVICE_ID])] = hint
-    session = net.create_session(hass, address_map)
-    try:
-        await api.async_set_hass_config(
-            session,
-            entry.data[CONF_DEVICE_ID],
-            entry.data[CONF_CREDENTIAL],
-            webhook_url="",
-            entities=[],
-        )
-        _LOGGER.info("Webhook unconfigured on %s", entry.data[CONF_DEVICE_ID])
-    except api.DoorbellApiError as err:
-        _LOGGER.warning(
-            "Could not unconfigure the webhook on %s (%s). That doorbell will keep sending "
-            "notices to an address nobody is listening at any more until it is configured again.",
-            entry.data[CONF_DEVICE_ID], err,
-        )
-    finally:
-        # This session is throw-away and NOBODY cleans it up: by `async_remove_entry` there is no
-        # entry in `hass.data` any more, because unloading runs before this. Without this close,
-        # every uninstall leaves behind an open connector and its resolution thread.
-        await session.close()
+    await removal.async_clean_up_doorbell(hass, entry)
     # The last doorbell gone: HTTPS stops (the setting is kept for a doorbell added later).
     if (mgr := get_manager(hass)) is not None:
         await mgr.async_apply()

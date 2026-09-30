@@ -449,6 +449,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name}: its pairing is still active",
+      "description": "{name} could not be reached when it was deleted, so this Home Assistant's pairing (“{label}”) is still valid on the doorbell. Revoke it from the IG Doorbell app: in the administrator's user, “Where it is used”, remove “{label}”. Nothing else is needed: if the doorbell still sends its notices here, pairing it to its new Home Assistant moves them."
+    },
     "https_port_in_use": {
       "title": "Secure local connection: port {port} is taken",
       "description": "Another program already uses port {port}, so the secure local connection (HTTPS) could not start. Choose another port in Settings › Devices & services › Islautopia Garage Doorbell › Configure › Secure local connection (HTTPS). Nothing else is affected."

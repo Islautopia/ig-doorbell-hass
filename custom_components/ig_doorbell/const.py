@@ -99,6 +99,10 @@ def generic_name(device_id: str) -> str:
 #
 # --- HTTP -------------------------------------------------------------------------------------
 REQUEST_TIMEOUT = 8  # seconds - one-shot REST calls to the doorbell, not streams
+# The WHOLE clean-up when an entry is deleted (removal.py), every call included. Deleting must
+# never hang on a doorbell that is off: past this, the entry goes anyway and a notice says what is
+# left to do by hand.
+REMOVE_TIMEOUT = 5  # seconds
 
 # --- The doorbell's certificate name (API_CONTRACT.md §0) -------------------------------------
 # ⚠️ ONLY the name the doorbell's TLS certificate is issued for. It is used for SNI and certificate

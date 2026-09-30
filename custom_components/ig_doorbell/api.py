@@ -139,16 +139,24 @@ async def async_logout(session: aiohttp.ClientSession, device_id: str) -> None:
         _LOGGER.debug("Best-effort logout failed for %s (non-blocking)", device_id)
 
 
-async def async_get_hass_webhook_url(session: aiohttp.ClientSession, device_id: str) -> str:
-    """GET /api/hass (contract §4) with the admin session cookie on `session`: the webhook URL the
-    doorbell writes to now, or "" if none is configured.
+async def async_get_hass_webhook_url(
+    session: aiohttp.ClientSession, device_id: str, credential: str | None = None
+) -> str:
+    """GET /api/hass (contract §4): the webhook URL the doorbell writes to now, or "" if none is
+    configured. Authenticated by the admin session cookie on `session`, or - with `credential` -
+    by this pairing's own `?token=` (an admin pairing; the route accepts either).
 
     The doorbell stores ONE Home Assistant webhook, and the last Home Assistant to configure it
     takes it. The config flow reads this BEFORE pairing so that taking it over from another Home
-    Assistant is a question put to the user, never a silent move (1.4.5).
+    Assistant is a question put to the user, never a silent move (1.4.5). Removing the entry reads
+    it too, to clear it only if it is still ours (1.4.6).
     """
     url = f"https://{doorbell_hostname(device_id)}:8443/api/hass"
+    if credential:
+        url += f"?token={quote(credential)}"
     async with session.get(url, timeout=_TIMEOUT) as resp:
+        if resp.status == 401:
+            raise AuthenticationError("Pairing credential rejected by the doorbell")
         if resp.status == 403:
             raise NotAllowedError("This session is not an admin of that doorbell")
         if resp.status != 200:
@@ -156,6 +164,27 @@ async def async_get_hass_webhook_url(session: aiohttp.ClientSession, device_id: 
         data = await resp.json(content_type=None)
     value = data.get("url") if isinstance(data, dict) else None
     return value.strip() if isinstance(value, str) else ""
+
+
+async def async_unpair_self(session: aiohttp.ClientSession, device_id: str, credential: str) -> bool:
+    """POST /api/unpair_app?token=<credential> with NO slot and NO label (contract §1.5-ter): the
+    pairing revokes ITSELF. True if the doorbell released a slot, False on `404` (nothing to
+    release). Raises AuthenticationError on `401`: the credential is already dead.
+
+    ⚠️ No slot, no label, on purpose: with neither, the firmware releases the slot of the
+    `?token=` that asks, and ONLY that one - it cannot touch another pairing, and it needs no
+    admin role and no password (the entry has neither by the time it is removed). Naming a slot
+    would make it an admin operation on an arbitrary slot instead.
+    """
+    url = f"https://{doorbell_hostname(device_id)}:8443/api/unpair_app?token={quote(credential)}"
+    async with session.post(url, data=b"", timeout=_TIMEOUT) as resp:
+        if resp.status == 200:
+            return True
+        if resp.status == 404:
+            return False
+        if resp.status == 401:
+            raise AuthenticationError("Pairing credential rejected by the doorbell")
+        raise DoorbellApiError(f"POST /api/unpair_app -> HTTP {resp.status}")
 
 
 async def async_unpair_app(session: aiohttp.ClientSession, device_id: str, label: str) -> bool:

@@ -346,6 +346,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name} : son appairage est toujours actif",
+      "description": "{name} était injoignable lors de sa suppression : l’appairage de ce Home Assistant (« {label} ») reste donc valide sur la sonnette. Révoquez-le depuis l’app IG Doorbell : dans l’utilisateur administrateur, « Où il est utilisé », supprimez « {label} ». Rien d’autre n’est nécessaire : si la sonnette envoie encore ses notifications ici, l’appairer à son nouveau Home Assistant les y déplace."
+    },
     "https_port_in_use": {
       "title": "Connexion locale sécurisée : le port {port} est occupé",
       "description": "Un autre programme utilise déjà le port {port} : la connexion locale sécurisée (HTTPS) n’a pas pu démarrer. Choisissez un autre port dans Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer › Connexion locale sécurisée (HTTPS). Rien d’autre n’est affecté."

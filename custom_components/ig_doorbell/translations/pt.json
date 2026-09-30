@@ -346,6 +346,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name}: o emparelhamento continua ativo",
+      "description": "Não foi possível contactar {name} ao eliminá-lo, por isso o emparelhamento deste Home Assistant (“{label}”) continua válido na campainha. Revogue-o na app IG Doorbell: no utilizador administrador, “Onde é usada”, remova “{label}”. Não é preciso mais nada: se a campainha ainda envia os avisos para aqui, emparelhá-la com o novo Home Assistant muda-os para lá."
+    },
     "https_port_in_use": {
       "title": "Ligação local segura: a porta {port} está ocupada",
       "description": "Outro programa já usa a porta {port}, por isso a ligação local segura (HTTPS) não arrancou. Escolha outra porta em Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar › Ligação local segura (HTTPS). Nada mais é afetado."

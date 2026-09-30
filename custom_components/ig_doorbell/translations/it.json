@@ -449,6 +449,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name}: il suo abbinamento è ancora attivo",
+      "description": "{name} non era raggiungibile quando è stato eliminato, quindi l’abbinamento di questo Home Assistant (“{label}”) è ancora valido sul videocitofono. Revocalo dall’app IG Doorbell: nell’utente amministratore, “Dove viene usato”, rimuovi “{label}”. Non serve altro: se il videocitofono invia ancora qui i suoi avvisi, abbinarlo al nuovo Home Assistant li sposta."
+    },
     "https_port_in_use": {
       "title": "Connessione locale sicura: la porta {port} è occupata",
       "description": "Un altro programma usa già la porta {port}, quindi la connessione locale sicura (HTTPS) non è potuta partire. Scegli un'altra porta in Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura › Connessione locale sicura (HTTPS). Nient'altro è interessato."

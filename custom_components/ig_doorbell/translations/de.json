@@ -346,6 +346,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name}: seine Kopplung ist noch aktiv",
+      "description": "{name} war beim Löschen nicht erreichbar, daher ist die Kopplung dieses Home Assistant („{label}“) an der Türklingel weiterhin gültig. Widerrufe sie in der IG-Doorbell-App: beim Administrator-Benutzer unter „Wo es genutzt wird“ „{label}“ entfernen. Mehr ist nicht nötig: Sendet die Türklingel ihre Meldungen noch hierher, verlegt das Koppeln mit ihrem neuen Home Assistant sie dorthin."
+    },
     "https_port_in_use": {
       "title": "Sichere lokale Verbindung: Port {port} ist belegt",
       "description": "Ein anderes Programm benutzt bereits Port {port}, daher konnte die sichere lokale Verbindung (HTTPS) nicht starten. Wähle einen anderen Port unter Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren › Sichere lokale Verbindung (HTTPS). Sonst ist nichts betroffen."

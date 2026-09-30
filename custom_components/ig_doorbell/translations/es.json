@@ -449,6 +449,10 @@
     }
   },
   "issues": {
+    "pairing_left_on_doorbell": {
+      "title": "{name}: su emparejamiento sigue activo",
+      "description": "No se pudo contactar con {name} al eliminarlo, así que el emparejamiento de este Home Assistant (“{label}”) sigue siendo válido en el portero. Revócalo desde la app IG Doorbell: en el usuario administrador, “Dónde se usa”, elimina “{label}”. No hace falta nada más: si el portero aún envía sus avisos aquí, emparejarlo con su nuevo Home Assistant los traslada."
+    },
     "https_port_in_use": {
       "title": "Conexión local segura: el puerto {port} está ocupado",
       "description": "Otro programa ya usa el puerto {port}, así que la conexión local segura (HTTPS) no ha podido arrancar. Elige otro puerto en Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar › Conexión local segura (HTTPS). Nada más se ve afectado."
