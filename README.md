@@ -42,6 +42,9 @@ routers, troubleshooting): **[docs/https.md](docs/https.md)**.
 **It does:**
 
 - Talk to the doorbell **only over your home network**, at its local address.
+- Show the live view **away from home too**: when you open Home Assistant from outside (Home
+  Assistant Cloud, your own domain…), the card's video and audio cross through our relay server,
+  end-to-end encrypted, exactly like the mobile apps. At home it goes straight to the doorbell.
 - Turn what the doorbell reports (a ring, a visitor, a parcel, the door opened, a key refused…)
   into Home Assistant events and entities, the moment it happens.
 - Let you change the doorbell's mode, open the door, start a recording and play a message at the
@@ -52,18 +55,20 @@ routers, troubleshooting): **[docs/https.md](docs/https.md)**.
 
 **It does not:**
 
-- **Give you access from outside your home.** The card works wherever the browser can reach your
-  Home Assistant and the doorbell on your network. For access away from home you still need a
-  remote-access method for Home Assistant (Home Assistant Cloud, or your own domain with a
-  reverse proxy). The optional HTTPS below does **not** replace that: it is local.
+- **Give you access to Home Assistant from outside your home.** To open your dashboards away from
+  home you still need a remote-access method for Home Assistant (Home Assistant Cloud, or your own
+  domain with a reverse proxy). The optional HTTPS below does **not** replace that: it is local.
+  Once you can open Home Assistant from outside, the card's live view works there too (above).
 - **Store any image or sound.** We never store it: recordings stay on the doorbell's memory card,
   and Home Assistant plays them from there without copying them. The camera's still lives in
   memory only. If *you* choose to save a still or a clip in your own Home Assistant (for example
   with `camera.snapshot`), that copy is yours, in your house.
-- **Use the internet or our cloud to reach the doorbell.** Not as a fallback either. The single
-  exception is optional and off by default: the *public name* of the secure connection (below)
-  asks our cloud for a name and a certificate — never for anything about the doorbell's video,
-  audio or events.
+- **Use the internet or our cloud to reach the doorbell.** Not as a fallback either: every command,
+  event and recording goes over your network. Two things do ask our cloud, and neither is needed
+  at home: the live view **away from home** gets a short-lived relay pass (one hour) so its
+  encrypted media can cross our relay server, which cannot decrypt it and keeps nothing; and the
+  optional *public name* of the secure connection (below) asks for a name and a certificate. With
+  the internet or our servers down, everything at home keeps working.
 - **Need an MQTT broker, YAML, or a separate card install.**
 
 ---
@@ -75,9 +80,11 @@ line or our servers go down, the live view, two-way audio, the door, the recordi
 automations keep working.
 
 **Privacy first.** Not a frame of video or a second of audio is stored anywhere but on the
-doorbell's own memory card. The live stream goes straight from the doorbell to your browser; it
-does not pass through Home Assistant. The pairing credential stays on your Home Assistant server
-and never reaches a browser.
+doorbell's own memory card. The live stream goes from the doorbell to your browser; it does not
+pass through Home Assistant. At home it goes straight there; away from home it crosses our relay
+server end-to-end encrypted (DTLS-SRTP): the relay forwards packets it cannot decrypt and stores
+nothing. The pairing credential stays on your Home Assistant server and never reaches a browser;
+what the browser gets for the relay is a one-hour pass, good for nothing else.
 
 What Home Assistant itself keeps is what it keeps for any device: the **history of the entities**
 (for example "Events: ring at 10:02", "Mode: Away") in its own database, like every other entity
@@ -149,6 +156,10 @@ That is the whole configuration: it shows every doorbell of the integration.
   hangs up the old session and starts a fresh one.
 - **Live video in about a second** and **two-way audio**, with one talk turn shared with the
   mobile apps: if someone else is talking, you are told instead of being cut in.
+- **At home or away.** At home the picture goes straight from the doorbell to your screen. Away
+  from home (Home Assistant opened through Home Assistant Cloud or your own domain) it crosses our
+  relay server, end-to-end encrypted, and an **Internet** badge shows on the picture — the same
+  badge as the apps. If no path works from where you are, the card says so and keeps retrying.
 - **The microphone needs a secure page.** Browsers only allow it over HTTPS. If you open Home
   Assistant as `http://…` and tap the microphone, the card explains this and takes you to the
   setup page of the [secure local connection](#secure-local-connection-https), with a QR code to do

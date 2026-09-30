@@ -20,6 +20,9 @@
 //  EventSource, fetch, RTCPeerConnection, AudioContext, HA's WebSocket) and the UI sheets that
 //  have nothing to do with this (painting pills, the mic state, the door).
 //
+//  ⚠️ 1.4.4 (2026-09-30): STUN + TURN are back for the MEDIA (remote viewing), handed out by the
+//  integration (`get_ice_servers`); case 13 checks the card uses exactly that list, with a deadline,
+//  and still no relay WebSocket and no direct fetch.
 //  ⚠️ PHASE 0 (2026-09-25): the card no longer has a relay or STUN/TURN. Signaling goes ONLY through
 //  Home Assistant's proxy (EventSource over the signed URL), so what's counted now is
 //  EventSources, not WebSockets. The EventSource double delivers the offer; the race's window
@@ -169,6 +172,12 @@ function loadCardClass(src, environment, docListeners) {
 //  A live card without going through setConfig()/render(): same initial state, no DOM.
 //  ONLY UI sheets get replaced. None of the connection machinery.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
+// What the simulated integration hands out (made-up host, never a real one).
+const SIM_ICE_SERVERS = [
+  { urls: 'stun:turn.example.invalid:3478' },
+  { urls: 'turn:turn.example.invalid:3478?transport=udp', username: '1790000000:app-1', credential: 'x' },
+];
+
 function newCard(CardClass, options) {
   const c = Object.create(CardClass.prototype);
   const o = options || {};
@@ -190,6 +199,13 @@ function newCard(CardClass, options) {
           if (o.turnHung) return new Promise(() => {});   // never resolves: the fuse case
           const r0 = msg.type === 'ig_doorbell/get_turn_credentials' ? { urls: [] } : { signal_url: '/api/ig_doorbell/signal/abc?authSig=x' };
           return new Promise((r) => setTimeout(() => r(r0), o.turnMs || 0));
+        }
+        // 1.4.4: STUN + TURN from the integration. `iceHung` never answers (the card's own deadline),
+        // `iceMissing` is an integration older than 1.4.4 (unknown command).
+        if (msg.type === 'ig_doorbell/get_ice_servers') {
+          if (o.iceHung) return new Promise(() => {});
+          if (o.iceMissing) return Promise.reject(Object.assign(new Error('unknown command'), { code: 'unknown_command' }));
+          return Promise.resolve({ ice_servers: SIM_ICE_SERVERS, source: 'cache' });
         }
         if (msg.type === 'frontend/get_user_data') return Promise.resolve({ value: o.defaultPanel ? { default_panel: o.defaultPanel } : null });
         if (msg.type === 'frontend/get_system_data') return Promise.resolve({ value: null });
@@ -546,17 +562,66 @@ async function runCases(src, verbose) {
   }
 
   // ── 13. No path outside Home Assistant ───────────────────────────────────────────────────
-  section('13. No STUN/TURN, no relay, no fetch to the doorbell: only Home Assistant');
+  section('13. STUN/TURN only as the integration hands them out; no relay, no fetch to the doorbell');
   {
     const e = buildEnvironment({});
     const C = loadCardClass(src, e, {});
     const c = newCard(C, { turnMs: 10 });
     await c.startWebRTC('sole');
     await wait(100);
-    check('RTCPeerConnection with no iceServers', e.census.iceServers.length === 1 && Array.isArray(e.census.iceServers[0]) && e.census.iceServers[0].length === 0);
+    check('RTCPeerConnection with the integration\'s iceServers, exactly', e.census.iceServers.length === 1 && JSON.stringify(e.census.iceServers[0]) === JSON.stringify(SIM_ICE_SERVERS));
     check('  -> no WebSocket at all', e.census.ws.length === 0);
     check('  -> no direct fetch', e.census.fetch.length === 0);
     check('  -> and the SSE is the one from HA\'s proxy', e.census.es.every((x) => x.url.startsWith('/api/ig_doorbell/')));
+    cleanup(c);
+  }
+  // 13b. Principle 1: the integration never answers (a stalled WebSocket) -> the card goes on with LAN
+  // only after its own deadline, and signalling still starts.
+  section('13b. get_ice_servers never answers -> LAN only after the deadline, the session still starts');
+  {
+    const e = buildEnvironment({});
+    const C = loadCardClass(src, e, {});
+    const c = newCard(C, { turnMs: 10, iceHung: true });
+    c.startWebRTC('sole');
+    await wait(3400);
+    check('a hung get_ice_servers does not hold the session: RTCPeerConnection with [] after the deadline', e.census.iceServers.length === 1 && Array.isArray(e.census.iceServers[0]) && e.census.iceServers[0].length === 0);
+    check('  -> and the SSE to HA\'s proxy was opened', e.census.es.length >= 1);
+    cleanup(c);
+  }
+  section('13c. integration older than 1.4.4 (no get_ice_servers) -> LAN only, as before');
+  {
+    const e = buildEnvironment({});
+    const C = loadCardClass(src, e, {});
+    const c = newCard(C, { turnMs: 10, iceMissing: true });
+    await c.startWebRTC('sole');
+    await wait(100);
+    check('an unknown command gives iceServers [] and the SSE opens', e.census.iceServers.length === 1 && e.census.iceServers[0].length === 0 && e.census.es.length >= 1);
+    cleanup(c);
+  }
+
+  // 13d. The "Internet" pill follows the SELECTED pair (what the real bench reads with getStats).
+  section('13d. media path from the selected pair: host -> local, relay/srflx -> remote (pill)');
+  {
+    const e = buildEnvironment({});
+    const C = loadCardClass(src, e, {});
+    const c = newCard(C, {});
+    c.dataset = {}; c.pathPill = { style: { display: 'none' } };
+    const stats = (loc, rem) => new Map([
+      ['T', { type: 'transport', selectedCandidatePairId: 'P' }],
+      ['P', { type: 'candidate-pair', localCandidateId: 'L', remoteCandidateId: 'R', nominated: true, state: 'succeeded' }],
+      ['L', { type: 'local-candidate', candidateType: loc }],
+      ['R', { type: 'remote-candidate', candidateType: rem }],
+    ]);
+    const seen = [];
+    // An older build (the negative control's) has no _readMediaPath: a failed check, never a crash
+    // that would take the rest of its run down with it.
+    if (typeof c._readMediaPath !== 'function') c._readMediaPath = () => {};
+    for (const [loc, rem] of [['prflx', 'host'], ['relay', 'relay'], ['relay', 'srflx'], ['host', 'host'], ['prflx', 'relay'], ['relay', 'host']]) {
+      c._readMediaPath(stats(loc, rem));
+      seen.push(`${loc}->${rem}:${c.dataset.path}:${c.pathPill.style.display}`);
+    }
+    check(`pill only when the media crosses the internet: ${seen.join(' ')}`, seen.join(' ') ===
+      'prflx->host:local:none relay->relay:remote:flex relay->srflx:remote:flex host->host:local:none prflx->relay:remote:flex relay->host:remote:flex');
     cleanup(c);
   }
 
@@ -830,9 +895,19 @@ function mutate(src, anchor, replacement, mutantLabel) {
       mustFail: 'a ring DOES',
     },
     {
-      mutantLabel: 'phase 0: the VPS STUN server comes back',
-      src: () => mutate(src, "    const iceServers = [];", "    const iceServers = [{ urls: 'stun:46.225.57.138:3478' }];", 'with stun'),
-      mustFail: 'RTCPeerConnection with no iceServers',
+      mutantLabel: '1.4.4: the card hard-codes a STUN server instead of the integration\'s list',
+      src: () => mutate(src, "    const iceServers = await this._fetchIceServers(gen);", "    const iceServers = [{ urls: 'stun:46.225.57.138:3478' }];", 'hard-coded stun'),
+      mustFail: 'RTCPeerConnection with the integration\'s iceServers',
+    },
+    {
+      mutantLabel: '1.4.4: the Internet pill follows the doorbell side only (a TURN leg on our side reads as local)',
+      src: () => mutate(src, "    const remote = loc.candidateType === 'relay' || rem.candidateType !== 'host';", "    const remote = rem.candidateType !== 'host';", 'pill ignores own relay'),
+      mustFail: 'pill only when the media crosses the internet',
+    },
+    {
+      mutantLabel: '1.4.4: the card waits for TURN with no deadline (principle 1)',
+      src: () => mutate(src, "      const res = await Promise.race([ask, deadline]);", "      const res = await ask;", 'no deadline'),
+      mustFail: 'a hung get_ice_servers does not hold the session',
     },
     {
       mutantLabel: 'Iñaki\'s rule: hiding tears down again right away (1.9.0)',

@@ -3,8 +3,10 @@
 The card asks Home Assistant for what it needs over the authenticated WebSocket the frontend
 already uses (`hass.connection.sendMessagePromise(...)`), gated by the normal HA user session.
 
-⚠️ WHAT THE CARD NEVER GETS (Phase 0, 2026-09-25): the pairing credential, the relay URL, TURN
-credentials. Until 0.6.x `get_connection_info` returned the credential to the browser of every HA
+⚠️ WHAT THE CARD NEVER GETS (Phase 0, 2026-09-25): the pairing credential and the relay URL.
+Since 1.4.4 it DOES get short-lived TURN credentials (`get_ice_servers`, turn_cloud.py), so the
+live view works from outside the home like the apps; the pairing credential still stays here.
+Until 0.6.x `get_connection_info` returned the credential to the browser of every HA
 user who opened a dashboard, and the card used it to talk to the doorbell's public hostname and to
 the cloud relay. The card now talks ONLY to this Home Assistant (signal_proxy.py,
 recordings_view.py), which adds the credential server-side and reaches the doorbell over the LAN.
@@ -17,6 +19,9 @@ Commands:
     nonce of its URL as `panel_nonce`; call_page_nav.is_configured_panel). Only then
     does the card apply the deadline; any other page is never navigated away.
   - ig_doorbell/get_local_signal_url: a short-lived signed URL for the signalling proxy.
+  - ig_doorbell/get_ice_servers (1.4.4): STUN + short-lived TURN for the media from outside the
+    home (turn_cloud.py). Never waits more than turn_cloud.FETCH_DEADLINE_S, never fails: with
+    the VPS unreachable it answers an empty list and the card connects over the LAN as before.
   - ig_doorbell/get_quick_replies: the doorbell's quick-reply list (id + label), read
     fresh over the LAN each time - same "the card shows, the integration exposes" rule as the
     other two. The card plays one with the existing `play_sequence` service (services.py); this
@@ -36,7 +41,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
-from . import api
+from . import api, turn_cloud
 from .const import CONF_CREDENTIAL, CONF_DEVICE_ID, DOMAIN
 from .signal_proxy import async_signed_signal_url
 
@@ -48,6 +53,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     """Register the WS commands. Safe to call more than once (HA dedupes by name)."""
     websocket_api.async_register_command(hass, websocket_get_connection_info)
     websocket_api.async_register_command(hass, websocket_get_local_signal_url)
+    websocket_api.async_register_command(hass, websocket_get_ice_servers)
     websocket_api.async_register_command(hass, websocket_get_quick_replies)
     websocket_api.async_register_command(hass, websocket_https_status)
     websocket_api.async_register_command(hass, websocket_subscribe_call_page)
@@ -151,10 +157,12 @@ async def websocket_get_local_signal_url(hass: HomeAssistant, connection, msg) -
     limitation that made the firmware accept `?token=` in its query string. This is how Home
     Assistant's own camera streams solve it.
 
-    Since Phase 0 this is the card's only signalling path (no public hostname, no relay).
+    Since Phase 0 this is the card's only signalling path (no public hostname, no relay
+    WebSocket) - also from outside the home: the browser reached this Home Assistant already.
 
-    Only signalling goes through the proxy. Media stays peer-to-peer over UDP straight to the
-    doorbell's LAN address, which Private Relay does not touch.
+    Only signalling goes through the proxy. Media goes peer-to-peer over UDP straight to the
+    doorbell's LAN address when the browser is at home, and through TURN (get_ice_servers) when
+    it is not - ICE picks, host candidates first.
     """
     entry_data = _find_entry_data(hass, msg["device_id"])
     if entry_data is None:
@@ -170,6 +178,32 @@ async def websocket_get_local_signal_url(hass: HomeAssistant, connection, msg) -
             "signal_url": async_signed_signal_url(hass, entry_data[CONF_DEVICE_ID]),
         },
     )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "ig_doorbell/get_ice_servers",
+        vol.Required("device_id"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_get_ice_servers(hass: HomeAssistant, connection, msg) -> None:
+    """STUN + TURN for the card's RTCPeerConnection (API_CONTRACT §3.1-bis, via turn_cloud.py).
+
+    Only for a logged-in Home Assistant user (every WS command is), only for a doorbell configured
+    here. The answer carries the VPS-minted TURN credential (TTL 1 h), never the pairing credential.
+    `source` says where it came from ("cache", "vps", "pending", "none") so the card can log it.
+    """
+    entry_data = _find_entry_data(hass, msg["device_id"])
+    if entry_data is None:
+        connection.send_error(
+            msg["id"], "not_found", "Doorbell not configured on this Home Assistant instance"
+        )
+        return
+    servers, source = await turn_cloud.async_get_ice_servers(
+        hass, entry_data[CONF_DEVICE_ID], entry_data[CONF_CREDENTIAL]
+    )
+    connection.send_result(msg["id"], {"ice_servers": servers, "source": source})
 
 
 @websocket_api.websocket_command(

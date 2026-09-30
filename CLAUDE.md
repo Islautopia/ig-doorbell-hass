@@ -20,6 +20,12 @@ real cameras, no personal Home Assistant details. The doorbell's interface is de
   code that talks to our VPS, voucher + CSR, API_CONTRACT §4-ter), `https_views.py` + `frontend/
   https-install.html` (install page). User docs: `docs/https.md`. The test image needs `segno`.
 
+- **Remote viewing (1.4.4)**: `turn_cloud.py` is the only other module that talks to our VPS — one
+  route, `app_turn_credentials` (API_CONTRACT §3.1-bis), pairing credential in its Authorization
+  header only; the card gets STUN + one-hour TURN via `ig_doorbell/get_ice_servers`, never waited on
+  by anything local. Signalling stays on HA's proxy (no relay WebSocket). Real bench:
+  `tests/card/remote_path/` (docs/card.md 1.4.4); its case D must run first (TURN permissions).
+
 Landmines already paid for:
 - **Never serve the card benches with a hand-started `python -m http.server`.** Old servers from
   earlier sessions were still serving the card's former repository on the same ports and paths;
