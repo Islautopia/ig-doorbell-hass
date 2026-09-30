@@ -6,10 +6,10 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.4.3';
+const CARD_VERSION = '1.4.4';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
-const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-29-ig-doorbell`;
+const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-30-ig-doorbell`;
 
 // The names the card shares with Home Assistant live HERE and only here. The domain is the
 // integration's (WS commands, services, proxy routes, device identifiers, entity platform,
@@ -210,6 +210,11 @@ function igMicReleaseOwner(owner, why) {
 // respecting it.
 const START_IN_FLIGHT_MAX_MS = 12000;
 
+// (1.4.4) The most a start waits for STUN/TURN from the integration before going on with LAN only.
+// The integration itself answers within ~2.5 s (turn_cloud.FETCH_DEADLINE_S); this covers a stalled
+// Home Assistant WebSocket. Well under START_IN_FLIGHT_MAX_MS.
+const ICE_SERVERS_DEADLINE_MS = 3000;
+
 // ⚠️ THE IDLE PAUSE IS THE SAME ONE THE APPS USE, NOT A NEW ONE (2026-09-25, §1.4-bis "Live pause").
 // When the deadline expires the card does what an app does when it goes to the background:
 // `live_pause` right away (the doorbell stops encrypting and sending video, the session stays alive)
@@ -253,7 +258,7 @@ const igLocales = {
     door_confirm: "¿Abrir la puerta? Pulsa otra vez", lbl_door_confirm: "¿Abrir?",
     snd_on: "Silenciar", snd_off: "Escuchar", snd_ring: "Están llamando — sonido activado",
     door_opening: "Abriendo la puerta...", lbl_door_opening: "Abriendo", door_no_answer: "El portero no respondió — la puerta NO se ha abierto",
-    conn_lan: "Home Assistant no llega al portero por la red local", paused: "En pausa", paused_tap: "En pausa para liberar el portero · toca para reanudar", retry_prefix: "Sin conexión · reintentando en",
+    conn_lan: "Home Assistant no llega al portero por la red local", retry_no_path: "No hay camino de vídeo hasta el portero desde esta red · reintentando en", path_remote_tip: "Conectado por internet (fuera de la red de casa)", paused: "En pausa", paused_tap: "En pausa para liberar el portero · toca para reanudar", retry_prefix: "Sin conexión · reintentando en",
     snd_blocked: "Toca el altavoz para oír", cred_revoked: "El portero rechazó el emparejamiento — vuelve a emparejarlo en Ajustes › Dispositivos y servicios",
     lbl_rec_off: "REC", lbl_rec_on: "Grabando", rec_start_tip: "Empezar a grabar", rec_stop_tip: "Parar la grabación", rec_no_answer: "Home Assistant no aceptó la orden de grabar", recordings_title: "Grabaciones",
     quick_reply_title: "Respuestas rápidas", qr_empty: "El portero no tiene respuestas rápidas configuradas", qr_load_error: "No se pudo obtener la lista del portero", qr_no_answer: "El portero no aceptó la respuesta rápida",
@@ -277,7 +282,7 @@ const igLocales = {
     door_confirm: "Open the door? Press again", lbl_door_confirm: "Open?",
     snd_on: "Mute", snd_off: "Listen", snd_ring: "Someone is calling — sound on",
     door_opening: "Opening the door...", lbl_door_opening: "Opening", door_no_answer: "No answer from the doorbell — the door did NOT open",
-    conn_lan: "Home Assistant can't reach the doorbell on the local network", paused: "Paused", paused_tap: "Paused to free the doorbell · tap to resume", retry_prefix: "No connection · retrying in",
+    conn_lan: "Home Assistant can't reach the doorbell on the local network", retry_no_path: "No video path to the doorbell from this network · retrying in", path_remote_tip: "Connected over the internet (outside the home network)", paused: "Paused", paused_tap: "Paused to free the doorbell · tap to resume", retry_prefix: "No connection · retrying in",
     snd_blocked: "Tap the speaker to listen", cred_revoked: "The doorbell rejected this pairing — re-pair it in Settings › Devices & services",
     lbl_rec_off: "REC", lbl_rec_on: "Recording", rec_start_tip: "Start recording", rec_stop_tip: "Stop recording", rec_no_answer: "Home Assistant did not accept the recording request", recordings_title: "Recordings",
     quick_reply_title: "Quick replies", qr_empty: "The doorbell has no quick replies configured", qr_load_error: "Could not load the list from the doorbell", qr_no_answer: "The doorbell did not accept the quick reply",
@@ -301,7 +306,7 @@ const igLocales = {
     door_confirm: "Abrir a porta? Prima outra vez", lbl_door_confirm: "Abrir?",
     snd_on: "Silenciar", snd_off: "Ouvir", snd_ring: "Estão a chamar — som ligado",
     door_opening: "A abrir a porta...", lbl_door_opening: "A abrir", door_no_answer: "O porteiro não respondeu — a porta NÃO foi aberta",
-    conn_lan: "O Home Assistant não chega ao porteiro pela rede local", paused: "Em pausa", paused_tap: "Em pausa para libertar o porteiro · toque para retomar", retry_prefix: "Sem ligação · a tentar de novo em",
+    conn_lan: "O Home Assistant não chega ao porteiro pela rede local", retry_no_path: "Sem caminho de vídeo até ao porteiro a partir desta rede · a tentar de novo em", path_remote_tip: "Ligado pela internet (fora da rede de casa)", paused: "Em pausa", paused_tap: "Em pausa para libertar o porteiro · toque para retomar", retry_prefix: "Sem ligação · a tentar de novo em",
     snd_blocked: "Toque no altifalante para ouvir", cred_revoked: "O porteiro rejeitou este emparelhamento — volte a emparelhá-lo em Definições › Dispositivos e serviços",
     lbl_rec_off: "REC", lbl_rec_on: "A gravar", rec_start_tip: "Começar a gravar", rec_stop_tip: "Parar a gravação", rec_no_answer: "O Home Assistant não aceitou o pedido de gravação", recordings_title: "Gravações",
     quick_reply_title: "Respostas rápidas", qr_empty: "A campainha não tem respostas rápidas configuradas", qr_load_error: "Não foi possível obter a lista da campainha", qr_no_answer: "A campainha não aceitou a resposta rápida",
@@ -325,7 +330,7 @@ const igLocales = {
     door_confirm: "Tür öffnen? Nochmal drücken", lbl_door_confirm: "Öffnen?",
     snd_on: "Stummschalten", snd_off: "Mithören", snd_ring: "Es klingelt — Ton an",
     door_opening: "Tür wird geöffnet...", lbl_door_opening: "Öffnet", door_no_answer: "Keine Antwort der Türsprechanlage — die Tür wurde NICHT geöffnet",
-    conn_lan: "Home Assistant erreicht die Türsprechanlage im lokalen Netz nicht", paused: "Pausiert", paused_tap: "Pausiert, um die Türsprechanlage freizugeben · tippen zum Fortsetzen", retry_prefix: "Keine Verbindung · neuer Versuch in",
+    conn_lan: "Home Assistant erreicht die Türsprechanlage im lokalen Netz nicht", retry_no_path: "Kein Videoweg zur Türsprechanlage aus diesem Netz · neuer Versuch in", path_remote_tip: "Über das Internet verbunden (außerhalb des Heimnetzes)", paused: "Pausiert", paused_tap: "Pausiert, um die Türsprechanlage freizugeben · tippen zum Fortsetzen", retry_prefix: "Keine Verbindung · neuer Versuch in",
     snd_blocked: "Auf den Lautsprecher tippen, um zu hören", cred_revoked: "Die Türsprechanlage hat diese Kopplung abgelehnt — in Einstellungen › Geräte & Dienste neu koppeln",
     lbl_rec_off: "REC", lbl_rec_on: "Aufnahme läuft", rec_start_tip: "Aufnahme starten", rec_stop_tip: "Aufnahme stoppen", rec_no_answer: "Home Assistant hat die Aufnahme-Anfrage nicht angenommen", recordings_title: "Aufnahmen",
     quick_reply_title: "Schnellantworten", qr_empty: "Für die Klingel sind keine Schnellantworten eingerichtet", qr_load_error: "Liste konnte nicht von der Klingel geladen werden", qr_no_answer: "Die Klingel hat die Schnellantwort nicht angenommen",
@@ -349,7 +354,7 @@ const igLocales = {
     door_confirm: "Ouvrir la porte ? Appuyez encore", lbl_door_confirm: "Ouvrir ?",
     snd_on: "Couper le son", snd_off: "Écouter", snd_ring: "On sonne — son activé",
     door_opening: "Ouverture de la porte...", lbl_door_opening: "Ouverture", door_no_answer: "Pas de réponse du portier — la porte n'a PAS été ouverte",
-    conn_lan: "Home Assistant n'atteint pas l'interphone sur le réseau local", paused: "En pause", paused_tap: "En pause pour libérer l'interphone · touchez pour reprendre", retry_prefix: "Pas de connexion · nouvel essai dans",
+    conn_lan: "Home Assistant n'atteint pas l'interphone sur le réseau local", retry_no_path: "Aucun chemin vidéo vers l'interphone depuis ce réseau · nouvel essai dans", path_remote_tip: "Connecté par internet (hors du réseau de la maison)", paused: "En pause", paused_tap: "En pause pour libérer l'interphone · touchez pour reprendre", retry_prefix: "Pas de connexion · nouvel essai dans",
     snd_blocked: "Touchez le haut-parleur pour écouter", cred_revoked: "Le portier a refusé cet appairage — réappairez-le dans Paramètres › Appareils et services",
     lbl_rec_off: "REC", lbl_rec_on: "Enregistrement", rec_start_tip: "Démarrer l'enregistrement", rec_stop_tip: "Arrêter l'enregistrement", rec_no_answer: "Home Assistant n'a pas accepté la demande d'enregistrement", recordings_title: "Enregistrements",
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
@@ -373,7 +378,7 @@ const igLocales = {
     door_confirm: "Aprire la porta? Premi di nuovo", lbl_door_confirm: "Aprire?",
     snd_on: "Disattiva audio", snd_off: "Ascolta", snd_ring: "Qualcuno sta chiamando — audio attivato",
     door_opening: "Apertura della porta...", lbl_door_opening: "Apertura", door_no_answer: "Nessuna risposta dal videocitofono — la porta NON si è aperta",
-    conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", paused: "In pausa", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
+    conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", retry_no_path: "Nessun percorso video verso il videocitofono da questa rete · nuovo tentativo in", path_remote_tip: "Connesso via internet (fuori dalla rete di casa)", paused: "In pausa", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
     snd_blocked: "Tocca l'altoparlante per ascoltare", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
     lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
     quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
@@ -1307,8 +1312,15 @@ class IgDoorbellView extends HTMLElement {
             : (typeof report.framesReceived === 'number' ? report.framesReceived : null);
         }
       });
+      this._readMediaPath(stats);
       if (packetsReceived !== null) {
-        if (this._prevPacketsReceived === null || packetsReceived > this._prevPacketsReceived) {
+        // (1.4.4) ZERO IS NOT PROGRESS. Chrome creates the inbound-rtp report from the offer's SSRCs,
+        // before a single packet arrives, so the first sample of a session with NO media path reads 0.
+        // Until 1.4.3 that first 0 (against a null "previous") counted as progress: it painted the
+        // badge LIVE five seconds into a session that never got a frame, and fed the life watchdog
+        // with it. Measured from "outside" on the remote-path bench (tests/card/remote_path).
+        const prevPackets = this._prevPacketsReceived === null ? 0 : this._prevPacketsReceived;
+        if (packetsReceived > prevPackets) {
           this._framesSeen = (this._framesSeen || 0) + 1;
           this._recordLifeSignal();
           this._confirmLiveFromMedia();
@@ -1322,6 +1334,7 @@ class IgDoorbellView extends HTMLElement {
     }
 
     if (this._lastLifeSignalAt !== null && (performance.now() - this._lastLifeSignalAt) >= 20000) {
+      if (!this._everConnected) this._retryReasonKey = 'retry_no_path';
       this._scheduleReconnect('20s with no real life signals (no getStats progress / no signaling)');
     }
   }
@@ -1414,6 +1427,7 @@ class IgDoorbellView extends HTMLElement {
     this._paintedLang = lang;
     this._paintFullscreenButton();
     if (this.clientsPill) this.clientsPill.setAttribute('title', getLocalText(this._hass, 'clients_tip'));
+    if (this.pathPill) this.pathPill.setAttribute('title', getLocalText(this._hass, 'path_remote_tip'));
     this._applyModeVisibility(); // repaints the Advanced button's title/aria-label
     // The two pills over the video are in the initial HTML and nobody ever repaints them: they're
     // fixed text, only shown and hidden. Without this they stayed in English just like the rest
@@ -2247,8 +2261,9 @@ class IgDoorbellView extends HTMLElement {
     if (this._doorCountdownTimer) { clearInterval(this._doorCountdownTimer); this._doorCountdownTimer = null; }
     if (this._retryCountdownTimer) { clearInterval(this._retryCountdownTimer); this._retryCountdownTimer = null; }
     let secondsLeft = Math.max(1, Math.round(ms / 1000));
+    const prefixKey = this._retryReasonKey || 'retry_prefix';
     const paintCountdown = () => {
-      this.statusLine.textContent = `${getLocalText(this._hass, 'retry_prefix')} ${secondsLeft}s`;
+      this.statusLine.textContent = `${getLocalText(this._hass, prefixKey)} ${secondsLeft}s`;
       this.statusLine.classList.remove('open');
       this.statusLine.classList.add('warn');
     };
@@ -4875,6 +4890,13 @@ class IgDoorbellView extends HTMLElement {
                     <ha-icon icon="mdi:account-multiple"></ha-icon>
                     <span id="clients-count">1</span>
                   </div>
+                  <!-- (1.4.4) The media goes through the internet (TURN or the router's public
+                       address), not straight over the LAN: same "Internet" badge as the apps
+                       (_RemoteBadge). Read from the selected ICE pair, see _readMediaPath(). -->
+                  <div class="path-pill" id="path-pill" style="display:none;" title="${getLocalText(this._hass, 'path_remote_tip')}">
+                    <ha-icon icon="mdi:cloud-outline"></ha-icon>
+                    <span>Internet</span>
+                  </div>
                 </div>
               </div>
 
@@ -5071,6 +5093,7 @@ class IgDoorbellView extends HTMLElement {
       this._bellBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._openEvents(); });
       this.loader = this.querySelector('#ig-loader');
       this.clientsPill = this.querySelector('#clients-pill');
+      this.pathPill = this.querySelector('#path-pill');
       this.clientsCount = this.querySelector('#clients-count');
       this.qualityToast = this.querySelector('#quality-toast');
       this.advBtn = this.querySelector('#adv-btn');
@@ -5120,7 +5143,14 @@ class IgDoorbellView extends HTMLElement {
       // image genuinely advances, which is exactly the signal that should drive this here. The cost is
       // one string comparison: _confirmLiveFromMedia() bails out on the first line unless the
       // chip is actually wrong.
-      this.videoEl.addEventListener('timeupdate', () => this._confirmLiveFromMedia());
+      //
+      // (1.4.4) ...but only with a decoded PICTURE (videoWidth > 0). The stream also carries the audio
+      // track, and a <video> playing a live audio track advances its clock - and fires 'timeupdate' -
+      // with not a single packet received. Measured on the remote-path bench's negative control (no
+      // media path at all): the badge said LIVE for the whole 60 s while the status line said "no
+      // video path, retrying". Audio-only quality has no picture by design: there the getStats
+      // watchdog (audio packets climbing) confirms it, 5 s later at most.
+      this.videoEl.addEventListener('timeupdate', () => { if (this.videoEl.videoWidth > 0) this._confirmLiveFromMedia(); });
 
       // The side rail (see _layoutRotation) AND the frame's shape (see _applyFeedAspect)
       // decide by looking at videoWidth/videoHeight, which are 0x0 until the <video> has
@@ -5453,8 +5483,11 @@ class IgDoorbellView extends HTMLElement {
       // startup's `nativeWS`, which was left orphaned with nobody ever closing it.
       if (this._superseded(gen)) return;
       if (!connectedLocally) {
-        // No cloud fallback, on purpose (phase 0). It's reported that Home Assistant can't reach the
-        // doorbell over the LAN and it retries with the usual backoff.
+        // No relay-signalling fallback, on purpose: Home Assistant IS this card's rendezvous (the
+        // browser reached it, or it would not be running this card), and it reaches the doorbell
+        // over the LAN. If THAT link is down, the relay could not help the card without handing the
+        // browser the pairing credential. Remote viewing is the MEDIA half (TURN, 1.4.4), see
+        // buildNativePeerConnection(). It's reported and it retries with the usual backoff.
         this._flashStatusLine('conn_lan', 6000);
         this._scheduleReconnect('Home Assistant\'s local proxy is not delivering the offer', gen);
       }
@@ -5492,13 +5525,27 @@ class IgDoorbellView extends HTMLElement {
   // building anything, so in that case there's neither an RTCPeerConnection nor an AudioContext to close
   // -- garbage that's never generated doesn't need collecting.
   async buildNativePeerConnection(gen) {
-    // ⚠️ NO STUN OR TURN, ON PURPOSE (phase 0, 2026-09-25). Home Assistant is a LOCAL client: the
-    // doorbell offers its LAN host candidate and the browser reaches it directly (measured on
-    // 2026-07-29: host <-> host, 2 ms). Until 1.8.x there was a fixed STUN on the VPS and TURN requested
-    // from the cloud by the integration; both were paths to the VPS and were removed. Don't bring them back
-    // "to view from outside": outside the LAN the card doesn't connect, and that's the rule, not a bug.
-    const iceServers = [];
-    await Promise.resolve();
+    // ⚠️ STUN + TURN ARE BACK, AND THEY ARE THE WHOLE OF "REMOTE" FOR THIS CARD (1.4.4, Iñaki
+    // 2026-09-30: "a Home Assistant user who opens the card does it from outside the network, and the
+    // local connection fails. Restore remote access in the card, working the same as the apps").
+    //
+    // Phase 0 (1.9.x, 2026-09-25) removed them on the rule "Home Assistant is a local client". True
+    // for Home Assistant, false for the BROWSER showing the card: from 4G / Nabu Casa the signalling
+    // still works (it goes through Home Assistant, which the browser already reached), the offer
+    // arrives, and then ICE can only try the doorbell's LAN address -> connectionState 'failed' ->
+    // reconnect loop, forever. Measured on the bench, see docs/card.md 1.4.4.
+    //
+    // WHY THIS IS "LOCAL FIRST" AND NOT A SECOND ATTEMPT AFTER A TIMEOUT: ICE races every pair at
+    // once and host <-> host has the highest priority, so at home the direct pair wins and TURN is
+    // never used - the same race the apps run one level higher (API_CONTRACT §1.0-bis: "no deadline
+    // decides anything"). Away, only the TURN (or srflx) pair can succeed, with no local timeout
+    // paid first.
+    //
+    // PRINCIPLE 1: the credential comes from the integration (turn_cloud.py), which answers from
+    // memory or within ~2.5 s and NEVER fails - with the VPS down the list is empty and this card
+    // connects over the LAN exactly as 1.4.3 did. The card adds its own deadline on top, in case
+    // Home Assistant's WebSocket itself stalls. The pairing credential never comes here.
+    const iceServers = await this._fetchIceServers(gen);
     // ⚠️ THE GUARD GOES HERE, BETWEEN THE LAST WAIT AND THE FIRST CONSTRUCTION, and that's not a coincidence:
     // from this line down there isn't a single `await`, so the rest runs in full with
     // nobody able to slip in between (JavaScript is single-threaded). Either we build while
@@ -5509,6 +5556,13 @@ class IgDoorbellView extends HTMLElement {
     }
 
     const pc = new RTCPeerConnection({ iceServers });
+    this._mediaPath = null;
+    this._mediaPathDetail = null;
+    this._paintMediaPath();
+    // An offer that arrived but no pair that ever worked is "no path from this network", which is
+    // what the retry countdown then says instead of a bare "no connection" (_startRetryCountdown).
+    this._everConnected = false;
+    this._retryReasonKey = null;
 
     // Muted audio track from startup so as not to block the video behind the microphone
     // permission dialog; replaceTrack() when activating the intercom (see toggleTalk).
@@ -5569,6 +5623,12 @@ class IgDoorbellView extends HTMLElement {
     pc.onconnectionstatechange = () => {
       if (this._superseded(gen)) return;
       this._mark(`RTCPeerConnection.connectionState -> ${pc.connectionState}`);
+      if (pc.connectionState === 'connected') {
+        this._everConnected = true;
+        this._retryReasonKey = null;
+        pc.getStats().then((st) => { if (!this._superseded(gen)) this._readMediaPath(st); }).catch(() => {});
+      }
+      if (pc.connectionState === 'failed' && !this._everConnected) this._retryReasonKey = 'retry_no_path';
       // AGGRESSIVE shortcut (2026-07-10, user decision, see COORDINATION.md Q19 - same
       // criterion android_app uses in its own watchdog): both 'failed' AND 'disconnected'
       // trigger immediate reconnection, without waiting out the rest of the life watchdog's 20s
@@ -5584,6 +5644,71 @@ class IgDoorbellView extends HTMLElement {
     };
 
     return pc;
+  }
+
+  // STUN + short-lived TURN for this doorbell, or [] (never throws). See buildNativePeerConnection().
+  // `this._iceSource` keeps where they came from, for the logs.
+  async _fetchIceServers(gen) {
+    this._iceSource = 'none';
+    if (!this._hass || !this._hass.connection) return [];
+    const ask = this._hass.connection.sendMessagePromise({
+      type: `${IG_DOMAIN}/get_ice_servers`,
+      device_id: this.config.device_id,
+    });
+    let timer = null;
+    const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve('deadline'), ICE_SERVERS_DEADLINE_MS); });
+    try {
+      const res = await Promise.race([ask, deadline]);
+      if (res === 'deadline') {
+        this._mark(`get_ice_servers: no answer in ${ICE_SERVERS_DEADLINE_MS}ms - LAN only for this attempt`);
+        ask.catch(() => {});
+        return [];
+      }
+      const servers = (res && Array.isArray(res.ice_servers)) ? res.ice_servers.filter((x) => x && typeof x.urls === 'string') : [];
+      this._iceSource = (res && res.source) || (servers.length ? 'vps' : 'none');
+      this._mark(`get_ice_servers: ${servers.length} server(s), source=${this._iceSource}`);
+      return servers;
+    } catch (err) {
+      // An integration older than 1.4.4 does not know the command: LAN only, as before.
+      this._mark(`get_ice_servers: not available (${err && err.code ? err.code : 'error'}) - LAN only`);
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Which way the media actually goes, read from the SELECTED candidate pair (not from which
+  // signalling path was used: on this card signalling always goes through Home Assistant). 'local' =
+  // the doorbell's host candidate reached directly; 'remote' = anything through the internet
+  // (TURN relay or the router's public address). Drives the "Internet" pill, same as the apps'
+  // _RemoteBadge, and `data-path` on the view for the benches.
+  _readMediaPath(stats) {
+    let pairId = null;
+    stats.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId; });
+    let pair = pairId ? stats.get(pairId) : null;
+    if (!pair) stats.forEach((r) => { if (!pair && r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
+    if (!pair) return;
+    const loc = stats.get(pair.localCandidateId);
+    const rem = stats.get(pair.remoteCandidateId);
+    if (!loc || !rem) return;
+    const remote = loc.candidateType === 'relay' || rem.candidateType !== 'host';
+    const path = remote ? 'remote' : 'local';
+    const detail = `${loc.candidateType}->${rem.candidateType}`;
+    if (path !== this._mediaPath || detail !== this._mediaPathDetail) {
+      this._mediaPath = path;
+      this._mediaPathDetail = detail;
+      this._mark(`media path: ${path} (${detail})`);
+      this._paintMediaPath();
+    }
+  }
+
+  _paintMediaPath() {
+    if (this.dataset) {
+      this.dataset.path = this._mediaPath || '';
+      this.dataset.pathDetail = this._mediaPathDetail || '';
+    }
+    if (!this.pathPill) return;
+    this.pathPill.style.display = this._mediaPath === 'remote' ? 'flex' : 'none';
   }
 
   // Tries the local path first: the doorbell's own real HTTPS
@@ -5683,7 +5808,7 @@ class IgDoorbellView extends HTMLElement {
       if (status === 401) {
         this._reportPairingRejected('Home Assistant local proxy: 401');
       } else if (status === 502) {
-        this._mark('local proxy: 502 - Home Assistant cannot reach the doorbell (powered off, or another VLAN with no route). Falling back to the relay.');
+        this._mark('local proxy: 502 - Home Assistant cannot reach the doorbell (powered off, or another VLAN with no route).');
       } else {
         this._mark(`local proxy: unclassified failure (status=${status})`);
       }
@@ -5763,7 +5888,7 @@ class IgDoorbellView extends HTMLElement {
         this.nativeSSE = es;
       } catch (err) {
         clearTimeout(timeout);
-        console.warn('[ig-doorbell-card] could not open local EventSource, falling back to the remote relay:', err);
+        console.warn('[ig-doorbell-card] could not open the EventSource to Home Assistant\'s signalling proxy:', err);
         this._mark('tryLocalSignaling: EventSource lanzo excepcion al crearse');
         resolve(false);
         return;
@@ -6621,6 +6746,14 @@ class IgDoorbellView extends HTMLElement {
       }
       .clients-pill ha-icon { --mdc-icon-size: 13px; }
       .clients-pill.multi { color: var(--ig-cyan); border-color: rgba(0,196,212,0.45); background: rgba(0,196,212,0.16); }
+      /* (1.4.4) "Internet" - the apps' remote badge: cyan cloud + word, same pill shape. */
+      .path-pill {
+        display: flex; align-items: center; gap: 4px; pointer-events: auto;
+        background: rgba(7,13,26,0.72); backdrop-filter: blur(6px);
+        border: 1px solid rgba(0,196,212,0.35); border-radius: 999px; padding: 4px 9px;
+        font-size: 10.5px; font-weight: 700; color: var(--ig-cyan);
+      }
+      .path-pill ha-icon { --mdc-icon-size: 13px; }
 
       .live-tag {
         display: flex; align-items: center; gap: 6px; pointer-events: auto;

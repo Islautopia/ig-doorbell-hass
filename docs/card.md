@@ -10,6 +10,87 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.4.4 (2026-09-30): remote viewing restored - STUN + TURN for the media, HA stays the rendezvous
+
+Iñaki, 2026-09-30: *"a Home Assistant user who opens the card does it from outside the network, and
+the local connection therefore fails. Restore remote access in the card, working the same as the
+apps."*
+
+**Root cause (git + code, confirmed on the bench).** Not an accident: Phase 0 (integration 0.7.0,
+`8d6ad31`, 2026-09-25, plan `docs/plan-paridad-con-las-apps.md` §1.3 #1-#9 on branch
+`plan-paridad-con-las-apps`) removed on purpose every path to the VPS under rule 3 ("Home Assistant
+is a local client"): `get_turn_credentials` and `RELAY_HOST` in the integration, the relay WebSocket
+and the direct public-hostname signalling in the card, and the card's STUN/TURN
+(`buildNativePeerConnection`: `const iceServers = []`, with a comment forbidding bringing them back
+"to view from outside"). `tests/test_lan_only.py` pinned it. The rule is true for Home Assistant and
+false for the BROWSER: from outside, signalling still works (it goes through HA's proxy,
+`signal_proxy.py`, which the browser reaches like any HA page), the offer arrives, and ICE can only
+try the doorbell's LAN host candidate. Measured with the 1.4.3 card from "outside" (case D below):
+offer in 0.3-0.7 s, `connectionState` `failed` at 15.2-15.9 s, reconnect, forever. What was left of
+`startRelaySignaling`/4401 in the card were comments only.
+
+**What changed.**
+- Integration: `turn_cloud.py` (new) fetches `GET /device/<id>/app_turn_credentials` (API_CONTRACT
+  §3.1-bis, the same route the apps use) with the pairing credential in the Authorization header,
+  caches the answer 50 min (TTL 60, the Android app's figure), answers a cold request within 2.5 s at
+  most, remembers a failure for 60 s, never raises. New WS command `ig_doorbell/get_ice_servers`
+  (logged-in HA users only, like every WS command) returns `{ice_servers, source}`: STUN + TURN
+  username/credential, never the pairing credential. No firmware or VPS interface changed.
+- Card: `buildNativePeerConnection` asks for them (own 3 s deadline, `ICE_SERVERS_DEADLINE_MS`; an
+  older integration or a stall = `[]`, i.e. 1.4.3 behaviour). ICE does the local-first race: the
+  host pair wins at home, TURN/srflx only away - no "try local, wait, try remote" timeout
+  (§1.0-bis). `_readMediaPath()` reads the SELECTED pair from getStats (on connect and every 5 s in
+  the life watchdog) and shows the apps' **Internet** pill (`#path-pill`, cloud + "Internet", same
+  as `_RemoteBadge`) when the pair is not host-to-host; `data-path`/`data-path-detail` on the view
+  for benches. A session whose ICE never connected retries with `retry_no_path` ("No video path to
+  the doorbell from this network · retrying in Ns", 6 languages) instead of a bare "No connection".
+- **Why no relay-WebSocket signalling** (the apps race it): for the card, Home Assistant IS the
+  rendezvous - a browser running the card reached HA already, and HA reaches the doorbell over the
+  LAN. The relay could only help when HA itself lost the doorbell, and then only by handing the
+  browser the long-lived pairing credential. So "remote" for the card is the media half.
+- Two older card bugs found by the negative control and fixed: (1) the life watchdog took the first
+  `packetsReceived` = 0 (Chrome creates inbound-rtp from the offer's SSRCs) as progress against a
+  null previous value; (2) the `<video>`'s `timeupdate` fires with the audio track alone, no packet
+  received. Either painted the badge LIVE over a session with no picture (measured: 1.4.3 said LIVE
+  for the whole failing run). Now `timeupdate` confirms only with `videoWidth > 0` and zero is never
+  progress.
+
+**The real bench: `tests/card/remote_path/`** (by hand, needs the house; not in run_all).
+`bench.js` runs each case in a container (`igd-remote-bench`: Playwright image + Google Chrome) whose
+OUTPUT chain drops every 192.168.0.0/16 destination except Home Assistant and Docker's DNS network
+(rules applied by a `nicolaka/netshoot` sidecar in the same namespace); `probe.js` injects this repo's
+card into the real HA (profile page, `-dev` tags), watches only, and MEASURES the isolation first
+(doorbell unreachable, HA reachable, H.264 decodable, STUN answering or not). Doorbell guard: `cores`
+must say no call/ring/busy and 0 sessions before each case; one session, closed with `_destroy`,
+count back to 0 after. Results 2026-09-30 (Waveshare unless noted):
+
+| case | network | result |
+|---|---|---|
+| D control, 1.4.3 card | outside | no video in 45 s; ICE `failed` at 15.2-15.5 s, retry loop; badge said LIVE |
+| A this card | outside | first frame 1.72-1.78 s, frames 4-8 -> 63-68 in 4 s, audio live and climbing, pair relay->srflx or relay->relay, RTT 73-115 ms, Internet pill shown |
+| B negative control | outside + all UDP blocked (STUN verified silent) | no video in 60 s; "No hay camino de vídeo ... reintentando en Ns" every retry; badge `connecting`, not LIVE |
+| C positive control | this PC on the LAN (native Chromium) | first frame 1.09 s, pair prflx->host, RTT 2-13 ms, no pill |
+| E principle 1 | LAN, browser cannot reach the VPS (STUN verified silent) | first frame 1.21-1.24 s, prflx->host, no pill |
+| F Ermita 10, read-only | outside | first frame 1.79-2.24 s, relay->srflx, audio live, pill; idle checked before, released after |
+
+Instrument traps paid for on the way, so nobody repeats them:
+- **Playwright's Linux Chromium has no H.264** (VP8/VP9/AV1 only). Against the doorbell it rejects
+  the video m-line and gets audio only - which looks exactly like "TURN drops video". That is why
+  the image adds Google Chrome, and why the probe checks H.264 first.
+- **Case D must run first, or 5 min after any remote case.** The bench's "outside" browser leaves
+  through the same router as the doorbell, i.e. the same public IP. A remote case makes the doorbell
+  CreatePermission that IP on its TURN allocation, and coturn keeps it 5 min: in that window the
+  1.4.3 card reaches the doorbell's relay candidate and "works" (measured twice: prflx->relay).
+  From a real 4G phone the public IP differs; this bench does NOT reproduce a different NAT (CGNAT,
+  symmetric) - that is Iñaki's 4G test.
+
+Other benches: `sim_carrera_reentrada.js` case 13 now checks the card uses exactly the
+integration's list (13), a hung `get_ice_servers` does not hold the session (13b), an older
+integration gives `[]` (13c), the pill follows the selected pair (13d); three new mutants killed.
+pytest: `tests/test_remote_media.py` (credential only in the header of the one route, never to the
+browser, cache, failure backoff, deadline, not_found, nothing local calls it) + 6 new mutants in
+`tools/mutants.py`.
+
 ## 1.4.3 (2026-09-29): §5 override - viewers pill back in simple mode
 
 Coordinator's `spec_modo_avanzado.md` §5, written later the same day, overrides one point of §4

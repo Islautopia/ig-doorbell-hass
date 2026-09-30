@@ -6,6 +6,31 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.4] — 2026-09-30
+
+### Added
+
+- **The card's live view works away from home**, like the mobile apps. When you open Home Assistant
+  from outside (Home Assistant Cloud, your own domain…), video and audio cross our relay server
+  end-to-end encrypted; at home they still go straight to the doorbell. An **Internet** badge on the
+  picture says when the media goes through the internet.
+
+### Fixed
+
+- From outside the home network the card never got a picture: it retried forever with only "No
+  connection". It now connects, and when no path works at all it says so ("No video path to the
+  doorbell from this network") while it retries.
+- The status badge could say **Live** a few seconds into a session that never received a single
+  frame.
+
+### Privacy and local-first
+
+- The browser gets a **one-hour relay pass** from the integration (only for logged-in Home
+  Assistant users); the doorbell's pairing credential still never leaves Home Assistant. The relay
+  forwards encrypted packets it cannot read and stores nothing.
+- Nothing at home depends on it: with the internet or our servers down the card connects over your
+  network exactly as before, and the integration never waits more than 2.5 s for the pass.
+
 ## [1.4.3] — 2026-09-29
 
 First published release since 1.1.2: it also ships everything listed under 1.2.0–1.4.0 below, which were never

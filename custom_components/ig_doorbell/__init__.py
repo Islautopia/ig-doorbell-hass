@@ -8,7 +8,9 @@ integration does NOT do:
   2. Ask the doorbell how it is, so those entities have state - coordinator.py.
   3. Server side of the Lovelace card: relays its signalling (signal_proxy.py) and its recordings
      (recordings_view.py) so the pairing credential never reaches a browser, and tells it which
-     entities to read (websocket_api.py). LAN only: nothing here talks to the VPS (net.py).
+     entities to read (websocket_api.py). The doorbell is reached over the LAN only (net.py).
+     The one thing fetched from the VPS for the card is a short-lived TURN credential, so its
+     media can cross from outside the home (turn_cloud.py, 1.4.4) - never needed on the LAN.
   4. Config flow itself (Zeroconf discovery + manual entry, no YAML) - config_flow.py.
 
 ## Why this integration owns the entities now
@@ -49,7 +51,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
-from . import api, net, webhook
+from . import api, net, turn_cloud, webhook
 from .const import (
     CONF_CREDENTIAL,
     CONF_DEVICE_ID,
@@ -736,6 +738,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         webhook.unregister(hass, entry.data[CONF_DEVICE_ID])
+        turn_cloud.forget(hass, entry.data[CONF_DEVICE_ID])
         data = hass.data[DOMAIN].pop(entry.entry_id, None)
         # The session belongs to THIS entry and has no automatic cleanup on purpose (net.py): the
         # one Home Assistant brings closes on STOP, and an integration gets unloaded and reloaded

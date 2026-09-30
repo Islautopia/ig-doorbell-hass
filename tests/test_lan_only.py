@@ -60,16 +60,21 @@ def test_a_name_can_never_be_stored_as_the_address():
 # (API_CONTRACT §4-ter), and only while HTTPS is enabled (tests/test_https.py). Nothing about the
 # doorbell goes there: test_https_cloud_is_only_for_the_public_name pins that.
 PUBLIC_NAME_MODULES = {"https_cloud.py", "https_manager.py"}
+# (1.4.4) The ONE module that fetches TURN credentials for the card's media from outside the home
+# (turn_cloud.py). tests/test_remote_media.py pins what it may do: one route, the credential only in
+# its Authorization header, never waited on by anything local.
+REMOTE_MEDIA_MODULES = {"turn_cloud.py"}
 
 
 def test_no_relay_or_turn_left_in_the_code():
-    """Nothing in the package may point at the relay or fetch TURN credentials (plan §1.3 #1-#4)."""
+    """Nothing in the package may point at the relay or fetch TURN credentials (plan §1.3 #1-#4),
+    except turn_cloud.py since 1.4.4 (remote viewing, Iñaki 2026-09-30)."""
     import pathlib
 
     root = pathlib.Path(net.__file__).parent
     text = "\n".join(
         p.read_text(encoding="utf-8") for p in root.glob("*.py")
-        if p.name not in PUBLIC_NAME_MODULES
+        if p.name not in PUBLIC_NAME_MODULES | REMOTE_MEDIA_MODULES
     )
     assert not hasattr(const, "RELAY_HOST")
     for forbidden in ("relay.doorbell", "app_turn_credentials", "get_turn_credentials",
