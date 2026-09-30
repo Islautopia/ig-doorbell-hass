@@ -19,6 +19,10 @@
           "email": "Correo del administrador",
           "password": "Contraseña"
         }
+      },
+      "move_notifications": {
+        "title": "Ya conectado a otro Home Assistant",
+        "description": "Este videoportero ya está conectado a otro Home Assistant ({other}). Si continúas, sus avisos pasarán a este: aquel Home Assistant dejará de recibir los timbrazos y eventos de este videoportero. Cierra este diálogo para cancelar."
       }
     },
     "error": {
@@ -104,6 +108,10 @@
           "announce_players": "Suenan con un carillón cuando alguien llama: Alexa (Echo) con su propio carillón de timbre, el resto de altavoces con el de IG Doorbell. Si ya anuncias el timbre en estos altavoces con una automatización, no necesitas esto, o sonarán dos veces.",
           "announce_voice": "Alexa: un anuncio; otros altavoces: necesita un motor de texto a voz en Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Ya conectado a otro Home Assistant",
+        "description": "Este videoportero ya está conectado a otro Home Assistant ({other}). Si continúas, sus avisos pasarán a este: aquel Home Assistant dejará de recibir los timbrazos y eventos de este videoportero. Cierra este diálogo para cancelar."
       }
     },
     "error": {

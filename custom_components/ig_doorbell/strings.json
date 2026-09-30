@@ -19,6 +19,10 @@
           "email": "Administrator email",
           "password": "Password"
         }
+      },
+      "move_notifications": {
+        "title": "Already connected to another Home Assistant",
+        "description": "This doorbell is already connected to another Home Assistant ({other}). Continuing will move its notifications here: that Home Assistant will stop receiving this doorbell's rings and events. Close this dialog to cancel."
       }
     },
     "error": {
@@ -104,6 +108,10 @@
           "announce_players": "They play a doorbell chime when someone rings: Alexa (Echo) its own doorbell chime, every other speaker the IG Doorbell chime. If you already announce the bell on these speakers with an automation, you don't need this - or they will announce twice.",
           "announce_voice": "Alexa: an announcement; other speakers: needs a text-to-speech engine in Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Already connected to another Home Assistant",
+        "description": "This doorbell is already connected to another Home Assistant ({other}). Continuing will move its notifications here: that Home Assistant will stop receiving this doorbell's rings and events. Close this dialog to cancel."
       }
     },
     "error": {

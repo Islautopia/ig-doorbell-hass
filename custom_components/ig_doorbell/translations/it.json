@@ -19,6 +19,10 @@
           "email": "Email amministratore",
           "password": "Password"
         }
+      },
+      "move_notifications": {
+        "title": "Già collegato a un altro Home Assistant",
+        "description": "Questo videocitofono è già collegato a un altro Home Assistant ({other}). Continuando, le sue notifiche verranno spostate qui: quell'Home Assistant smetterà di ricevere le chiamate e gli eventi di questo videocitofono. Chiudi questa finestra per annullare."
       }
     },
     "error": {
@@ -104,6 +108,10 @@
           "announce_players": "Suonano un carillon quando qualcuno suona: Alexa (Echo) il proprio carillon del campanello, gli altri altoparlanti quello di IG Doorbell. Se annunci già il campanello su questi altoparlanti con un'automazione, non ti serve, altrimenti annunceranno due volte.",
           "announce_voice": "Alexa: un annuncio; altri altoparlanti: serve un motore di sintesi vocale in Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Già collegato a un altro Home Assistant",
+        "description": "Questo videocitofono è già collegato a un altro Home Assistant ({other}). Continuando, le sue notifiche verranno spostate qui: quell'Home Assistant smetterà di ricevere le chiamate e gli eventi di questo videocitofono. Chiudi questa finestra per annullare."
       }
     },
     "error": {

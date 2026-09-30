@@ -6,6 +6,25 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.5] — 2026-09-30
+
+### Fixed
+
+- **A second Home Assistant with the same name no longer takes the first one's access.** The name a
+  Home Assistant pairs with on the doorbell was built from the Home Assistant location name only, so
+  two installations both called, say, "Home" and paired with the same administrator account shared
+  it: the doorbell reused the slot, and the first Home Assistant silently lost access. New pairings
+  now add six characters of Home Assistant's own installation id ("Home Assistant Home 0f1e2d"),
+  which is stable across restarts and different on every installation. Doorbells already paired
+  keep their current pairing: nothing to redo.
+
+### Changed
+
+- **Moving the notifications is now a question.** A doorbell sends its rings and events to one Home
+  Assistant. If it already notifies another Home Assistant, adding it (or re-pairing it) now says so,
+  with that Home Assistant's address, and asks for confirmation before moving the notifications
+  here. Translated into English, Spanish, French, Italian, German and Portuguese.
+
 ## [1.4.4] — 2026-09-30
 
 ### Added

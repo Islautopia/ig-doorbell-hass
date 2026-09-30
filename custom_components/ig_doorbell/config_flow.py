@@ -25,6 +25,7 @@ import errno
 import logging
 import socket
 from typing import Any
+from urllib.parse import urlsplit
 
 import aiohttp
 import voluptuous as vol
@@ -33,10 +34,10 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import instance_id, selector
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from . import api, net
+from . import api, net, webhook
 from .const import (
     CONF_CREDENTIAL,
     CONF_DEVICE_ID,
@@ -144,17 +145,96 @@ async def _check_lan(
     return found, None
 
 
-def _new_label(hass: HomeAssistant) -> str:
-    """The pairing label for a NEW entry: "Home Assistant <location name>".
+# The label budget, in UTF-8 BYTES. The firmware keeps `email|label` as "%.39s|%.39s" (app_pairing.c)
+# and the remote session's label is cut to 39 bytes too, so anything past 39 bytes is lost; 32 leaves
+# margin and is what the label was already cut to before 1.4.5.
+_LABEL_MAX_BYTES = 32
+_ID_CHARS = 6
 
-    ⚠️ Not the bare "Home Assistant" any more (0.7.0). The doorbell identifies a pairing by
-    `email|label` and REUSES the slot when both repeat (§1.5): a second Home Assistant in the same
-    house, paired by the same admin, silently took over the first one's credential, and the first
-    one started getting 401 with nothing explaining why. Existing entries keep their stored label
-    (re-pairing must reuse their slot, not open a new one).
+
+def _clean_label_part(text: str) -> str:
+    """Characters the firmware would rewrite (`"`, backslash, control) are dropped here instead, so
+    the label stored in the entry is byte-for-byte the one the doorbell keeps."""
+    kept = "".join(c for c in text if c not in '"\\' and ord(c) >= 0x20 and c != "\x7f")
+    return " ".join(kept.split())
+
+
+def _cut_utf8(text: str, max_bytes: int) -> str:
+    """At most `max_bytes` of UTF-8, never splitting a character."""
+    out = text.encode("utf-8")[:max(max_bytes, 0)].decode("utf-8", errors="ignore")
+    return out.rstrip()
+
+
+async def _new_label(hass: HomeAssistant) -> str:
+    """The pairing label for a NEW entry: "Home Assistant <location name> <6 chars of the instance id>".
+
+    ⚠️ THE INSTANCE ID IS WHAT MAKES IT UNIQUE, and the name alone never was (1.4.5). The doorbell
+    identifies a pairing by `email|label` and REUSES the slot when both repeat (§1.5). 0.7.0 added
+    the location name, which fixed "Home Assistant" vs "Home Assistant", but two installations are
+    very often both called "Casa"/"Home": measured 2026-09-30, a second Home Assistant named like
+    the first, paired by the same admin, silently took the first one's credential and the first
+    started getting 401 with nothing explaining why. `instance_id` is stored by Home Assistant
+    itself (`.storage/core.uuid`), so the label is stable across restarts and differs between
+    installations. The id goes LAST and is never cut: when the name is long, the NAME is trimmed.
+
+    Existing entries keep their stored label (re-pairing must reuse their slot, not open a new
+    one), so this only applies to new entries.
     """
-    name = (getattr(hass.config, "location_name", "") or "").strip()
-    return f"{DEFAULT_PAIR_LABEL} {name}".strip()[:32]
+    iid = await instance_id.async_get(hass)
+    suffix = "".join(c for c in iid.lower() if c in "0123456789abcdef")[:_ID_CHARS] or "000000"
+    name = _clean_label_part(getattr(hass.config, "location_name", "") or "")
+    budget = _LABEL_MAX_BYTES - len(f"{DEFAULT_PAIR_LABEL}  {suffix}".encode("utf-8"))
+    name = _cut_utf8(name, budget)
+    return " ".join(p for p in (DEFAULT_PAIR_LABEL, name, suffix) if p)
+
+
+async def _our_webhook_url(hass: HomeAssistant, device_id: str, ip: str) -> str | None:
+    """The webhook URL THIS Home Assistant would give the doorbell, or None if it cannot tell
+    (same computation as `_async_configure_doorbell` in __init__.py)."""
+    from . import _local_base  # noqa: PLC0415 - the package is loaded before its config flow
+
+    base = await _local_base(hass, ip)
+    if not base:
+        return None
+    return f"{base.rstrip('/')}/api/webhook/{webhook.webhook_id_for(device_id)}"
+
+
+async def _webhook_elsewhere(
+    hass: HomeAssistant, device_id: str, ip: str, email: str, password: str
+) -> tuple[str | None, str | None]:
+    """Does the doorbell already send its notices to ANOTHER Home Assistant? (other, error_code)
+
+    `other` is the address of that Home Assistant (host:port of the webhook URL; the doorbell does
+    not store which pairing configured it, so the address is what identifies it), or None.
+
+    ⚠️ The doorbell stores ONE webhook and the last Home Assistant to pair takes it (§4). That is
+    accepted for now, but it must never be SILENT: before 1.4.5 the first Home Assistant just stopped
+    getting rings. A read that fails (not admin, older firmware) does not block pairing: a
+    non-admin pairing cannot configure the webhook either, so nothing would move.
+    """
+    if not net.is_address(ip):
+        return None, "not_on_lan"
+    session = net.create_session(hass, {api.doorbell_hostname(device_id): ip})
+    try:
+        await api.async_login(session, device_id, email, password)
+        try:
+            current = await api.async_get_hass_webhook_url(session, device_id)
+        except api.DoorbellApiError as err:
+            _LOGGER.warning("Could not read which Home Assistant %s notifies (%s)", device_id, err)
+            current = ""
+        await api.async_logout(session, device_id)
+    except api.AuthenticationError:
+        return None, "invalid_auth"
+    except (aiohttp.ClientError, OSError, TimeoutError, api.DoorbellApiError):
+        return None, "not_on_lan"
+    finally:
+        if not session.closed:
+            await session.close()
+    if not current:
+        return None, None
+    if current == await _our_webhook_url(hass, device_id, ip):
+        return None, None
+    return (urlsplit(current).netloc or current[:64]), None
 
 
 async def _async_pair(
@@ -211,6 +291,8 @@ class IgDoorbellConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._device_id: str | None = None
         self._host_hint: str | None = None
         self._name_hint: str | None = None
+        self._pending_login: tuple[str, str] | None = None
+        self._other_ha: str | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Manual entry: the doorbell's LAN IP."""
@@ -281,33 +363,76 @@ class IgDoorbellConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_pair(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Log in once, call pair_app once, keep only the resulting credential."""
+        """Log in once, call pair_app once, keep only the resulting credential.
+
+        Before pairing, the doorbell is asked whether it already notifies ANOTHER Home Assistant.
+        If so, the user must confirm moving it here (`move_notifications`): it holds ONE webhook,
+        and taking it over used to be silent (1.4.5).
+        """
         errors: dict[str, str] = {}
         if user_input is not None:
             assert self._device_id is not None
-            label = _new_label(self.hass)
-            result, error = await _async_pair(
+            other, error = await _webhook_elsewhere(
                 self.hass, self._device_id, self._host_hint or "",
-                user_input["email"], user_input["password"], label,
+                user_input["email"], user_input["password"],
             )
             if error:
                 errors["base"] = error
+            elif other:
+                # Kept in memory only, for the one confirm step; never in the entry.
+                self._pending_login = (user_input["email"], user_input["password"])
+                self._other_ha = other
+                return await self.async_step_move_notifications()
             else:
-                assert result is not None
-                # The real title (if the doorbell has a `dname`) is corrected by `_sync_name`
-                # in __init__.py the moment the entry starts up, with the first `get_states`. This
-                # is only the starting title - and never the bare id (Inaki, 2026-09-26), in case
-                # it is seen before that first correction (manual setup, no zeroconf hint).
-                return self.async_create_entry(
-                    title=self._name_hint or generic_name(result.device_id),
-                    data={
-                        CONF_DEVICE_ID: result.device_id,
-                        CONF_CREDENTIAL: result.credential,
-                        CONF_HOST_HINT: self._host_hint,
-                        CONF_LABEL: label,
-                    },
-                )
+                result = await self._async_pair_and_create(user_input["email"], user_input["password"])
+                if isinstance(result, str):
+                    errors["base"] = result
+                else:
+                    return result
+        return self._pair_form(errors)
 
+    async def async_step_move_notifications(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Explicit confirm: this doorbell already notifies another Home Assistant."""
+        if user_input is None or self._pending_login is None:
+            return self.async_show_form(
+                step_id="move_notifications",
+                data_schema=vol.Schema({}),
+                description_placeholders={"other": self._other_ha or "?"},
+            )
+        email, password = self._pending_login
+        self._pending_login = None
+        result = await self._async_pair_and_create(email, password)
+        if isinstance(result, str):
+            return self._pair_form({"base": result})
+        return result
+
+    async def _async_pair_and_create(self, email: str, password: str) -> FlowResult | str:
+        """Pair and create the entry; an error code (str) if it failed."""
+        assert self._device_id is not None
+        label = await _new_label(self.hass)
+        result, error = await _async_pair(
+            self.hass, self._device_id, self._host_hint or "", email, password, label,
+        )
+        if error:
+            return error
+        assert result is not None
+        # The real title (if the doorbell has a `dname`) is corrected by `_sync_name`
+        # in __init__.py the moment the entry starts up, with the first `get_states`. This
+        # is only the starting title - and never the bare id (Inaki, 2026-09-26), in case
+        # it is seen before that first correction (manual setup, no zeroconf hint).
+        return self.async_create_entry(
+            title=self._name_hint or generic_name(result.device_id),
+            data={
+                CONF_DEVICE_ID: result.device_id,
+                CONF_CREDENTIAL: result.credential,
+                CONF_HOST_HINT: self._host_hint,
+                CONF_LABEL: label,
+            },
+        )
+
+    def _pair_form(self, errors: dict[str, str]) -> FlowResult:
         return self.async_show_form(
             step_id="pair",
             data_schema=vol.Schema({vol.Required("email"): str, vol.Required("password"): str}),
@@ -524,33 +649,74 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
     async def async_step_repair(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Re-pair - e.g. after revoking the credential from the cloud panel."""
+        """Re-pair - e.g. after revoking the credential from the cloud panel.
+
+        Same question as a new pairing: if the doorbell notifies ANOTHER Home Assistant, re-pairing
+        (and the reload that follows) moves it here, so the user confirms it first (1.4.5).
+        """
         errors: dict[str, str] = {}
         if user_input is not None:
-            device_id = self._entry.data[CONF_DEVICE_ID]
-            result, error = await _async_pair(
-                self.hass, device_id, self._entry.data.get(CONF_HOST_HINT) or "",
+            other, error = await _webhook_elsewhere(
+                self.hass, self._entry.data[CONF_DEVICE_ID],
+                self._entry.data.get(CONF_HOST_HINT) or "",
                 user_input["email"], user_input["password"],
-                self._entry.data.get(CONF_LABEL) or DEFAULT_PAIR_LABEL,
             )
             if error:
                 errors["base"] = error
+            elif other:
+                self._pending_login = (user_input["email"], user_input["password"])
+                self._other_ha = other
+                return await self.async_step_repair_move_notifications()
             else:
-                assert result is not None
-                new_data = dict(self._entry.data)
-                new_data[CONF_CREDENTIAL] = result.credential
-                self.hass.config_entries.async_update_entry(self._entry, data=new_data)
-                # ⚠️ `data=dict(self._entry.options)` and NOT `data={}`: an options flow REPLACES
-                # the whole dict and would take the entity list down with it.
-                return self.async_create_entry(title="", data=dict(self._entry.options))
+                result = await self._async_repair(user_input["email"], user_input["password"])
+                if isinstance(result, str):
+                    errors["base"] = result
+                else:
+                    return result
+        return self._repair_form(errors)
 
+    async def async_step_repair_move_notifications(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Explicit confirm before re-pairing takes the notifications from another Home Assistant."""
+        pending = getattr(self, "_pending_login", None)
+        if user_input is None or pending is None:
+            return self.async_show_form(
+                step_id="repair_move_notifications",
+                data_schema=vol.Schema({}),
+                description_placeholders={"other": getattr(self, "_other_ha", None) or "?"},
+            )
+        self._pending_login = None
+        result = await self._async_repair(*pending)
+        if isinstance(result, str):
+            return self._repair_form({"base": result})
+        return result
+
+    async def _async_repair(self, email: str, password: str) -> FlowResult | str:
+        device_id = self._entry.data[CONF_DEVICE_ID]
+        # The STORED label, never a new one: re-pairing must reuse this entry's slot (§1.5).
+        result, error = await _async_pair(
+            self.hass, device_id, self._entry.data.get(CONF_HOST_HINT) or "",
+            email, password,
+            self._entry.data.get(CONF_LABEL) or DEFAULT_PAIR_LABEL,
+        )
+        if error:
+            return error
+        assert result is not None
+        new_data = dict(self._entry.data)
+        new_data[CONF_CREDENTIAL] = result.credential
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
+        # ⚠️ `data=dict(self._entry.options)` and NOT `data={}`: an options flow REPLACES
+        # the whole dict and would take the entity list down with it.
+        return self.async_create_entry(title="", data=dict(self._entry.options))
+
+    def _repair_form(self, errors: dict[str, str]) -> FlowResult:
         return self.async_show_form(
             step_id="repair",
             data_schema=vol.Schema({vol.Required("email"): str, vol.Required("password"): str}),
             errors=errors,
             description_placeholders={"host": self._entry.data.get(CONF_HOST_HINT) or ""},
         )
-
 
 def _own_entities(hass) -> list[str]:
     """Every entity this integration provides (for any doorbell)."""

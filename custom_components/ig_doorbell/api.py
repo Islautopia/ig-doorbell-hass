@@ -139,6 +139,25 @@ async def async_logout(session: aiohttp.ClientSession, device_id: str) -> None:
         _LOGGER.debug("Best-effort logout failed for %s (non-blocking)", device_id)
 
 
+async def async_get_hass_webhook_url(session: aiohttp.ClientSession, device_id: str) -> str:
+    """GET /api/hass (contract §4) with the admin session cookie on `session`: the webhook URL the
+    doorbell writes to now, or "" if none is configured.
+
+    The doorbell stores ONE Home Assistant webhook, and the last Home Assistant to configure it
+    takes it. The config flow reads this BEFORE pairing so that taking it over from another Home
+    Assistant is a question put to the user, never a silent move (1.4.5).
+    """
+    url = f"https://{doorbell_hostname(device_id)}:8443/api/hass"
+    async with session.get(url, timeout=_TIMEOUT) as resp:
+        if resp.status == 403:
+            raise NotAllowedError("This session is not an admin of that doorbell")
+        if resp.status != 200:
+            raise DoorbellApiError(f"GET /api/hass -> HTTP {resp.status}")
+        data = await resp.json(content_type=None)
+    value = data.get("url") if isinstance(data, dict) else None
+    return value.strip() if isinstance(value, str) else ""
+
+
 async def async_unpair_app(session: aiohttp.ClientSession, device_id: str, label: str) -> bool:
     """Undo a pairing (§1.5) with the admin session cookie on `session`, found by its label.
 
