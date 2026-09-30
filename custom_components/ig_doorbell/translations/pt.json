@@ -46,6 +46,10 @@
           "announce_players": "Tocam um carrilhão quando alguém toca: a Alexa (Echo) o seu próprio carrilhão de campainha, os outros altifalantes o da IG Doorbell. Se já anuncia a campainha nestes altifalantes com uma automação, não precisa disto, ou anunciarão duas vezes.",
           "announce_voice": "Alexa: um anúncio; outros altifalantes: precisa de um motor de texto para voz no Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Já ligada a outro Home Assistant",
+        "description": "Esta campainha já está ligada a outro Home Assistant ({other}). Se continuar, as suas notificações passam para aqui: esse Home Assistant deixará de receber os toques e eventos desta campainha. Feche esta janela para cancelar."
       }
     },
     "error": {
@@ -372,6 +376,14 @@
     "https_public_name_failed": {
       "title": "Nome público indisponível",
       "description": "Não foi possível obter o nome público para o Home Assistant ({code}). O endereço local seguro não é afetado. A documentação da integração explica cada código."
+    }
+  },
+  "config": {
+    "step": {
+      "move_notifications": {
+        "title": "Já ligada a outro Home Assistant",
+        "description": "Esta campainha já está ligada a outro Home Assistant ({other}). Se continuar, as suas notificações passam para aqui: esse Home Assistant deixará de receber os toques e eventos desta campainha. Feche esta janela para cancelar."
+      }
     }
   }
 }

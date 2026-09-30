@@ -46,6 +46,10 @@
           "announce_players": "Elles jouent un carillon quand quelqu'un sonne : Alexa (Echo) son propre carillon de sonnette, les autres enceintes celui d'IG Doorbell. Si vous annoncez déjà la sonnette sur ces enceintes avec une automatisation, vous n'en avez pas besoin, sinon elles annonceront deux fois.",
           "announce_voice": "Alexa : une annonce ; autres enceintes : nécessite un moteur de synthèse vocale dans Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Déjà connectée à un autre Home Assistant",
+        "description": "Cette sonnette est déjà connectée à un autre Home Assistant ({other}). Si vous continuez, ses notifications seront déplacées ici : cet autre Home Assistant ne recevra plus les sonneries ni les événements de cette sonnette. Fermez cette fenêtre pour annuler."
       }
     },
     "error": {
@@ -372,6 +376,14 @@
     "https_public_name_failed": {
       "title": "Nom public indisponible",
       "description": "Le nom public pour Home Assistant n’a pas pu être obtenu ({code}). L’adresse locale sécurisée n’est pas affectée. La documentation de l’intégration explique chaque code."
+    }
+  },
+  "config": {
+    "step": {
+      "move_notifications": {
+        "title": "Déjà connectée à un autre Home Assistant",
+        "description": "Cette sonnette est déjà connectée à un autre Home Assistant ({other}). Si vous continuez, ses notifications seront déplacées ici : cet autre Home Assistant ne recevra plus les sonneries ni les événements de cette sonnette. Fermez cette fenêtre pour annuler."
+      }
     }
   }
 }

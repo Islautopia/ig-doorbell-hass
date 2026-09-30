@@ -46,6 +46,10 @@
           "announce_players": "Sie spielen einen Gong, wenn jemand klingelt: Alexa (Echo) ihren eigenen Türklingel-Gong, alle anderen Lautsprecher den IG-Doorbell-Gong. Wenn du die Klingel auf diesen Lautsprechern schon per Automatisierung ansagst, brauchst du das nicht – sonst sagen sie zweimal an.",
           "announce_voice": "Alexa: eine Durchsage; andere Lautsprecher: benötigt eine Sprachausgabe (TTS) in Home Assistant."
         }
+      },
+      "repair_move_notifications": {
+        "title": "Bereits mit einem anderen Home Assistant verbunden",
+        "description": "Diese Türklingel ist bereits mit einem anderen Home Assistant verbunden ({other}). Wenn du fortfährst, werden ihre Benachrichtigungen hierher verschoben: Jener Home Assistant erhält dann kein Klingeln und keine Ereignisse dieser Türklingel mehr. Schließe diesen Dialog, um abzubrechen."
       }
     },
     "error": {
@@ -372,6 +376,14 @@
     "https_public_name_failed": {
       "title": "Öffentlicher Name nicht verfügbar",
       "description": "Der öffentliche Name für Home Assistant konnte nicht bezogen werden ({code}). Die sichere lokale Adresse ist nicht betroffen. Die Dokumentation der Integration erklärt jeden Code."
+    }
+  },
+  "config": {
+    "step": {
+      "move_notifications": {
+        "title": "Bereits mit einem anderen Home Assistant verbunden",
+        "description": "Diese Türklingel ist bereits mit einem anderen Home Assistant verbunden ({other}). Wenn du fortfährst, werden ihre Benachrichtigungen hierher verschoben: Jener Home Assistant erhält dann kein Klingeln und keine Ereignisse dieser Türklingel mehr. Schließe diesen Dialog, um abzubrechen."
+      }
     }
   }
 }

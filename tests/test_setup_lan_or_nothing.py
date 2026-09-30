@@ -67,6 +67,7 @@ async def test_a_pairing_that_does_not_work_is_undone_on_the_doorbell(hass):
     r = await _up_to_pair(hass)
     unpair = AsyncMock(return_value=True)
     with patch.object(api, "async_login", AsyncMock()), \
+         patch.object(api, "async_get_hass_webhook_url", AsyncMock(return_value="")), \
          patch.object(api, "async_pair_app", AsyncMock(return_value=api.PairResult(DEVICE_ID, CREDENTIAL))), \
          patch.object(api, "async_get_states", AsyncMock(side_effect=api.DoorbellApiError("x"))), \
          patch.object(api, "async_unpair_app", unpair), \
@@ -82,6 +83,7 @@ async def test_a_pairing_that_does_not_work_is_undone_on_the_doorbell(hass):
 async def test_happy_path_stores_the_ip_and_the_credential(hass):
     r = await _up_to_pair(hass)
     with patch.object(api, "async_login", AsyncMock()), \
+         patch.object(api, "async_get_hass_webhook_url", AsyncMock(return_value="")), \
          patch.object(api, "async_pair_app", AsyncMock(return_value=api.PairResult(DEVICE_ID, CREDENTIAL))), \
          patch.object(api, "async_get_states", AsyncMock(return_value={})), \
          patch.object(api, "async_unpair_app", AsyncMock()) as unpair, \

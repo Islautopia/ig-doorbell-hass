@@ -360,6 +360,17 @@ MUTANTS = [
     ("reboot: pressing it does nothing", PKG + "button.py",
      "            await api.async_reboot(c.session, c.device_id, c.credential)",
      "            pass"),
+    # 1.4.5: two Home Assistants both named "Casa" must not share a label (the doorbell reuses the slot).
+    ("label: back to the name only, no instance id", PKG + "config_flow.py",
+     "    return \" \".join(p for p in (DEFAULT_PAIR_LABEL, name, suffix) if p)",
+     "    return \" \".join(p for p in (DEFAULT_PAIR_LABEL, name) if p)"),
+    ("label: the id is cut when the name is long", PKG + "config_flow.py",
+     "    name = _cut_utf8(name, budget)", "    name = name[:32]"),
+    ("pairing takes the webhook from another Home Assistant silently", PKG + "config_flow.py",
+     "    if current == await _our_webhook_url(hass, device_id, ip):", "    if True:"),
+    ("re-pairing opens a new slot instead of reusing the stored label", PKG + "config_flow.py",
+     "            self._entry.data.get(CONF_LABEL) or DEFAULT_PAIR_LABEL,",
+     "            await _new_label(self.hass),"),
 ]
 
 
