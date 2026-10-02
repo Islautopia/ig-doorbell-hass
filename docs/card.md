@@ -10,6 +10,39 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.5.0 (2026-10-02): light / dark / system theme, ported from the doorbell's web
+
+Iñaki, 2026-10-02: *"Me gusta cómo han quedado los temas claro/oscuro/sistema de la web. Lo pasamos
+a las apps y a la card."* Source: `docs/design/theme_tokens.md` and `main/www/*.css` on the firmware
+repo's `web-refresh` branch (same names, same values; the card keeps its `--ig-` prefix).
+
+- **Tokens.** The dark set is what the card always had; the light set is the web's. New tokens the
+  card did not need before: `--ig-hairline`, `--ig-ring`, `--ig-line-strong`, `--ig-line-hover`,
+  `--ig-hover`, `--ig-accent-soft/-line`, `--ig-on-accent`, `--ig-on-solid` (text on a solid blue /
+  green button: light in both themes), `--ig-blue-text`, `--ig-scrim(-strong)`, `--ig-shadow`.
+  Declared on `ha-card` and on `.ig-container` (the container is moved to `<body>` in fullscreen and
+  must carry its own), switched by `data-ig-theme="light"` on both.
+- **What stays dark: everything ON the picture.** `.feed-wrap` re-declares the DARK set for itself
+  (the web's `--ovl-*`): HUD pills, the overlay round buttons, the status line. When the round
+  buttons leave the video (stack / side / split layouts) they are outside `.feed-wrap` and take the
+  page theme. This was one declaration instead of retouching ~70 colors on the video; do not "fix"
+  a dark pill on a light card, it is on purpose.
+- **Choice.** System (default, nothing stored) / Light / Dark, `localStorage['ig-doorbell-theme']`
+  (per browser, in try/catch, "system" removes the key). System = `hass.themes.darkMode` when HA
+  provides it (a user can run HA dark on a light OS), else `prefers-color-scheme`, else dark. Applied
+  on every `set hass` (cheap compare). Other card instances in the same browser follow through a
+  `window` event.
+- **Control.** A round button with a System / Light / Dark dropdown in the bottom-right corner of
+  the picture, next to the Advanced button (same look, same family: view utilities), shown only in
+  the Advanced view and never in fullscreen - simple view stays untouched. The menu opens upwards
+  and, being on the video, is dark in both themes. **Why not in the header**: the first attempt
+  put it there (next to the bell); `ui_v1_11_0` went red - on a phone the header row (picker, mode,
+  REC, bell) has no room for a fifth item (L4, REC unreachable) and the icon-only side column / the
+  header beside the picture are sized to the pixel (L11/L5: a fourth icon pushed the door button
+  over Recordings). The corner is layout independent.
+- **Bench.** `tests/card/theme_1_5_0` (S, C, P, V, M, T checks); its control runs against the 1.4.5
+  card (`fixtures/legacy/card_1.4.5.js`) and must fail S1.
+
 ## 1.4.4 (2026-09-30): remote viewing restored - STUN + TURN for the media, HA stays the rendezvous
 
 Iñaki, 2026-09-30: *"a Home Assistant user who opens the card does it from outside the network, and

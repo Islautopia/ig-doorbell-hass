@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.5.0';
+const CARD_VERSION = '1.4.5';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-30-ig-doorbell`;
@@ -265,7 +265,6 @@ const igLocales = {
     db_not_setup: "Este portero no está configurado en Home Assistant.",
     db_switch: "Cambiar de portero", db_unnamed: "Portero sin nombre", no_doorbells: "No hay ningún portero. Añade la integración Islautopia Garage Doorbell en Ajustes › Dispositivos y servicios.", ed_nothing: "Esta tarjeta no tiene nada que configurar: muestra todos tus porteros y se cambia de uno a otro desde la propia tarjeta. Los ajustes están en la integración: Ajustes › Dispositivos y servicios › Islautopia Garage Doorbell › Configurar.",
     adv_label: "Avanzado", adv_off: "Vista avanzada", adv_on: "Vista sencilla",
-    theme_label: "Tema", theme_system: "Sistema", theme_light: "Claro", theme_dark: "Oscuro",
     chip_quality_down: "Calidad reducida — conexión lenta", chip_quality_restored: "Calidad restablecida", chip_audio_only: "Solo audio — conexión demasiado lenta para vídeo", chip_video_back: "Vídeo de vuelta"
   },
   en: { // English (global fallback)
@@ -290,7 +289,6 @@ const igLocales = {
     db_not_setup: "This doorbell isn't set up in Home Assistant.",
     db_switch: "Switch doorbell", db_unnamed: "Unnamed doorbell", no_doorbells: "No doorbell found. Add the Islautopia Garage Doorbell integration in Settings › Devices & services.", ed_nothing: "There is nothing to configure in this card: it shows all your doorbells and you switch between them from the card itself. Settings live in the integration: Settings › Devices & services › Islautopia Garage Doorbell › Configure.",
     adv_label: "Advanced", adv_off: "Advanced view", adv_on: "Simple view",
-    theme_label: "Theme", theme_system: "System", theme_light: "Light", theme_dark: "Dark",
     chip_quality_down: "Lower quality — slow connection", chip_quality_restored: "Quality restored", chip_audio_only: "Audio only — connection too slow for video", chip_video_back: "Video back"
   },
   pt: { // Portuguese
@@ -315,7 +313,6 @@ const igLocales = {
     db_not_setup: "Esta campainha não está configurada no Home Assistant.",
     db_switch: "Mudar de campainha", db_unnamed: "Campainha sem nome", no_doorbells: "Nenhuma campainha encontrada. Adicione a integração Islautopia Garage Doorbell em Definições › Dispositivos e serviços.", ed_nothing: "Este cartão não tem nada para configurar: mostra todas as suas campainhas e muda-se de uma para outra no próprio cartão. As definições estão na integração: Definições › Dispositivos e serviços › Islautopia Garage Doorbell › Configurar.",
     adv_label: "Avançado", adv_off: "Vista avançada", adv_on: "Vista simples",
-    theme_label: "Tema", theme_system: "Sistema", theme_light: "Claro", theme_dark: "Escuro",
     chip_quality_down: "Qualidade reduzida — ligação lenta", chip_quality_restored: "Qualidade restabelecida", chip_audio_only: "Só áudio — ligação demasiado lenta para vídeo", chip_video_back: "Vídeo de volta"
   },
   de: { // German
@@ -340,7 +337,6 @@ const igLocales = {
     db_not_setup: "Diese Türklingel ist in Home Assistant nicht eingerichtet.",
     db_switch: "Klingel wechseln", db_unnamed: "Klingel ohne Namen", no_doorbells: "Keine Klingel gefunden. Füge die Integration Islautopia Garage Doorbell unter Einstellungen › Geräte & Dienste hinzu.", ed_nothing: "Diese Karte hat keine Einstellungen: Sie zeigt alle deine Klingeln, und du wechselst direkt in der Karte zwischen ihnen. Die Einstellungen liegen in der Integration: Einstellungen › Geräte & Dienste › Islautopia Garage Doorbell › Konfigurieren.",
     adv_label: "Erweitert", adv_off: "Erweiterte Ansicht", adv_on: "Einfache Ansicht",
-    theme_label: "Design", theme_system: "System", theme_light: "Hell", theme_dark: "Dunkel",
     chip_quality_down: "Geringere Qualität — langsame Verbindung", chip_quality_restored: "Qualität wiederhergestellt", chip_audio_only: "Nur Audio — Verbindung zu langsam für Video", chip_video_back: "Video wieder da"
   },
   fr: { // French
@@ -365,7 +361,6 @@ const igLocales = {
     db_not_setup: "Cette sonnette n'est pas configurée dans Home Assistant.",
     db_switch: "Changer de sonnette", db_unnamed: "Sonnette sans nom", no_doorbells: "Aucune sonnette trouvée. Ajoutez l'intégration Islautopia Garage Doorbell dans Paramètres › Appareils et services.", ed_nothing: "Cette carte n'a rien à configurer : elle affiche toutes vos sonnettes et l'on passe de l'une à l'autre depuis la carte elle-même. Les réglages sont dans l'intégration : Paramètres › Appareils et services › Islautopia Garage Doorbell › Configurer.",
     adv_label: "Avancé", adv_off: "Vue avancée", adv_on: "Vue simple",
-    theme_label: "Thème", theme_system: "Système", theme_light: "Clair", theme_dark: "Sombre",
     chip_quality_down: "Qualité réduite — connexion lente", chip_quality_restored: "Qualité rétablie", chip_audio_only: "Audio seul — connexion trop lente pour la vidéo", chip_video_back: "Vidéo de retour"
   },
   it: { // Italian
@@ -390,7 +385,6 @@ const igLocales = {
     db_not_setup: "Questo videocitofono non è configurato in Home Assistant.",
     db_switch: "Cambia videocitofono", db_unnamed: "Videocitofono senza nome", no_doorbells: "Nessun videocitofono trovato. Aggiungi l'integrazione Islautopia Garage Doorbell in Impostazioni › Dispositivi e servizi.", ed_nothing: "Questa card non ha nulla da configurare: mostra tutti i tuoi videocitofoni e si passa dall'uno all'altro dalla card stessa. Le impostazioni sono nell'integrazione: Impostazioni › Dispositivi e servizi › Islautopia Garage Doorbell › Configura.",
     adv_label: "Avanzate", adv_off: "Vista avanzata", adv_on: "Vista semplice",
-    theme_label: "Tema", theme_system: "Sistema", theme_light: "Chiaro", theme_dark: "Scuro",
     chip_quality_down: "Qualità ridotta — connessione lenta", chip_quality_restored: "Qualità ripristinata", chip_audio_only: "Solo audio — connessione troppo lenta per il video", chip_video_back: "Video di nuovo attivo"
   }
 };
@@ -546,32 +540,6 @@ function igEvText(hass, key, vars) {
 }
 
 
-// ---- Theme (1.5.0): System / Light / Dark, per browser ----
-// Same three states and tokens as the doorbell's web (IG_Doorbell docs/design/theme_tokens.md):
-// System (default, nothing stored) | Light | Dark. "System" follows HOME ASSISTANT's own dark mode
-// (hass.themes.darkMode) first - a user can have HA dark on a light OS - and only falls back to the
-// OS (prefers-color-scheme) when HA does not say, and to dark (the card's historic look) when
-// nothing does. Stored in localStorage; reads and writes are guarded (private browsing).
-const THEME_KEY = 'ig-doorbell-theme';
-const THEME_PREFS = ['system', 'light', 'dark'];
-const THEME_EVENT = 'ig-doorbell-theme-changed';
-function loadThemePref() {
-  try { const v = localStorage.getItem(THEME_KEY); return THEME_PREFS.includes(v) ? v : 'system'; } catch (err) { return 'system'; }
-}
-function saveThemePref(pref) {
-  try {
-    if (pref === 'system') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, pref);
-  } catch (err) { /* storage disabled: the choice just won't survive a reload */ }
-}
-function resolveTheme(pref, hass) {
-  if (pref === 'light' || pref === 'dark') return pref;
-  if (hass && hass.themes && typeof hass.themes.darkMode === 'boolean') return hass.themes.darkMode ? 'dark' : 'light';
-  try {
-    if (typeof window !== 'undefined' && window.matchMedia) return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  } catch (err) { /* no matchMedia */ }
-  return 'dark';
-}
-
 function getLocalText(hass, key) {
   // 1. If no language is configured in HA, we assume English ('en')
   const lang = (hass && hass.language) ? hass.language.substring(0, 2) : 'en';
@@ -714,7 +682,6 @@ const MODE_META = {
 class IgDoorbellView extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
-    this._applyTheme();
     // Mode chip / motion chip (2026-07-10, see COORDINATION.md Q22-bis) are read from
     // real, configurable HA entities (mode_entity/motion_entity) - hass gets reassigned on
     // every HA state tick (which can be very frequent), so _updateHassBoundUI() does its
@@ -892,8 +859,6 @@ class IgDoorbellView extends HTMLElement {
     // one localStorage key for every view this browser ever opens, on purpose (switching
     // doorbells shouldn't re-ask).
     this._advanced = this._loadAdvancedPref();
-    this._themePref = loadThemePref();
-    this._theme = null;   // resolved 'light' | 'dark', set by _applyTheme()
 
     // Doorbell lock type: 0 = physical relay, 1 = Home Assistant entity, 2 = none.
     // With 2, the open button must NOT be drawn, instead of being drawn and failing.
@@ -1153,7 +1118,6 @@ class IgDoorbellView extends HTMLElement {
       document.removeEventListener('click', this._onDocClickForQuality);
       this._onDocClickForQuality = null;
     }
-    if (this._onThemeEvent) { window.removeEventListener(THEME_EVENT, this._onThemeEvent); this._onThemeEvent = null; }
     if (this._onDocClickForModeMenu) {
       document.removeEventListener('click', this._onDocClickForModeMenu);
       this._onDocClickForModeMenu = null;
@@ -1888,64 +1852,7 @@ class IgDoorbellView extends HTMLElement {
     return this._fsActive;
   }
 
-  // ---- Theme (1.5.0) ----
-  // The RESOLVED theme goes on data-ig-theme of <ha-card> and of the container (the container is
-  // moved to <body> in fullscreen, where it no longer sits under <ha-card>, so it carries its own).
-  // Cheap: called on every hass tick, touches the DOM only when the resolved value changes.
-  _applyTheme() {
-    const t = resolveTheme(this._themePref, this._hass);
-    if (t === this._theme && !this._themeDirty) return;
-    this._theme = t;
-    this._themeDirty = false;
-    const card = this.querySelector('ha-card');
-    if (card) card.setAttribute('data-ig-theme', t);
-    if (this.content) this.content.setAttribute('data-ig-theme', t);
-  }
-
-  _setThemePref(pref) {
-    if (!THEME_PREFS.includes(pref)) return;
-    this._themePref = pref;
-    saveThemePref(pref);
-    this._applyTheme();
-    this._paintThemeControl();
-    // Other card instances in this browser (several doorbells, several dashboards) follow.
-    try { window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: { pref, source: this } })); } catch (err) { /* ignore */ }
-  }
-
-  _toggleThemeMenu(force) {
-    if (!this._themeMenu) return;
-    const open = (typeof force === 'boolean') ? force : this._themeMenu.style.display === 'none';
-    if (open) { this._toggleModeMenu(false); this._toggleDbMenu(false); }
-    this._themeMenu.style.display = open ? 'flex' : 'none';
-    if (this._themeBtn) this._themeBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  _paintThemeControl() {
-    if (!this._themeBtn || !this._themeMenu) return;
-    const icons = { system: 'mdi:theme-light-dark', light: 'mdi:white-balance-sunny', dark: 'mdi:weather-night' };
-    const label = getLocalText(this._hass, 'theme_label');
-    const cur = getLocalText(this._hass, 'theme_' + this._themePref);
-    this._themeBtn.setAttribute('title', `${label}: ${cur}`);
-    this._themeBtn.setAttribute('aria-label', `${label}: ${cur}`);
-    const ic = this._themeBtn.querySelector('ha-icon');
-    if (ic) ic.setAttribute('icon', icons[this._themePref]);
-    this._themeMenu.innerHTML = `<div class="db-menu-title">${label}</div>` + THEME_PREFS.map((p) =>
-      `<button type="button" class="mode-opt${p === this._themePref ? ' sel' : ''}" data-theme="${p}" role="menuitemradio" aria-checked="${p === this._themePref}">
-        <ha-icon icon="${icons[p]}"></ha-icon><span>${getLocalText(this._hass, 'theme_' + p)}</span></button>`).join('');
-    this._themeMenu.querySelectorAll('.mode-opt').forEach((b) => b.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      this._toggleThemeMenu(false);
-      this._setThemePref(b.getAttribute('data-theme'));
-    }));
-  }
-
   _applyModeVisibility() {
-    // Theme control: Advanced view only, never in fullscreen (its CSS also hides it there).
-    if (this._themeWrap) {
-      const showTheme = this._advanced && !this._fsActive;
-      this._themeWrap.style.display = showTheme ? '' : 'none';
-      if (!showTheme) this._toggleThemeMenu(false);
-    }
     if (this.advBtn) {
       this.advBtn.classList.toggle('on', this._advanced);
       this.advBtn.setAttribute('aria-pressed', this._advanced ? 'true' : 'false');
@@ -5018,17 +4925,6 @@ class IgDoorbellView extends HTMLElement {
                        normal (non-fullscreen) view only - hidden in .ig-fs by CSS, see
                        _applyModeVisibility(). Highlighted (.on) while Advanced is ON. Placed right
                        before fullscreen, the other "view utility" control in this same corner. -->
-                  <!-- Theme (1.5.0): System / Light / Dark. A view utility like its neighbours, so it
-                       lives in this corner and only while the Advanced view is on (see
-                       _applyModeVisibility()): simple view and fullscreen never show it. It is NOT in
-                       the header: the header row of a phone is already full (picker, mode, REC, bell)
-                       and the short side columns are sized to the pixel (ui_v1_11_0 L4/L5/L11). -->
-                  <div class="theme-wrap" id="theme-wrap" style="display:none;">
-                    <button type="button" class="hud-adv theme-btn" id="theme-btn" aria-haspopup="menu" aria-expanded="false">
-                      <ha-icon icon="mdi:theme-light-dark"></ha-icon>
-                    </button>
-                    <div class="mode-menu theme-menu" id="theme-menu" style="display:none;"></div>
-                  </div>
                   <button type="button" class="hud-adv" id="adv-btn">
                     <ha-icon icon="mdi:tune-variant"></ha-icon>
                   </button>
@@ -5192,13 +5088,6 @@ class IgDoorbellView extends HTMLElement {
       this.sideCol = this.querySelector('#side-col');
       this.actionsRow = this.querySelector('.actions-row');
       this._bellBtn = this.querySelector('#bell-btn');
-      this._themeWrap = this.querySelector('#theme-wrap');
-      this._themeBtn = this.querySelector('#theme-btn');
-      this._themeMenu = this.querySelector('#theme-menu');
-      this._themeBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._toggleThemeMenu(); });
-      this._themeDirty = true;
-      this._applyTheme();
-      this._paintThemeControl();
       this._bellDot = this.querySelector('#bell-dot');
       this._evPanel = this.querySelector('#ev-panel');
       this._bellBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._openEvents(); });
@@ -5239,16 +5128,8 @@ class IgDoorbellView extends HTMLElement {
       // (retired) quality menu from earlier versions. It's kept bound to the instance so it
       // can be removed in disconnectedCallback() and not accumulate listeners if Home Assistant
       // re-inserts this same card (Lovelace view change, see disconnectedCallback()).
-      this._onDocClickForModeMenu = () => { this._toggleModeMenu(false); this._toggleDbMenu(false); this._toggleThemeMenu(false); };
+      this._onDocClickForModeMenu = () => { this._toggleModeMenu(false); this._toggleDbMenu(false); };
       document.addEventListener('click', this._onDocClickForModeMenu);
-      // A theme change made in another card instance of this browser.
-      this._onThemeEvent = (ev) => {
-        if (!ev.detail || ev.detail.source === this) return;
-        this._themePref = ev.detail.pref;
-        this._applyTheme();
-        this._paintThemeControl();
-      };
-      window.addEventListener(THEME_EVENT, this._onThemeEvent);
 
       // Recordings (v1.9.5): navigates to Home Assistant's NATIVE media browser (never a
       // player of our own, see the comment next to #bottom-row's markup) via the same
@@ -6648,41 +6529,13 @@ class IgDoorbellView extends HTMLElement {
       /* Exact palette from the Figma mockup, shared with the mobile apps.
          Custom properties scoped to .ig-container (not :root - this
          card does not use Shadow DOM, so :root would leak into HA's whole document). */
-      /* THEME TOKENS (1.5.0): same names and values as the doorbell web's theme_tokens.md, with the
-         card's --ig- prefix. The dark set is the apps' palette (EXACT values confirmed against
-         android_app/ios_app, 2026-07-10) and is the default. The light set applies when the
-         RESOLVED theme (see resolveTheme()) is 'light': data-ig-theme on <ha-card> and on the
-         container. .feed-wrap re-declares the DARK set for itself: everything drawn ON the camera
-         picture (HUD pills, overlay buttons, status line) is theme independent, the web's --ovl-*
-         tokens; when the button row leaves the video (stack/side/split layouts) it is no longer
-         under .feed-wrap and takes the page theme, like the apps. */
-      ${VIEW_TAG} ha-card, .ig-container, .feed-wrap {
-        color-scheme: dark;
+      .ig-container {
+        /* EXACT values confirmed against the real source code of android_app/ios_app
+           (2026-07-10, see COORDINATION.md Q22-bis) - not approximated from a screenshot. */
         --ig-lime:#78C800; --ig-cyan:#00C4D4; --ig-blue:#1976D2; --ig-blue-dark:#1565C0;
         --ig-bg:#070D1A; --ig-surf1:#0D1B2E; --ig-surf2:#162336; --ig-surf3:#1D2D42;
         --ig-text:#E8F0FE; --ig-muted:#94A3B8; --ig-dim:#64748B; --ig-faint:#334155;
         --ig-green:#4CAF50; --ig-red:#EF5350; --ig-amber:#FFB300; --ig-indigo:#818CF8;
-        --ig-hairline:rgba(255,255,255,.06); --ig-ring:rgba(255,255,255,.08);
-        --ig-line-strong:rgba(255,255,255,.14); --ig-line-hover:rgba(255,255,255,.30); --ig-hover:rgba(255,255,255,.06);
-        --ig-accent-soft:rgba(0,196,212,.12); --ig-accent-line:rgba(0,196,212,.40); --ig-on-accent:#04121F;
-        --ig-on-solid:#E8F0FE; --ig-blue-text:#64B5F6;
-        --ig-scrim:rgba(3,7,15,.62); --ig-scrim-strong:rgba(7,13,26,.94);
-        --ig-shadow:0 8px 24px rgba(0,0,0,.5);
-      }
-      ${VIEW_TAG} ha-card[data-ig-theme="light"], .ig-container[data-ig-theme="light"] {
-        color-scheme: light;
-        --ig-lime:#5A9A00; --ig-cyan:#00838F; --ig-blue:#1976D2; --ig-blue-dark:#1565C0;
-        --ig-bg:#EEF2F7; --ig-surf1:#FFFFFF; --ig-surf2:#F1F5F9; --ig-surf3:#E2E8F0;
-        --ig-text:#0B1626; --ig-muted:#475569; --ig-dim:#64748B; --ig-faint:#CBD5E1;
-        --ig-green:#2E7D32; --ig-red:#D32F2F; --ig-amber:#B26A00; --ig-indigo:#5B5BD6;
-        --ig-hairline:rgba(15,23,42,.10); --ig-ring:rgba(15,23,42,.10);
-        --ig-line-strong:rgba(15,23,42,.18); --ig-line-hover:rgba(15,23,42,.35); --ig-hover:rgba(15,23,42,.06);
-        --ig-accent-soft:rgba(0,131,143,.10); --ig-accent-line:rgba(0,131,143,.40); --ig-on-accent:#FFFFFF;
-        --ig-on-solid:#FFFFFF; --ig-blue-text:#1565C0;
-        --ig-scrim:rgba(15,23,42,.45); --ig-scrim-strong:rgba(238,242,247,.96);
-        --ig-shadow:0 8px 24px rgba(15,23,42,.16);
-      }
-      .ig-container {
         position: relative; width: 100%; box-sizing: border-box; background: var(--ig-bg);
         font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
         padding: 10px; display: flex; flex-direction: column; gap: 10px;
@@ -6698,7 +6551,7 @@ class IgDoorbellView extends HTMLElement {
          possible scroll to reach it. overflow-x stays hidden (nothing grows in width). In
          fullscreen nothing changes: top-row/bottom-row are hidden entirely (see .ig-fs below) and
          the only content left (the video) already fits exactly 100% of the height. */
-      ha-card { display: block; width: 100%; box-sizing: border-box; overflow: hidden auto; border-radius: var(--ha-card-border-radius, 12px); box-shadow: var(--ha-card-box-shadow, 0px 2px 4px -1px rgba(0,0,0,0.2)); background: var(--ig-bg); }
+      ha-card { display: block; width: 100%; box-sizing: border-box; overflow: hidden auto; border-radius: var(--ha-card-border-radius, 12px); box-shadow: var(--ha-card-box-shadow, 0px 2px 4px -1px rgba(0,0,0,0.2)); background: #070D1A; }
 
       /* ---- header: dropdown mode chip + REC (v1.9.5, replaces the row of 4 segmented
          chips) ---- */
@@ -6711,11 +6564,11 @@ class IgDoorbellView extends HTMLElement {
       .db-pill {
         display: flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
         padding: 6px 12px; border-radius: 999px; background: var(--ig-surf1);
-        border: 1px solid var(--ig-line-strong); color: var(--ig-text); font-family: inherit;
+        border: 1px solid rgba(255,255,255,0.14); color: var(--ig-text); font-family: inherit;
         font-size: 13px; font-weight: 600; cursor: default; box-sizing: border-box;
       }
       .db-pill.pickable { cursor: pointer; }
-      .db-pill.pickable:hover { border-color: var(--ig-line-hover); }
+      .db-pill.pickable:hover { border-color: rgba(255,255,255,0.3); }
       .db-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
       .db-chev { --mdc-icon-size: 16px; color: var(--ig-muted); flex: none; margin-right: -4px; }
       .db-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ig-dim); }
@@ -6731,7 +6584,7 @@ class IgDoorbellView extends HTMLElement {
       .db-menu {
         position: absolute; top: calc(100% + 4px); left: 0; z-index: 25; display: none;
         flex-direction: column; min-width: 220px; max-width: min(320px, 90vw); background: var(--ig-surf1);
-        border-radius: 12px; padding: 4px; box-shadow: var(--ig-shadow); border: 1px solid var(--ig-ring);
+        border-radius: 12px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
       }
       .db-menu-title { font-size: 11px; font-weight: 700; color: var(--ig-muted); padding: 6px 10px 4px; text-transform: uppercase; letter-spacing: 0.04em; }
       .db-opt {
@@ -6739,7 +6592,7 @@ class IgDoorbellView extends HTMLElement {
         border: none; background: transparent; color: var(--ig-text); font-size: 14px; font-weight: 500;
         cursor: pointer; font-family: inherit; text-align: left;
       }
-      .db-opt:hover { background: var(--ig-hover); }
+      .db-opt:hover { background: rgba(255,255,255,0.06); }
       .db-opt.sel { font-weight: 700; }
       .db-check { --mdc-icon-size: 16px; width: 16px; flex: none; color: var(--ig-lime); }
       .db-opt-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -6750,21 +6603,21 @@ class IgDoorbellView extends HTMLElement {
          no _modeKeyFor pattern) falls back to --ig-dim, same as before. */
       .mode-pill {
         display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
-        background: var(--ig-surf1); border: 1px solid var(--ig-line-strong);
+        background: rgba(7,13,26,0.82); border: 1px solid rgba(255,255,255,0.14);
         color: var(--ig-dim); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
       }
       .mode-pill ha-icon { --mdc-icon-size: 14px; }
       .mode-pill .mode-pill-caret { --mdc-icon-size: 16px; margin-left: -2px; }
-      .mode-pill.mode-normal { color: var(--ig-lime); border-color: color-mix(in srgb, var(--ig-lime) 45%, transparent); }
-      .mode-pill.mode-away { color: var(--ig-amber); border-color: color-mix(in srgb, var(--ig-amber) 45%, transparent); }
-      .mode-pill.mode-night { color: var(--ig-indigo); border-color: color-mix(in srgb, var(--ig-indigo) 45%, transparent); }
-      .mode-pill.mode-custom { color: var(--ig-cyan); border-color: var(--ig-accent-line); }
+      .mode-pill.mode-normal { color: var(--ig-lime); border-color: rgba(120,200,0,0.45); }
+      .mode-pill.mode-away { color: var(--ig-amber); border-color: rgba(255,179,0,0.45); }
+      .mode-pill.mode-night { color: var(--ig-indigo); border-color: rgba(129,140,248,0.45); }
+      .mode-pill.mode-custom { color: var(--ig-cyan); border-color: rgba(0,196,212,0.45); }
       /* The dropdown itself: same position:absolute; top:under as PopupMenuPosition.under
          in the app - it floats OVER whatever comes next (the video frame) instead of pushing it. */
       .mode-menu {
         position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; display: none;
         flex-direction: column; min-width: 160px; background: var(--ig-surf1); border-radius: 12px;
-        padding: 4px; box-shadow: var(--ig-shadow); border: 1px solid var(--ig-ring);
+        padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
       }
       .mode-menu .mode-opt {
         display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
@@ -6772,7 +6625,7 @@ class IgDoorbellView extends HTMLElement {
         font-weight: 500; cursor: pointer; font-family: inherit; text-align: left;
       }
       .mode-menu .mode-opt ha-icon { --mdc-icon-size: 16px; }
-      .mode-menu .mode-opt:hover { background: var(--ig-hover); }
+      .mode-menu .mode-opt:hover { background: rgba(255,255,255,0.06); }
       .mode-menu .mode-opt.sel { font-weight: 700; }
       .mode-menu .mode-opt.sel.mode-normal { color: var(--ig-lime); }
       .mode-menu .mode-opt.sel.mode-away { color: var(--ig-amber); }
@@ -6785,7 +6638,7 @@ class IgDoorbellView extends HTMLElement {
       .rec-action-wrap { display: flex; align-items: center; }
       .rec-pill {
         display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px;
-        border-radius: 999px; background: var(--ig-surf1); border: 1px solid var(--ig-hairline);
+        border-radius: 999px; background: var(--ig-surf1); border: 1px solid rgba(255,255,255,0.05);
         cursor: pointer; font-family: inherit;
       }
       .rec-dot {
@@ -6821,7 +6674,7 @@ class IgDoorbellView extends HTMLElement {
       .quick-btn {
         display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box;
         padding: 10px 12px; border-radius: 16px; background: var(--ig-surf1);
-        border: 1px solid var(--ig-hairline); cursor: pointer; font-family: inherit; text-align: left;
+        border: 1px solid rgba(255,255,255,0.05); cursor: pointer; font-family: inherit; text-align: left;
       }
       .quick-btn:hover { background: var(--ig-surf2); }
       .quick-btn-icon {
@@ -6943,12 +6796,6 @@ class IgDoorbellView extends HTMLElement {
       .hud-adv:hover { border-color: rgba(0,196,212,0.5); }
       .hud-adv.on { color: var(--ig-cyan); border-color: rgba(0,196,212,0.5); }
       .ig-container.ig-fs .hud-adv { display: none !important; }
-      /* Theme control (1.5.0): same look as the Advanced button next to it; the dropdown opens UPWARDS
-         over the picture (the corner is at the bottom of the video) and, like everything drawn on the
-         video, uses the dark tokens of .feed-wrap in both themes. */
-      .theme-wrap { position: relative; display: flex; }
-      .theme-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; min-width: 150px; pointer-events: auto; }
-      .theme-menu .mode-opt.sel { color: var(--ig-cyan); }
 
       /* Simple mode (2026-09-29 spec; canonical layout in the coordinator's §4 addendum the same
          day, ITSELF overridden the same day by §5 on this one point - see below): the header
@@ -7073,8 +6920,8 @@ class IgDoorbellView extends HTMLElement {
       .action .btn.mic ha-icon { --mdc-icon-size: 30px; }
       .action .btn.door, .action .btn.snd, .action .btn.qr { width: 60px; height: 60px; }
       .action .btn.door ha-icon, .action .btn.snd ha-icon, .action .btn.qr ha-icon { --mdc-icon-size: 24px; }
-      .action .btn.active-talk { background: linear-gradient(135deg, var(--ig-cyan), var(--ig-blue)); border-color: transparent; box-shadow: 0 0 28px rgba(0,196,212,0.45), 0 8px 24px rgba(0,0,0,0.4); color: var(--ig-on-solid); transform: scale(1.05); }
-      .action .btn.active-unlock { background: linear-gradient(135deg, var(--ig-green), #388E3C); border-color: transparent; box-shadow: 0 0 22px rgba(76,175,80,0.5); color: var(--ig-on-solid); transform: scale(1.05); }
+      .action .btn.active-talk { background: linear-gradient(135deg, var(--ig-cyan), var(--ig-blue)); border-color: transparent; box-shadow: 0 0 28px rgba(0,196,212,0.45), 0 8px 24px rgba(0,0,0,0.4); color: var(--ig-text); transform: scale(1.05); }
+      .action .btn.active-unlock { background: linear-gradient(135deg, var(--ig-green), #388E3C); border-color: transparent; box-shadow: 0 0 22px rgba(76,175,80,0.5); color: var(--ig-text); transform: scale(1.05); }
       /* Street speaker (§1.10): same visual criterion as the rest - dull gray at rest
          (muted), cyan when it's really audible. Replaces the old small backgroundless HUD
          button (.snd-btn), which used to live next to the now-removed volume slider. */
@@ -7138,7 +6985,7 @@ class IgDoorbellView extends HTMLElement {
          heard) and busy with another (faint amber outline, without looking disabled - it can
          still be pressed, and the doorbell replies with an explicit talk_denied). */
       .action .btn.requesting { border-color: var(--ig-amber); color: var(--ig-amber); animation: ig-breathe 1.1s ease-in-out infinite; }
-      .action .btn.listen-only { background: linear-gradient(135deg, var(--ig-surf3), var(--ig-surf2)); border-color: var(--ig-amber); color: var(--ig-amber); }
+      .action .btn.listen-only { background: linear-gradient(135deg, var(--ig-surf3), #2a3a52); border-color: var(--ig-amber); color: var(--ig-amber); }
       .action .btn.busy-other { border-color: rgba(255,179,0,0.45); color: rgba(255,179,0,0.8); }
       @keyframes ig-breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 
@@ -7426,13 +7273,13 @@ class IgDoorbellView extends HTMLElement {
       .ev-title { font-size: 17px; font-weight: 700; color: var(--ig-text); }
       .ev-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; flex-shrink: 0; }
       .ev-chip {
-        flex-shrink: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--ig-ring);
+        flex-shrink: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.10);
         background: var(--ig-surf1); color: var(--ig-muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
       }
       .ev-chip.sel { background: rgba(25,118,210,0.22); border-color: var(--ig-blue); color: var(--ig-text); }
       .ev-time { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
       .ev-range {
-        flex: 0 1 auto; min-width: 0; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--ig-ring);
+        flex: 0 1 auto; min-width: 0; padding: 6px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.10);
         background: var(--ig-surf1); color: var(--ig-text); font-size: 13px; font-family: inherit;
       }
       .ev-nav { display: flex; align-items: center; gap: 2px; margin-left: auto; min-width: 0; }
@@ -7445,10 +7292,10 @@ class IgDoorbellView extends HTMLElement {
       .ev-row.new { box-shadow: inset 3px 0 0 var(--ig-blue); }
       .ev-ic { width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(148,163,184,0.12); color: var(--ig-muted); }
       .ev-ic ha-icon { --mdc-icon-size: 17px; }
-      .ev-ic.c-blue { background: rgba(25,118,210,0.16); color: var(--ig-blue-text); }
-      .ev-ic.c-green { background: color-mix(in srgb, var(--ig-green) 16%, transparent); color: var(--ig-green); }
-      .ev-ic.c-amber { background: color-mix(in srgb, var(--ig-amber) 16%, transparent); color: var(--ig-amber); }
-      .ev-ic.c-red { background: color-mix(in srgb, var(--ig-red) 16%, transparent); color: var(--ig-red); }
+      .ev-ic.c-blue { background: rgba(25,118,210,0.16); color: #64B5F6; }
+      .ev-ic.c-green { background: rgba(76,175,80,0.16); color: var(--ig-green); }
+      .ev-ic.c-amber { background: rgba(255,179,0,0.16); color: var(--ig-amber); }
+      .ev-ic.c-red { background: rgba(239,83,80,0.16); color: var(--ig-red); }
       .ev-txt { flex: 1 1 auto; min-width: 0; }
       .ev-t { font-size: 13px; font-weight: 600; color: var(--ig-text); }
       .ev-d { font-size: 11px; color: var(--ig-muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -7465,7 +7312,7 @@ class IgDoorbellView extends HTMLElement {
       .qr-row:disabled { opacity: 0.55; cursor: default; }
       .qr-spin { animation: ig-spin 1s linear infinite; }
       .qr-notice {
-        font-size: 12px; color: var(--ig-red); background: color-mix(in srgb, var(--ig-red) 12%, transparent);
+        font-size: 12px; color: var(--ig-red); background: rgba(239,83,80,0.12);
         border-radius: 12px; padding: 8px 10px;
       }
 
