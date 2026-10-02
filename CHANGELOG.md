@@ -6,6 +6,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0] — 2026-10-02
+
+### Added
+
+- **Light, dark and system themes for the card**, the same ones the doorbell's web now has. Same
+  palette in both (the card's colors are the web's design tokens, with the card's `--ig-` prefix).
+  The default is **System**, which follows Home Assistant's own dark mode (the profile setting), not
+  just the operating system; **Light** and **Dark** force one. Pick it from the new theme button
+  next to the Advanced button, in the corner of the picture (Advanced view only: simple view stays as
+  clean as before). The choice is
+  remembered per browser. Whatever is drawn over the camera picture (status chips, the buttons
+  floating on the video) stays dark in both themes, as on the web. Translated into English, Spanish,
+  French, Italian, German and Portuguese.
+
 ## [1.4.5] — 2026-09-30
 
 ### Fixed
