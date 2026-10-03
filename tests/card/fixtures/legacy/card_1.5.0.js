@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.5.1';
+const CARD_VERSION = '1.5.0';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-30-ig-doorbell`;
@@ -2780,7 +2780,7 @@ class IgDoorbellView extends HTMLElement {
   // ==============================================================================
   // TEMPORARY QUALITY CHIP (2026-09-29, spec "Live view: simple mode..., no fixed quality
   // chip"). Four short, translated messages - see igLocales chip_quality_down/_restored/
-  // audio_only/video_back - centred on the video (1.5.1), ~4 s, then fades (CSS .quality-toast).
+  // audio_only/video_back - top-centre over the image, ~4 s, then fades (CSS .quality-toast).
   // Mapping (documented here because the spec asks for it): tier 2=full/auto, 1=low,
   // 0=audio_only.
   //   tier drops to 0            -> chip_audio_only  ("Audio only - connection too slow…")
@@ -6973,20 +6973,16 @@ class IgDoorbellView extends HTMLElement {
          literal imitation of a data point that doesn't exist here. */
 
       /* Temporary quality chip (2026-09-29): invisible at rest (opacity 0, no pointer-events),
-         shown only by adding .show - see _showQualityChip(). CENTRED on the video, both ways
-         (1.5.1, 2026-10-03): at the top it was covered by the status chips (Live, viewers, mode)
-         and it only lasts ~4 s, so the middle is the place. z-index above every HUD layer, and
-         pointer-events:none so a tap on it still toggles the controls. In audio-only there is no
-         picture but .feed-wrap still is the video area, so it centres there too. Normal and
-         fullscreen alike (same element, same frame). */
+         shown only by adding .show - see _showQualityChip(). Sits above the motion pill (which
+         starts lower, top:44px) so the two never overlap even if they were ever visible together. */
       .quality-toast {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, calc(-50% - 6px));
-        z-index: 30; max-width: 85%; text-align: center; pointer-events: none;
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%) translateY(-6px);
+        z-index: 9; max-width: 85%; text-align: center; pointer-events: none;
         background: rgba(7,13,26,0.85); border: 1px solid rgba(255,255,255,0.15);
         border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600;
         color: var(--ig-text); opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
       }
-      .quality-toast.show { opacity: 1; transform: translate(-50%, -50%); }
+      .quality-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
       .motion-pill {
         position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6;

@@ -6,6 +6,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.1] — 2026-10-03
+
+### Changed
+
+- **The temporary quality-change chip ("Lower quality", "Audio only", "Quality restored", "Video
+  back") now appears in the centre of the video**, not at the top, where the status chips covered
+  it. It lasts only a moment, so the middle is the right place. Same in normal view, full screen
+  and audio-only; it never intercepts taps.
+
 ## [1.5.0] — 2026-10-02
 
 ### Added
