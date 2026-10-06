@@ -26,6 +26,8 @@
 //   - back_home against the 1.2.2 build (fixtures/legacy/card_1.2.2.js, a plain copy) must go red
 //     on H1 - once the back-home deadline had fired, every later visit bounced straight home (fixed
 //     in 1.2.3).
+//   - audio_invariants against the 1.5.1 build (fixtures/legacy/card_1.5.1.js, a plain copy) must go red
+//     on C1, C1b, C2, C3 and C4 - the four findings of the audio audit (fixed in 1.5.2).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
 //     fixtures/legacy/card_3983f68.js) plus its own mutants.
 const http = require('http');
@@ -80,6 +82,7 @@ const JOBS = [
   { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
   { name: 'mic_privacy (+ mutants MA-MN)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
   { name: 'back_home (+ mutants MR-MS)', bench: 'back_home', args: ['back_home/driver.js'], expect: 0 },
+  { name: 'audio_invariants (+ mutants MC1-MC6)', bench: 'audio_invariants', args: ['audio_invariants/driver.js'], expect: 0 },
   { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },
@@ -97,6 +100,11 @@ const JOBS = [
     args: ['ui_v1_11_0/driver.js'], env: { CARD_FILE: LEGACY('card_1.0.0.js'), SKIP_MUTANTS: '1' }, expect: 1, failText: /^FAIL \[L13\]/m, },
   { name: 'CONTROL registry_race vs 1.1.1 card (must fail R1)', bench: 'registry_race', control: true,
     args: ['registry_race/driver.js'], env: { CARD_FILE: LEGACY('card_1.1.1.js') }, expect: 1, failText: /^ {2}FAIL \[R1\]/m, },
+  // The audio audit's baseline (docs/audio-audit-card.md): the card before it must be red on ALL FOUR
+  // findings, each on its own check (`failAll`), not on one of them.
+  { name: 'CONTROL audio_invariants vs 1.5.1 card (must fail C1, C2, C3 and C4)', bench: 'audio_invariants', control: true,
+    args: ['audio_invariants/driver.js'], env: { CARD_FILE: LEGACY('card_1.5.1.js') }, expect: 1, failText: /^ {2}FAIL /m,
+    failAll: ['C1', 'C1b', 'C2', 'C3', 'C4'] },
   { name: 'CONTROL back_home vs 1.2.2 card (must fail H1)', bench: 'back_home', control: true,
     args: ['back_home/driver.js'], env: { CARD_FILE: LEGACY('card_1.2.2.js'), ONLY_CASES: 'H1', SKIP_MUTANTS: '1' }, expect: 1, failText: /^ {2}FAIL \[H1\]/m, },
 ];
@@ -133,6 +141,7 @@ const JOBS = [
       const firstFail = r.out.search(job.failText);
       const firstCrash = r.out.search(/TypeError|ReferenceError|SyntaxError|triggerUncaughtException/);
       if (firstFail < 0) problems.push('red without a failed check');
+      for (const id of job.failAll || []) if (r.out.indexOf('  FAIL [' + id + '] ') < 0) problems.push('expected red on ' + id + ' and it is not');
       else if (firstCrash >= 0 && firstCrash < firstFail) problems.push('red on a CRASH before any failed check');
     }
     if (job.bench && !job.control && !cardHits[job.bench]) problems.push('never fetched the card from this repo');

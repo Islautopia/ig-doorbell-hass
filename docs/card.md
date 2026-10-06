@@ -10,6 +10,38 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.5.2 (2026-10-06): the audio audit (docs/audio-audit-card.md)
+
+The card against the nine rules of `docs/audio-invariants.md` (firmware repo). Bench:
+`tests/card/audio_invariants/` (real card, real Chromium, fake microphone; mutants MC1-MC6; control
+against `fixtures/legacy/card_1.5.1.js`, red on C1, C1b, C2, C3 and C4). The audit document has the
+rule-by-rule table and what could not be measured here.
+
+- **No answer to `talk_request` is not a turn (C2).** The 3 s deadline used to open the microphone
+  in both of its branches ("older firmware" / "lost message"). The firmware discards audio from a
+  client without the turn since 2026-08-04, so that was an open mic talking to nobody. Now:
+  request ended, `talk_release` sent, `talk_noanswer` on the status line. `_talkUnsupported` and the
+  `talk_legacy` text are gone. `getUserMedia` is only ever called from `_startTalk()`, and
+  `_startTalk()` only from `_handleTalkGranted()`.
+- **The SSE dying under a live session ends the session now (C3).** `es.onerror` after the offer
+  (`settled`) calls `_scheduleReconnect()`; teardown stops the capture. Before, only the channel was
+  closed and the session lingered until the life watchdog (20 s). The reason is said when the new
+  picture arrives - as a STICKY status (`_sayMicLost`, 9 s or until the mic is tapped), because the
+  start-up resets the status line several times and a flashed notice never survived it (measured).
+- **The speaker follows the microphone both ways (C4, contract 1.10).** `_stopTalk()` turns the
+  sound off; `_stopTalk(true)` (pause, watchdog) leaves the listening state alone, and teardown no
+  longer rewinds it. `_audioOnBeforeMic` is gone. So: tap closes mic -> silence; pause and back ->
+  as it was; reconnection -> still hearing, mic closed.
+- **A refused sound has a standing control (C1).** `#hear-btn` over the picture, raised by
+  `_setSoundBlocked(true)` from the three places a play() with sound can be refused (`_setAudioOn`,
+  `setupRemoteStream`, `_resume`), cleared when the street really sounds or the sound stops being
+  wanted, hidden while paused. The `snd_blocked` text is now that button's label.
+- **A play() aborted by a newer stream is not a refusal.** `AbortError` (a new `srcObject` while
+  the previous play() was pending) used to be read as "sound blocked" and turned the sound off for
+  someone who was listening, on any quick re-session. Found by the bench's C3, not by reading.
+- Landmine for the benches: **no backslashes in an edit script fed through a shell heredoc** - a
+  doubled backslash arrived single and the anchor "was not found" (it aborted, as it must).
+
 ## 1.5.0 (2026-10-02): light / dark / system theme, ported from the doorbell's web
 
 Iñaki, 2026-10-02: *"Me gusta cómo han quedado los temas claro/oscuro/sistema de la web. Lo pasamos

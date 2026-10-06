@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.5.2';
+const CARD_VERSION = '1.5.1';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-30-ig-doorbell`;
@@ -249,7 +249,7 @@ const igLocales = {
     lbl_mic_off: "Micrófono", lbl_mic_on: "Activo", lbl_door_idle: "Puerta", lbl_door_open: "Abierta",
     talk_requesting: "Pidiendo turno...", talk_denied_msg: "Canal de voz ocupado por otro usuario", talk_busy: "Canal de voz en uso",
     talk_taken: "Otro usuario ha tomado el canal de voz", talk_silence: "El portero cerró el canal de voz por silencio",
-    talk_noanswer: "El portero no ha dado el turno de palabra. Toca el micrófono otra vez.", mic_lost_conn: "Micrófono cerrado: se ha perdido la conexión con el portero.", lbl_mic_listen: "Escucha", clients_tip: "Clientes conectados",
+    talk_legacy: "Este portero no confirma el turno de voz (firmware anterior)", lbl_mic_listen: "Escucha", clients_tip: "Clientes conectados",
     q_label: "Calidad", q_auto: "Auto", q_full: "Alta", q_low: "Baja", q_audio_only: "Solo audio",
     q_auto_loss: "Calidad ajustada automáticamente: pérdida de paquetes", q_auto_bw: "Calidad ajustada automáticamente: ancho de banda insuficiente",
     q_auto_sub: "El portero decide", q_full_sub: "Vídeo completo", q_low_sub: "~1 imagen/s (solo claves)", q_audio_only_sub: "Sin vídeo, solo sonido",
@@ -259,7 +259,7 @@ const igLocales = {
     snd_on: "Silenciar", snd_off: "Escuchar", snd_ring: "Están llamando — sonido activado",
     door_opening: "Abriendo la puerta...", lbl_door_opening: "Abriendo", door_no_answer: "El portero no respondió — la puerta NO se ha abierto",
     conn_lan: "Home Assistant no llega al portero por la red local", retry_no_path: "No hay camino de vídeo hasta el portero desde esta red · reintentando en", path_remote_tip: "Conectado por internet (fuera de la red de casa)", paused: "En pausa", paused_tap: "En pausa para liberar el portero · toca para reanudar", retry_prefix: "Sin conexión · reintentando en",
-    snd_blocked: "Toca para oír la calle", cred_revoked: "El portero rechazó el emparejamiento — vuelve a emparejarlo en Ajustes › Dispositivos y servicios",
+    snd_blocked: "Toca el altavoz para oír", cred_revoked: "El portero rechazó el emparejamiento — vuelve a emparejarlo en Ajustes › Dispositivos y servicios",
     lbl_rec_off: "REC", lbl_rec_on: "Grabando", rec_start_tip: "Empezar a grabar", rec_stop_tip: "Parar la grabación", rec_no_answer: "Home Assistant no aceptó la orden de grabar", recordings_title: "Grabaciones",
     quick_reply_title: "Respuestas rápidas", qr_empty: "El portero no tiene respuestas rápidas configuradas", qr_load_error: "No se pudo obtener la lista del portero", qr_no_answer: "El portero no aceptó la respuesta rápida",
     db_not_setup: "Este portero no está configurado en Home Assistant.",
@@ -274,7 +274,7 @@ const igLocales = {
     lbl_mic_off: "Microphone", lbl_mic_on: "Active", lbl_door_idle: "Door", lbl_door_open: "Open",
     talk_requesting: "Requesting turn...", talk_denied_msg: "Voice channel busy (another user)", talk_busy: "Voice channel in use",
     talk_taken: "Another user took the voice channel", talk_silence: "The doorbell closed the voice channel after silence",
-    talk_noanswer: "The doorbell did not give the talk turn. Tap the microphone again.", mic_lost_conn: "Microphone closed: the connection to the doorbell was lost.", lbl_mic_listen: "Listening", clients_tip: "Connected clients",
+    talk_legacy: "This doorbell doesn't confirm voice turns (older firmware)", lbl_mic_listen: "Listening", clients_tip: "Connected clients",
     q_label: "Quality", q_auto: "Auto", q_full: "High", q_low: "Low", q_audio_only: "Audio only",
     q_auto_loss: "Quality auto-adjusted: packet loss", q_auto_bw: "Quality auto-adjusted: not enough bandwidth",
     q_auto_sub: "The doorbell decides", q_full_sub: "Full video", q_low_sub: "~1 frame/s (keyframes only)", q_audio_only_sub: "No video, sound only",
@@ -284,7 +284,7 @@ const igLocales = {
     snd_on: "Mute", snd_off: "Listen", snd_ring: "Someone is calling — sound on",
     door_opening: "Opening the door...", lbl_door_opening: "Opening", door_no_answer: "No answer from the doorbell — the door did NOT open",
     conn_lan: "Home Assistant can't reach the doorbell on the local network", retry_no_path: "No video path to the doorbell from this network · retrying in", path_remote_tip: "Connected over the internet (outside the home network)", paused: "Paused", paused_tap: "Paused to free the doorbell · tap to resume", retry_prefix: "No connection · retrying in",
-    snd_blocked: "Tap to hear the street", cred_revoked: "The doorbell rejected this pairing — re-pair it in Settings › Devices & services",
+    snd_blocked: "Tap the speaker to listen", cred_revoked: "The doorbell rejected this pairing — re-pair it in Settings › Devices & services",
     lbl_rec_off: "REC", lbl_rec_on: "Recording", rec_start_tip: "Start recording", rec_stop_tip: "Stop recording", rec_no_answer: "Home Assistant did not accept the recording request", recordings_title: "Recordings",
     quick_reply_title: "Quick replies", qr_empty: "The doorbell has no quick replies configured", qr_load_error: "Could not load the list from the doorbell", qr_no_answer: "The doorbell did not accept the quick reply",
     db_not_setup: "This doorbell isn't set up in Home Assistant.",
@@ -299,7 +299,7 @@ const igLocales = {
     lbl_mic_off: "Microfone", lbl_mic_on: "Ativo", lbl_door_idle: "Porta", lbl_door_open: "Aberta",
     talk_requesting: "A pedir a vez...", talk_denied_msg: "Canal de voz ocupado por outro utilizador", talk_busy: "Canal de voz em uso",
     talk_taken: "Outro utilizador tomou o canal de voz", talk_silence: "O porteiro fechou o canal de voz por silêncio",
-    talk_noanswer: "O porteiro não deu a vez de falar. Toque novamente no microfone.", mic_lost_conn: "Microfone fechado: perdeu-se a ligação ao porteiro.", lbl_mic_listen: "A ouvir", clients_tip: "Clientes ligados",
+    talk_legacy: "Este porteiro não confirma a vez de voz (firmware anterior)", lbl_mic_listen: "A ouvir", clients_tip: "Clientes ligados",
     q_label: "Qualidade", q_auto: "Auto", q_full: "Alta", q_low: "Baixa", q_audio_only: "Só áudio",
     q_auto_loss: "Qualidade ajustada automaticamente: perda de pacotes", q_auto_bw: "Qualidade ajustada automaticamente: largura de banda insuficiente",
     q_auto_sub: "O porteiro decide", q_full_sub: "Vídeo completo", q_low_sub: "~1 imagem/s (só chaves)", q_audio_only_sub: "Sem vídeo, só som",
@@ -309,7 +309,7 @@ const igLocales = {
     snd_on: "Silenciar", snd_off: "Ouvir", snd_ring: "Estão a chamar — som ligado",
     door_opening: "A abrir a porta...", lbl_door_opening: "A abrir", door_no_answer: "O porteiro não respondeu — a porta NÃO foi aberta",
     conn_lan: "O Home Assistant não chega ao porteiro pela rede local", retry_no_path: "Sem caminho de vídeo até ao porteiro a partir desta rede · a tentar de novo em", path_remote_tip: "Ligado pela internet (fora da rede de casa)", paused: "Em pausa", paused_tap: "Em pausa para libertar o porteiro · toque para retomar", retry_prefix: "Sem ligação · a tentar de novo em",
-    snd_blocked: "Toca para ouvir a rua", cred_revoked: "O porteiro rejeitou este emparelhamento — volte a emparelhá-lo em Definições › Dispositivos e serviços",
+    snd_blocked: "Toque no altifalante para ouvir", cred_revoked: "O porteiro rejeitou este emparelhamento — volte a emparelhá-lo em Definições › Dispositivos e serviços",
     lbl_rec_off: "REC", lbl_rec_on: "A gravar", rec_start_tip: "Começar a gravar", rec_stop_tip: "Parar a gravação", rec_no_answer: "O Home Assistant não aceitou o pedido de gravação", recordings_title: "Gravações",
     quick_reply_title: "Respostas rápidas", qr_empty: "A campainha não tem respostas rápidas configuradas", qr_load_error: "Não foi possível obter a lista da campainha", qr_no_answer: "A campainha não aceitou a resposta rápida",
     db_not_setup: "Esta campainha não está configurada no Home Assistant.",
@@ -324,7 +324,7 @@ const igLocales = {
     lbl_mic_off: "Mikrofon", lbl_mic_on: "Aktiv", lbl_door_idle: "Tür", lbl_door_open: "Offen",
     talk_requesting: "Sprechrecht wird angefragt...", talk_denied_msg: "Sprachkanal von einem anderen Nutzer belegt", talk_busy: "Sprachkanal belegt",
     talk_taken: "Ein anderer Nutzer hat den Sprachkanal übernommen", talk_silence: "Die Türsprechanlage hat den Sprachkanal wegen Stille geschlossen",
-    talk_noanswer: "Die Türsprechanlage hat das Sprechrecht nicht erteilt. Tippen Sie erneut auf das Mikrofon.", mic_lost_conn: "Mikrofon geschlossen: Die Verbindung zur Türsprechanlage ist abgebrochen.", lbl_mic_listen: "Zuhören", clients_tip: "Verbundene Clients",
+    talk_legacy: "Diese Türsprechanlage bestätigt kein Sprechrecht (ältere Firmware)", lbl_mic_listen: "Zuhören", clients_tip: "Verbundene Clients",
     q_label: "Qualität", q_auto: "Auto", q_full: "Hoch", q_low: "Niedrig", q_audio_only: "Nur Audio",
     q_auto_loss: "Qualität automatisch angepasst: Paketverlust", q_auto_bw: "Qualität automatisch angepasst: zu wenig Bandbreite",
     q_auto_sub: "Die Türsprechanlage entscheidet", q_full_sub: "Volles Video", q_low_sub: "~1 Bild/s (nur Keyframes)", q_audio_only_sub: "Kein Video, nur Ton",
@@ -334,7 +334,7 @@ const igLocales = {
     snd_on: "Stummschalten", snd_off: "Mithören", snd_ring: "Es klingelt — Ton an",
     door_opening: "Tür wird geöffnet...", lbl_door_opening: "Öffnet", door_no_answer: "Keine Antwort der Türsprechanlage — die Tür wurde NICHT geöffnet",
     conn_lan: "Home Assistant erreicht die Türsprechanlage im lokalen Netz nicht", retry_no_path: "Kein Videoweg zur Türsprechanlage aus diesem Netz · neuer Versuch in", path_remote_tip: "Über das Internet verbunden (außerhalb des Heimnetzes)", paused: "Pausiert", paused_tap: "Pausiert, um die Türsprechanlage freizugeben · tippen zum Fortsetzen", retry_prefix: "Keine Verbindung · neuer Versuch in",
-    snd_blocked: "Tippen, um die Straße zu hören", cred_revoked: "Die Türsprechanlage hat diese Kopplung abgelehnt — in Einstellungen › Geräte & Dienste neu koppeln",
+    snd_blocked: "Auf den Lautsprecher tippen, um zu hören", cred_revoked: "Die Türsprechanlage hat diese Kopplung abgelehnt — in Einstellungen › Geräte & Dienste neu koppeln",
     lbl_rec_off: "REC", lbl_rec_on: "Aufnahme läuft", rec_start_tip: "Aufnahme starten", rec_stop_tip: "Aufnahme stoppen", rec_no_answer: "Home Assistant hat die Aufnahme-Anfrage nicht angenommen", recordings_title: "Aufnahmen",
     quick_reply_title: "Schnellantworten", qr_empty: "Für die Klingel sind keine Schnellantworten eingerichtet", qr_load_error: "Liste konnte nicht von der Klingel geladen werden", qr_no_answer: "Die Klingel hat die Schnellantwort nicht angenommen",
     db_not_setup: "Diese Türklingel ist in Home Assistant nicht eingerichtet.",
@@ -349,7 +349,7 @@ const igLocales = {
     lbl_mic_off: "Microphone", lbl_mic_on: "Actif", lbl_door_idle: "Porte", lbl_door_open: "Ouverte",
     talk_requesting: "Demande de parole...", talk_denied_msg: "Canal vocal occupé par un autre utilisateur", talk_busy: "Canal vocal occupé",
     talk_taken: "Un autre utilisateur a pris le canal vocal", talk_silence: "Le portier a fermé le canal vocal après un silence",
-    talk_noanswer: "Le portier n’a pas donné la parole. Touchez de nouveau le micro.", mic_lost_conn: "Micro fermé : la connexion au portier a été perdue.", lbl_mic_listen: "Écoute", clients_tip: "Clients connectés",
+    talk_legacy: "Ce portier ne confirme pas le tour de parole (firmware antérieur)", lbl_mic_listen: "Écoute", clients_tip: "Clients connectés",
     q_label: "Qualité", q_auto: "Auto", q_full: "Haute", q_low: "Basse", q_audio_only: "Audio seul",
     q_auto_loss: "Qualité ajustée automatiquement : perte de paquets", q_auto_bw: "Qualité ajustée automatiquement : bande passante insuffisante",
     q_auto_sub: "Le portier décide", q_full_sub: "Vidéo complète", q_low_sub: "~1 image/s (images clés)", q_audio_only_sub: "Pas de vidéo, son seul",
@@ -359,7 +359,7 @@ const igLocales = {
     snd_on: "Couper le son", snd_off: "Écouter", snd_ring: "On sonne — son activé",
     door_opening: "Ouverture de la porte...", lbl_door_opening: "Ouverture", door_no_answer: "Pas de réponse du portier — la porte n'a PAS été ouverte",
     conn_lan: "Home Assistant n'atteint pas l'interphone sur le réseau local", retry_no_path: "Aucun chemin vidéo vers l'interphone depuis ce réseau · nouvel essai dans", path_remote_tip: "Connecté par internet (hors du réseau de la maison)", paused: "En pause", paused_tap: "En pause pour libérer l'interphone · touchez pour reprendre", retry_prefix: "Pas de connexion · nouvel essai dans",
-    snd_blocked: "Touche pour entendre la rue", cred_revoked: "Le portier a refusé cet appairage — réappairez-le dans Paramètres › Appareils et services",
+    snd_blocked: "Touchez le haut-parleur pour écouter", cred_revoked: "Le portier a refusé cet appairage — réappairez-le dans Paramètres › Appareils et services",
     lbl_rec_off: "REC", lbl_rec_on: "Enregistrement", rec_start_tip: "Démarrer l'enregistrement", rec_stop_tip: "Arrêter l'enregistrement", rec_no_answer: "Home Assistant n'a pas accepté la demande d'enregistrement", recordings_title: "Enregistrements",
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
     db_not_setup: "Cette sonnette n'est pas configurée dans Home Assistant.",
@@ -374,7 +374,7 @@ const igLocales = {
     lbl_mic_off: "Microfono", lbl_mic_on: "Attivo", lbl_door_idle: "Porta", lbl_door_open: "Aperta",
     talk_requesting: "Richiesta del turno...", talk_denied_msg: "Canale voce occupato da un altro utente", talk_busy: "Canale voce in uso",
     talk_taken: "Un altro utente ha preso il canale voce", talk_silence: "Il videocitofono ha chiuso il canale voce per silenzio",
-    talk_noanswer: "Il videocitofono non ha dato il turno di parola. Tocca di nuovo il microfono.", mic_lost_conn: "Microfono chiuso: la connessione con il videocitofono è caduta.", lbl_mic_listen: "In ascolto", clients_tip: "Client connessi",
+    talk_legacy: "Questo videocitofono non conferma il turno di parola (firmware precedente)", lbl_mic_listen: "In ascolto", clients_tip: "Client connessi",
     q_label: "Qualità", q_auto: "Auto", q_full: "Alta", q_low: "Bassa", q_audio_only: "Solo audio",
     q_auto_loss: "Qualità adattata automaticamente: perdita di pacchetti", q_auto_bw: "Qualità adattata automaticamente: larghezza di banda insufficiente",
     q_auto_sub: "Decide il videocitofono", q_full_sub: "Video completo", q_low_sub: "~1 fotogramma/s (solo keyframe)", q_audio_only_sub: "Nessun video, solo audio",
@@ -384,7 +384,7 @@ const igLocales = {
     snd_on: "Disattiva audio", snd_off: "Ascolta", snd_ring: "Qualcuno sta chiamando — audio attivato",
     door_opening: "Apertura della porta...", lbl_door_opening: "Apertura", door_no_answer: "Nessuna risposta dal videocitofono — la porta NON si è aperta",
     conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", retry_no_path: "Nessun percorso video verso il videocitofono da questa rete · nuovo tentativo in", path_remote_tip: "Connesso via internet (fuori dalla rete di casa)", paused: "In pausa", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
-    snd_blocked: "Tocca per sentire la strada", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
+    snd_blocked: "Tocca l'altoparlante per ascoltare", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
     lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
     quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
     db_not_setup: "Questo videocitofono non è configurato in Home Assistant.",
@@ -855,6 +855,7 @@ class IgDoorbellView extends HTMLElement {
     this._talkPending = false;    // a talk_request is in flight
     this._talkTimer = null;
     this._talkGrantedAt = 0;      // for the anti-race-revocation grace period, see _reconcileTalkTurn
+    this._talkUnsupported = false; // firmware predating the contract: doesn't reply to talk_request
     this._listenOnly = false;     // turn denied: the doorbell can be heard but the mic stays closed
     this._talkFreeHintShown = false; // "channel free" was already reported during this particular wait
     this._talkerSlot = -1;        // slot that holds the turn according to the device (-1 = free)
@@ -923,11 +924,7 @@ class IgDoorbellView extends HTMLElement {
     // The doorbell isn't asked to stop sending audio (that would be `quality`, §1.4-ter, and would save
     // ~24 kbps which, next to video, is statistical noise): it simply isn't played.
     this._audioOn = false;
-    // (1.5.2) The browser REFUSED to sound (no user activation) while the sound was wanted: a standing
-    // control over the picture says so until one tap (#hear-btn, see _setSoundBlocked). Until 1.5.1 it
-    // was a 5 s notice, and after it the picture was mute with nothing saying why.
-    this._soundBlocked = false;
-    this._micLostPending = false;   // a session dropped with the mic open: said when the picture is back
+    this._audioOnBeforeMic = false;  // to restore the sound to how it was when the mic closes
     this._ringMarker = null;         // last state read from ring_entity (null = not read yet)
 
     // ---- Image rotation (API_CONTRACT.md §1.9, 2026-07-30) -------------------------------
@@ -1202,11 +1199,9 @@ class IgDoorbellView extends HTMLElement {
     this._connGen += 1;
     this._stopLifeWatchdog();
     this._stopAudioSendDiagnostics();
-    // Computed up here because _resetMulticlientState() (below) clears _listenOnly.
-    // (1.5.2) THE SOUND IS LEFT AS IT IS. A session that drops under an open mic (a reconnection) is
-    // not the person closing the conversation: whoever was talking keeps HEARING when the picture
-    // returns (setupRemoteStream applies `_audioOn` to the new stream), and only the microphone has
-    // to be asked for again. Until 1.5.1 the sound went back to what it was before the mic.
+    // If the mic was open, the sound was turned on BY THE MIC - when it closes it has to be
+    // restored to how it was before (§1.10). It's computed up here because _resetMulticlientState()
+    // (below) clears _listenOnly.
     const micWasOpen = this.talkActive || this._listenOnly;
     // Real bug found and fixed (2026-07-10, see COORDINATION.md - user's suspicion
     // about the audio return channel): this function is the ONLY shared teardown point
@@ -1236,6 +1231,7 @@ class IgDoorbellView extends HTMLElement {
     // Talk turn / counter / quality: PER-SESSION state, never inherited (2026-07-26,
     // §1.4-ter). Goes BEFORE repainting the button so _paintMicState() already sees the clean state.
     this._resetMulticlientState();
+    if (micWasOpen) this._setAudioOn(this._audioOnBeforeMic, 'teardown');
     if (this.micButton) {
       this.micButton.setAttribute('disabled', '');
       this._paintMicState();
@@ -1406,9 +1402,6 @@ class IgDoorbellView extends HTMLElement {
     this._reconnecting = true;
 
     console.warn(`[ig-doorbell-card] native session lost (${reason}) - reconnecting...`);
-    // The microphone goes with the session (teardown below) and is NOT reopened by the new one: the
-    // person is told why it closed once the picture is back (setupRemoteStream).
-    if (this.talkActive || this._talkHeld || this._talkPending) this._micLostPending = true;
     this._mark(`_scheduleReconnect: ${reason}`);
     this._teardownConnectionObjects();
 
@@ -2460,18 +2453,23 @@ class IgDoorbellView extends HTMLElement {
   // slot: this card requests the turn BEFORE unmuting and only opens the mic with a real
   // talk_granted - never "open the mic and see if it plays".
   //
-  // ⚠️ (1.5.2) NO ANSWER IS NOT A TURN. Until 1.5.1, three seconds without an answer opened the
-  // microphone anyway ("older firmware never answers talk_request" / "a lost message"). Both
-  // branches broke rule 6 of docs/audio-invariants.md (firmware repo): no uplink audio without the
-  // doorbell's talk turn. And it protected nobody: since the firmware of 2026-08-04 the implicit
-  // turn is retired, so the doorbell DISCARDS audio from a client without the turn -- the card
-  // showed an open mic, the browser's indicator was lit, and nobody at the door heard a word.
-  // Now the deadline ends the request: nothing was captured (getUserMedia is only called on
-  // `talk_granted`), the turn is given back in case it had been granted unheard, and the card says
-  // so. If you are tempted to "just open it" for a doorbell that does not answer: that doorbell
-  // would not play it either.
+  // Degradation with firmware PREDATING the contract (explicit requirement): that firmware
+  // simply DOESN'T REPLY to talk_request - no error, just silence. A client that waited
+  // indefinitely would leave the mic button useless forever against the already-installed
+  // fleet. Hence: a 3s wait (same deadline as the Android app, so the product
+  // behaves the same across all three clients) and, if nothing arrives, the mic opens anyway,
+  // reporting it ONCE, and _talkUnsupported gets set so subsequent taps in THAT
+  // session are instant. The new firmware itself backs this choice: it implements "implicit
+  // turn-taking" precisely so clients that never request a turn keep
+  // working (§1.4-ter, "Compatibility").
   // ==============================================================================
   _requestTalkTurn() {
+    if (this._talkUnsupported) {
+      // We already know (in THIS session) that this doorbell doesn't arbitrate the turn - mic goes direct, without
+      // making the user wait 3s again.
+      this._startTalk();
+      return;
+    }
     this._talkPending = true;
     this._paintMicState();
     this.sendNativeSignal({ type: 'talk_request' });
@@ -2480,11 +2478,25 @@ class IgDoorbellView extends HTMLElement {
       this._talkTimer = null;
       if (!this._talkPending) return;
       this._talkPending = false;
-      this._talkHeld = false;
-      console.warn('[ig-doorbell-card] no answer to talk_request within 3s: the microphone is NOT opened');
-      this.sendNativeSignal({ type: 'talk_release' });
-      this._paintMicState();
-      this._flashStatusLine('talk_noanswer', 7000);
+      // Don't blame it on absence if there's evidence to the contrary (2026-07-29, after the false positive
+      // on real hardware). `session_info` belongs to the SAME contract as the talk turn: a
+      // doorbell that sends it knows how to arbitrate turns, period. If we've ever received it,
+      // getting no reply to a talk_request is a lost message -- status notices get
+      // dropped when the outgoing queue is full, that's documented -- not old firmware.
+      //
+      // The difference matters: blaming the user's firmware when their firmware is fine sends
+      // them looking for an update that doesn't exist, and it also leaves `_talkUnsupported` set
+      // for the rest of the session, meaning the turn is never properly requested again.
+      // With no evidence (a session_info never arrived) the assumption of older firmware is
+      // indeed reasonable, and it stays.
+      if (this._clients === null) {
+        this._talkUnsupported = true;
+        console.warn('[ig-doorbell-card] the device did not answer talk_request within 3s and has never sent session_info - assuming firmware predating the talk-turn contract, opening the mic with no arbitration');
+        this._flashStatusLine('talk_legacy', 5000);
+      } else {
+        console.warn('[ig-doorbell-card] no response to talk_request within 3s, but this doorbell DOES speak the talk-turn contract (it has sent session_info) - treated as a lost message, not older firmware: the mic opens and the turn will keep being requested normally');
+      }
+      this._startTalk();
     }, 3000);
   }
 
@@ -2520,9 +2532,12 @@ class IgDoorbellView extends HTMLElement {
   // doesn't exist, and rejecting would leave the mic useless against that firmware - exactly the degradation
   // this project doesn't accept. In the case above the data DOES exist and it's us who
   // don't know what to compare it against, which is a symptom of a corrupted state, not of an old doorbell.
-  // Honest consequence of the rejection: if a talk_granted gets rejected, the request stays "in
-  // flight" and at 3s it ends with the "no turn given" notice (1.5.2; it used to open the mic).
-  // In practice it's unreachable (the own slot is always known before the mic button gets enabled).
+  // Honest consequence of the rejection, documented so nobody discovers it by surprise: if a
+  // talk_granted gets rejected, the request stays "in flight" and at 3s the old-firmware
+  // timer fires, opening the mic with no arbitration. In practice it's unreachable (the own
+  // slot is always known before the mic button gets enabled, see above) and even so
+  // it's no worse than the pre-contract behavior; adding more machinery for a path
+  // that can't happen would cost more than it fixes.
   _talkMsgIsForUs(msg) {
     if (typeof msg.slot !== 'number') return true; // intermediate firmware: no slot to compare
     if (this._slot === null) return false;         // we don't know who we are: not something we can assume
@@ -2542,7 +2557,8 @@ class IgDoorbellView extends HTMLElement {
     // A talk_granted is only sent TO WHOEVER REQUESTED IT, and here it's on record that we requested it
     // (_talkPending). The residual risk -- that the relay broadcasts another client's grant when that client
     // requested the turn at that exact same instant -- is knowingly accepted, because what the filter
-    // prevented here was the user's OWN grant: the request then ran out with a false "no answer".
+    // prevented here was NOT opening the mic: once the 3s ran out it opened anyway, just later and
+    // blaming the user's firmware. It protected nothing, and it lied.
     //
     // The slot is NOT adopted from this message: it's set by `session_info`, which IS unambiguously
     // ours. Until then, _reconcileTalkTurn() already withholds any opinion.
@@ -2586,7 +2602,9 @@ class IgDoorbellView extends HTMLElement {
   // that it has TAKEN the turn away from us on its own - having your mic cut mid-sentence with no
   // explanation would be exactly the silent failure to avoid. Real deadlines after the contract
   // adjustment of 2026-07-26: 60s of ABSOLUTE silence if the turn was requested with talk_request (what this
-  // card does). (The implicit turn of older firmware is gone on both sides: 1.5.2 never talks without one.)
+  // card does), and only 5s for whoever took it implicitly by talking without requesting it - i.e., this same
+  // card when it talks against a doorbell with older firmware (_talkUnsupported). That asymmetry
+  // is exactly why it's worth requesting the turn explicitly.
   _reconcileTalkTurn() {
     // Retry after a talk_denied: the device ALWAYS pushes talk_state{talker:-1} once the
     // channel becomes free (2026-07-26 contract adjustment), so the user can be notified
@@ -2816,10 +2834,11 @@ class IgDoorbellView extends HTMLElement {
     this._talkHeld = false;
     this._talkPending = false;
     this._talkGrantedAt = 0;
-    // _qualitySupported is also reset on purpose: if the user
+    // _talkUnsupported / _qualitySupported are also reset on purpose: if the user
     // updates the firmware, the device restarts and the card reconnects - re-probing on every
     // new session is what lets the card find out on its own, without reloading the browser. The cost
     // is at most a 3s wait the first time the mic gets tapped against an old doorbell.
+    this._talkUnsupported = false;
     this._listenOnly = false;
     this._talkFreeHintShown = false;
     this._talkerSlot = -1;
@@ -3568,9 +3587,7 @@ class IgDoorbellView extends HTMLElement {
     if (reason === 'idle') PAUSED_BY_DOORBELL[this.config.device_id] = true;
     // The mic doesn't stay open with the view closed (and the doorbell releases the turn with
     // live_pause anyway, §1.4-bis). It's remembered so it can be reopened on return.
-    // keepSound: a pause is not the person closing the conversation -- coming back restores "the same
-    // state", so whether the street was being heard is kept (the <video> is paused below anyway).
-    if (micOpen) this._stopTalk(true);
+    if (micOpen) this._stopTalk();
     this._sendLivePause(true);
     // Stopping the <video> releases the browser's implicit keep-awake: the screen can turn off now.
     if (this.videoEl) { try { this.videoEl.pause(); } catch (err) { /* best effort */ } }
@@ -3612,7 +3629,6 @@ class IgDoorbellView extends HTMLElement {
       this._hangUpPaused();
     }
     this._pauseState = null;
-    this._paintSoundBlocked();
     delete PAUSED_BY_DOORBELL[this.config.device_id];
     if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
     IG_IDLE.last = Date.now();
@@ -3620,7 +3636,7 @@ class IgDoorbellView extends HTMLElement {
     if (p.phase === 'grace' && this.pc) {
       this._sendLivePause(false);
       // (1.2.2) Refused (sound on, no user activation): muted, never a frozen picture.
-      if (this.videoEl) { try { const pr = this.videoEl.play(); if (pr && pr.catch) pr.catch(() => { const wanted = this._audioOn; this._audioOn = false; this._playMuted('resume refused'); if (wanted) this._setSoundBlocked(true); this._paintAudioState(); }); } catch (err) { /* best effort */ } }
+      if (this.videoEl) { try { const pr = this.videoEl.play(); if (pr && pr.catch) pr.catch(() => { this._audioOn = false; this._paintAudioState(); this._playMuted('resume refused'); }); } catch (err) { /* best effort */ } }
       this._setLiveState('live');
       if (this.loader) this.loader.style.opacity = '0';
       this._rescueAfterResume();
@@ -3647,7 +3663,6 @@ class IgDoorbellView extends HTMLElement {
   }
 
   _paintPause() {
-    this._paintSoundBlocked();
     this._setLiveState('paused');
     if (this.loader) this.loader.style.opacity = '0';
     this._resetStatusLine();
@@ -3866,39 +3881,17 @@ class IgDoorbellView extends HTMLElement {
     }
   }
 
-  // (1.5.2) The standing control of a refused sound. Shown from the refusal until the street really
-  // sounds (its own tap, or the speaker button: both are gestures) or the sound stops being wanted.
-  // Hidden, not forgotten, while the view is paused: there is no picture to hear then.
-  _setSoundBlocked(blocked) {
-    this._soundBlocked = !!blocked;
-    this._paintSoundBlocked();
-  }
-
-  _paintSoundBlocked() {
-    if (!this.hearBtn) return;
-    const lbl = this.hearBtn.querySelector('#hear-lbl');
-    if (lbl) lbl.textContent = getLocalText(this._hass, 'snd_blocked');
-    this.hearBtn.style.display = (this._soundBlocked && !this._pauseState && !this._destroyed) ? 'flex' : 'none';
-  }
-
   _setAudioOn(on, reason) {
     const wantOn = !!on;
     this._audioOn = wantOn;
-    if (!wantOn) this._setSoundBlocked(false);
     if (this.videoEl) {
       this.videoEl.muted = !wantOn;
       if (wantOn && typeof this.videoEl.play === 'function') {
         // Unmuting with no user activation can make the browser PAUSE the element instead
         // of throwing an error - hence the play() and its catch.
         const p = this.videoEl.play();
-        if (p && typeof p.then === 'function') {
-          // It sounds: whatever control said "tap to hear" has done its job.
-          p.then(() => { if (this._audioOn && this.videoEl && !this.videoEl.muted && !this.videoEl.paused) this._setSoundBlocked(false); }, () => {});
-        }
         if (p && typeof p.catch === 'function') {
-          p.catch((err) => {
-            // (1.5.2) Aborted by a newer stream = not a refusal; that stream applies `_audioOn` itself.
-            if (err && err.name === 'AbortError') return;
+          p.catch(() => {
             this.videoEl.muted = true;
             this._audioOn = false;
             // ⚠️ (1.2.2) AND PLAY AGAIN, MUTED. Unmuting without a user activation does not just fail:
@@ -3908,10 +3901,7 @@ class IgDoorbellView extends HTMLElement {
             // A muted play() needs no activation.
             this._playMuted('sound blocked');
             this._paintAudioState();
-            // Not a 5 s notice (until 1.5.1): the reason stands on the picture until it is tapped.
-            this._setSoundBlocked(true);
-            // ...and the ring's own notice would now be saying "sound on" over a mute picture.
-            if (this.statusLine && this.statusLine.textContent === getLocalText(this._hass, 'snd_ring')) this._resetStatusLine();
+            this._flashStatusLine('snd_blocked', 5000);
             console.warn(`[ig-doorbell-card] the browser did not allow turning on the sound (reason="${reason}") - the user needs to tap the speaker control`);
           });
         }
@@ -3921,7 +3911,6 @@ class IgDoorbellView extends HTMLElement {
   }
 
   _paintAudioState() {
-    this._paintSoundBlocked();
     if (this.volIcon) this.volIcon.setAttribute('icon', this._audioOn ? 'mdi:volume-high' : 'mdi:volume-off');
     if (this.sndBtn) {
       this.sndBtn.classList.toggle('on', !!this._audioOn);
@@ -5015,13 +5004,6 @@ class IgDoorbellView extends HTMLElement {
                    fixed indicator: the 'show' class is the ONLY thing that makes it visible. -->
               <div class="quality-toast" id="quality-toast"></div>
 
-              <!-- (1.5.2) The browser refused to sound until a gesture: ONE obvious control, standing
-                   until it is tapped (docs/audio-invariants.md rule 8). See _setSoundBlocked(). -->
-              <button type="button" class="hear-btn" id="hear-btn" style="display:none;">
-                <ha-icon icon="mdi:volume-high"></ha-icon>
-                <span id="hear-lbl">${getLocalText(this._hass, 'snd_blocked')}</span>
-              </button>
-
               <div class="hud-bottom">
                 <div class="audio-pill" id="audio-pill" style="display:none;">
                   <ha-icon icon="mdi:microphone"></ha-icon>
@@ -5225,9 +5207,6 @@ class IgDoorbellView extends HTMLElement {
       this.pathPill = this.querySelector('#path-pill');
       this.clientsCount = this.querySelector('#clients-count');
       this.qualityToast = this.querySelector('#quality-toast');
-      this.hearBtn = this.querySelector('#hear-btn');
-      // The tap IS the user activation the browser was waiting for.
-      this.hearBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._setAudioOn(true, 'user'); });
       this.advBtn = this.querySelector('#adv-btn');
       this.fsBtn = this.querySelector('#fs-btn');
       this.fsIcon = this.querySelector('#fs-icon');
@@ -6049,15 +6028,7 @@ class IgDoorbellView extends HTMLElement {
       // this in the future straight to a false lead - today the realistic causes are different.
       es.onerror = () => {
         if (this._superseded(gen)) { abandonLocal(); finish(false); return; }
-        // ⚠️ (1.5.2) THE CHANNEL DYING UNDER A LIVE SESSION ENDS THAT SESSION, NOW. `settled` = the offer
-        // had arrived, so this is not a failed start: it is the signalling of a running session going
-        // away, and for the doorbell a closed SSE is the end of the session (its slot is freed in
-        // seconds). Until 1.5.1 only the channel was closed here and the session lingered until the
-        // life watchdog, 20 s later: a microphone capturing for nobody and shown open all that time,
-        // with no way to release the turn. Reconnecting tears down first, which stops the capture.
-        const wasLive = settled && this.nativeSSE === es && !!this.pc;
         abandonLocal();
-        if (wasLive) { this._scheduleReconnect('the signalling channel dropped under a live session', gen); return; }
         console.warn(
           '[ig-doorbell-card] signaling through Home Assistant\'s proxy failed. ' +
           'The browser does NOT expose the status code to EventSource, so it is classified separately (see _classifyProxyFailure): ' +
@@ -6299,7 +6270,6 @@ class IgDoorbellView extends HTMLElement {
   // requests the talk turn first (§1.4-ter) and only calls _startTalk() on receiving talk_granted - or
   // after confirming this doorbell doesn't arbitrate turns (older firmware). See _requestTalkTurn().
   async toggleTalk() {
-    this._clearMicLost();
     if (this._talkPending) return; // a request is already in flight, don't queue another
     if (this.talkActive || this._listenOnly) {
       await this._stopTalk();
@@ -6388,7 +6358,10 @@ class IgDoorbellView extends HTMLElement {
     }
     {
       try {
-        // Talking implies hearing, obviously (§1.10: the speaker follows the microphone, both ways).
+        // Talking implies hearing, obviously. The sound's previous state is remembered so it can be
+        // restored when the mic closes: if you were only watching in silence, you'll keep watching in
+        // silence (§1.10); if you were already listening, you'll keep listening.
+        this._audioOnBeforeMic = this._audioOn;
         this._setAudioOn(true, 'mic');
         console.log('[ig-doorbell-card DIAG audio] toggleIntercom: requesting getUserMedia({audio:true})...');
         const genMic = this._connGen;
@@ -6419,7 +6392,7 @@ class IgDoorbellView extends HTMLElement {
         if (!this._micAllowed()) {
           // Paused, hidden or off the page while the permission was pending: no talk turn to serve.
           dropUnused('the view is paused, hidden or off the page');
-          if (this.talkActive || this._talkHeld) this._stopTalk(true);
+          if (this.talkActive || this._talkHeld) this._stopTalk();
           return;
         }
         // Never overwrite a live stream: the old one would become an orphan no teardown can reach.
@@ -6522,30 +6495,10 @@ class IgDoorbellView extends HTMLElement {
   // Called by the watchdog after it stopped one of this view's tracks: the UI and the turn follow.
   _onMicForcedOff() {
     if (this.localAudioStream && this.localAudioStream.getTracks().every((t) => t.readyState === 'ended')) this.localAudioStream = null;
-    if (!this._destroyed && (this.talkActive || this._talkHeld || this._talkPending)) this._stopTalk(true);
+    if (!this._destroyed && (this.talkActive || this._talkHeld || this._talkPending)) this._stopTalk();
   }
 
-  // "Microphone closed: the connection was lost", for 9 s or until the mic is tapped again. STICKY, not a
-  // flash: the start-up that follows the new stream resets the status line more than once, and a flashed
-  // notice was gone before anyone could read it (MEASURED, tests/card/audio_invariants C3: the line went
-  // "retrying in 2s" -> "1s" -> empty).
-  _sayMicLost() {
-    this._stickyStatusKey = 'mic_lost_conn';
-    this._resetStatusLine();
-    if (this._micLostTimer) clearTimeout(this._micLostTimer);
-    this._micLostTimer = setTimeout(() => this._clearMicLost(), 9000);
-  }
-
-  _clearMicLost() {
-    if (this._micLostTimer) { clearTimeout(this._micLostTimer); this._micLostTimer = null; }
-    if (this._stickyStatusKey !== 'mic_lost_conn') return;
-    this._stickyStatusKey = null;
-    this._resetStatusLine();
-  }
-
-  // keepSound = the mic is being closed by something that is NOT the person ending the conversation
-  // (a pause, the watchdog): the listening state is left alone. A tap on the mic passes nothing.
-  async _stopTalk(keepSound) {
+  async _stopTalk() {
     // Explicitly releases the turn (§1.4-ter): without this the doorbell would keep it reserved
     // until its 5s of silence ran out, and another client wanting to talk in that gap would get an
     // unfair talk_denied. It's sent even in "listen only" mode (turn denied) in case the
@@ -6559,12 +6512,7 @@ class IgDoorbellView extends HTMLElement {
     this._talkHeld = false;
     this._listenOnly = false;
     this.talkActive = false;
-    // ⚠️ (1.5.2) CLOSING THE MIC CLOSES THE SPEAKER, ALWAYS (API_CONTRACT §1.10, 2026-08-05: «cuando
-    // cierro el mic el altavoz se queda abierto y no es correcto. Debe cerrarse también. Si el usuario
-    // quiere sonido sin mic abierto, que pulse el altavoz»). Until 1.5.1 the card RESTORED the sound to
-    // what it was before the mic, so whoever was listening first kept the street in the house after
-    // the conversation. Nothing is saved, nothing is restored -- the web and the apps do the same.
-    if (!keepSound) this._setAudioOn(false, 'mic-closed');
+    this._setAudioOn(this._audioOnBeforeMic, 'mic-closed');
     this._closeMicHardware();
     this._setLiveState('live');
     if (this.audioPill) this.audioPill.style.display = 'none';
@@ -6641,7 +6589,6 @@ class IgDoorbellView extends HTMLElement {
       // cleared the instant there's an image, which is the only proof that it's over.
       this._stopRetryCountdown();
       if (this.statusLine && this.statusLine.classList.contains('warn')) this._resetStatusLine();
-      if (this._micLostPending) { this._micLostPending = false; this._sayMicLost(); }
       this.videoEl.srcObject = stream;
       // MUTED unless the user had already deliberately opened it in this same card (§1.10):
       // a reconnection must not leave whoever was listening deaf, but it also must not turn on the
@@ -6652,14 +6599,10 @@ class IgDoorbellView extends HTMLElement {
       this.videoEl.volume = 1;
       // (1.2.2) If the sound was on (a ring) and the page has no user activation, the browser refuses
       // this play(): fall back to MUTED instead of leaving a frozen picture (see _setAudioOn).
-      this.videoEl.play().catch((err) => {
-        // (1.5.2) A play() ABORTED because a newer stream replaced this one is not a refusal: the new
-        // stream runs this same code. Reading it as "sound blocked" turned the sound off on every
-        // quick re-session of someone who was listening (MEASURED, tests/card/audio_invariants C3).
-        if (this.videoEl.srcObject !== stream || (err && err.name === 'AbortError')) return;
+      this.videoEl.play().catch(() => {
         if (!this.videoEl.muted) {
           this._audioOn = false;
-          this._setSoundBlocked(true);   // (1.5.2) standing control, see _setSoundBlocked
+          this._flashStatusLine('snd_blocked', 5000);
         }
         this._playMuted('play() refused');
       });
@@ -7044,15 +6987,6 @@ class IgDoorbellView extends HTMLElement {
         color: var(--ig-text); opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
       }
       .quality-toast.show { opacity: 1; transform: translate(-50%, -50%); }
-      /* z-index 29: under the temporary quality chip (30), which must stay above every layer
-         (tests/card/chip_centre_1_5_1 K3), and above everything else on the picture. */
-      .hear-btn {
-        position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); z-index: 29;
-        display: flex; align-items: center; gap: 8px; max-width: 88%; cursor: pointer;
-        background: rgba(7,13,26,0.88); border: 1px solid rgba(0,196,212,0.7); border-radius: 999px;
-        padding: 10px 18px; font: inherit; font-size: 14px; font-weight: 700; color: #fff;
-      }
-      .hear-btn ha-icon { --mdc-icon-size: 20px; color: #00c4d4; }
 
       .motion-pill {
         position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6;

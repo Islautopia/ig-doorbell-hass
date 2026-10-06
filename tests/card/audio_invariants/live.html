@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.5.2: audio invariants against a REAL doorbell (live.js)</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script>
+    // Kept before the harness doubles them: against a real doorbell the signalling is REAL.
+    window.__RealES = window.EventSource;
+    window.__realFetch = window.fetch.bind(window);
+  </script>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // Same instrument as index.html: every getUserMedia() call and every track it ever returned.
+    window.__gumCalls = 0;
+    window.__micTracks = [];
+    const realGum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (c) => {
+      window.__gumCalls++;
+      const s = await realGum(c);
+      s.getAudioTracks().forEach((t) => window.__micTracks.push(t));
+      return s;
+    };
+    window.tLiveMic = () => window.__micTracks.filter((t) => t.readyState === 'live').length;
+    window.__vis = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__vis === 'hidden' });
+    window.tSetVisible = (v) => { window.__vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
+
+    // ONE doorbell, the real one: its id comes in the query (?dev=<device_id>&name=<name>).
+    const q = new URLSearchParams(location.search);
+    const DEV = q.get('dev');
+    window.__db = { [DEV]: { name: q.get('name') || 'Bench', role: 'admin', connDelay: 5, available: true, qr: [] } };
+    window.tRebuild();
+    // Real signalling through live.js, which stands where Home Assistant's proxy stands: the SSE on
+    // /api/ig_doorbell/signal/<id> and the POSTs to the same path. What the doorbell SENDS is
+    // recorded by type (window.__rx) -- the witness that a talk_granted or a live_state really came.
+    window.__rx = [];
+    window.__sent = [];
+    window.EventSource = function (url) {
+      const es = new window.__RealES(url);
+      es.addEventListener('message', (e) => { try { const t = JSON.parse(e.data).type; if (t !== 'heartbeat') window.__rx.push(t); } catch (x) { /* */ } });
+      return es;
+    };
+    window.__hass.callApi = async (method, path, payload) => {
+      window.__posts.push({ dev: DEV, payload });
+      window.__sent.push(payload && payload.type);       // survives tReset(), which empties __posts
+      const r = await window.__realFetch('/api/' + path, { method, body: JSON.stringify(payload) });
+      if (!r.ok) { const e = new Error('proxy ' + r.status); e.status_code = r.status; throw e; }
+      return {};
+    };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

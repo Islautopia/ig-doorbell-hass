@@ -106,7 +106,7 @@ function newCard() {
   // Initial state identical to setConfig()'s
   Object.assign(c, {
     talkActive: false, _slot: null, _talkHeld: false, _talkPending: false, _talkTimer: null,
-    _talkGrantedAt: 0, _talkUnsupported: false, _listenOnly: false, _talkerSlot: -1,
+    _talkGrantedAt: 0, _listenOnly: false, _talkerSlot: -1,
     _clients: null, _quality: 'auto', _qualityEffective: null, _qualitySupported: null,
     _qualityProbeTimer: null, _qualityProbeAttempts: 0,
     _qualityChipLastAt: 0, _qualityChipLastKey: null, _qualityChipHideTimer: null,
@@ -176,22 +176,31 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await c.handleNativeSignal({ type: 'talk_state', slot: 0, talker: -1 }); // stale
   check('the freshly opened mic is NOT closed by a stale talk_state', c.talkActive === true);
 
-  console.log('\n== 5. OLD FIRMWARE: nobody answers talk_request ==');
+  // (1.5.2) Until 1.5.1 this section asserted the opposite: "mic opens anyway after 3s". No answer is
+  // not a turn (docs/audio-invariants.md rule 6): the request ends, the turn is given back, it is said.
+  console.log('\n== 5. NOBODY ANSWERS talk_request: the mic is NOT opened ==');
   c = newCard();
   c._slot = 0;
   await c.toggleTalk();
   check('still waiting at 100ms', c.talkActive === false && c._talkPending === true);
   await wait(3200);
-  check('mic opens anyway after 3s', c.talkActive === true);
-  check('marked as firmware without turn support', c._talkUnsupported === true);
-  check('user notified once', c._flashes.includes('talk_legacy'));
+  check('the mic does NOT open after 3s', c.talkActive === false && c._talkPending === false);
+  check('the turn is given back (it may have been granted unheard)', c.sent.some((m) => m.type === 'talk_release'));
+  check('user told plainly', c._flashes.includes('talk_noanswer'));
+  await c.toggleTalk();
+  check('a second tap ASKS again (no "unsupported" shortcut that opens it)', c._talkPending === true && c.talkActive === false
+    && c.sent.filter((m) => m.type === 'talk_request').length === 2);
+  await c.handleNativeSignal({ type: 'talk_granted', slot: 0 });
+  check('and a grant then opens it', c.talkActive === true);
   check('no clients pill (session_info never arrived)', c.clientsPill.style.display === 'none');
   await c.toggleTalk();
   check('clean shutdown', c.talkActive === false);
   const sentBefore = c.sent.length;
   await c.toggleTalk();
-  check('2nd tap is INSTANT (no new talk_request)',
-    c.talkActive === true && !c.sent.slice(sentBefore).some((m) => m.type === 'talk_request'));
+  check('every later tap asks for the turn again, and opens nothing by itself',
+    c.talkActive === false && c._talkPending === true && c.sent.slice(sentBefore).some((m) => m.type === 'talk_request'));
+  await c.toggleTalk();   // (ignored while a request is in flight) -- then let it run out so no timer is left
+  if (c._talkTimer) { clearTimeout(c._talkTimer); c._talkTimer = null; c._talkPending = false; }
 
   console.log('\n== 6. Quality: probe, confirmation, and the temporary chip on a real tier change ==');
   // 2026-09-29 (docs/card.md 1.4.1): the permanent selector is gone (retired 1.9.2, its last dead
@@ -276,12 +285,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   console.log('\n== 9. Per-session reset (nothing inherited from the previous one) ==');
   c = newCard();
   c._clients = 3; c._talkerSlot = 2; c._qualitySupported = true; c._quality = 'low';
-  c._talkUnsupported = true; c._listenOnly = true;
+  c._listenOnly = true;
   c._resetMulticlientState();
   check('counter forgotten', c._clients === null);
   check('turn forgotten', c._talkerSlot === -1 && c._listenOnly === false);
   check('quality goes back to auto/unconfirmed', c._quality === 'auto' && c._qualitySupported === null);
-  check('turn support is probed again', c._talkUnsupported === false);
 
   console.log('\n== 10. Third-party messages (relay fan-out on the remote path) ==');
   c = newCard();
@@ -416,7 +424,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // ============================================================================================
   console.log('\n== 14. The client speaker starts muted (§1.10) ==');
   c = newCard();
-  c._audioOn = false; c._audioOnBeforeMic = false; c.videoEl.muted = true;
+  c._audioOn = false; c.videoEl.muted = true;
   check('starts muted', c.videoEl.muted === true && c._audioOn === false);
   c._setAudioOn(true, 'user');
   check('the user turns the sound on -> it plays', c.videoEl.muted === false && c._audioOn === true);
@@ -424,12 +432,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   c._setAudioOn(false, 'user');
   check('and it can be muted again', c.videoEl.muted === true && c.volIcon.getAttribute('icon') === 'mdi:volume-off');
 
-  // Listening and talking are independent axes: on closing the mic, the sound goes back to how it was
-  // BEFORE opening it - if you were only watching in silence, you keep watching in silence.
+  // (1.5.2) The speaker follows the microphone both ways (§1.10, 2026-08-05): closing the mic closes the
+  // speaker ALWAYS, also when the user was already listening before opening it. Until 1.5.1 the card
+  // restored "how it was before".
   c = newCard();
-  c._audioOn = true; c._audioOnBeforeMic = false; c.talkActive = true; c.videoEl.muted = false;
+  c._audioOn = true; c.talkActive = true; c.videoEl.muted = false;
   await c._stopTalk();
-  check('closing the mic returns the sound to how it was', c._audioOn === false && c.videoEl.muted === true);
+  check('closing the mic closes the speaker', c._audioOn === false && c.videoEl.muted === true);
+  c = newCard();
+  c._setAudioOn(true, 'user');                 // listening first...
+  c.talkActive = true;                         // ...then talking
+  await c._stopTalk();
+  check('also for someone who was listening before the mic', c._audioOn === false && c.videoEl.muted === true);
+  c = newCard();
+  c._audioOn = true; c.talkActive = true; c.videoEl.muted = false;
+  await c._stopTalk(true);
+  check('a pause/watchdog closing the mic leaves the listening state alone', c._audioOn === true);
 
   // The doorbell ring is the ONLY reason the sound turns on by itself.
   c = newCard();

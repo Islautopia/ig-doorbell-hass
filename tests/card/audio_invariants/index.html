@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.5.2: audio invariants (docs/audio-audit-card.md)</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // THE INSTRUMENT: every audio track getUserMedia() hands to ANYONE on this page is recorded here,
+    // at the moment it exists (before any artificial delay), so "live microphone tracks" is counted
+    // by the browser's own readyState - not by what the card believes.
+    window.__gumCalls = 0;
+    window.__micTracks = [];
+    window.__gumDelay = 0;
+    const realGum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (c) => {
+      window.__gumCalls++;
+      const s = await realGum(c);
+      s.getAudioTracks().forEach((t) => window.__micTracks.push(t));
+      if (window.__gumDelay) await new Promise((r) => setTimeout(r, window.__gumDelay));
+      return s;
+    };
+    window.tLiveMic = () => window.__micTracks.filter((t) => t.readyState === 'live').length;
+    window.tStopAllMic = () => window.__micTracks.forEach((t) => t.stop());
+    // The document's visibility, emulated (headless Chromium is always "visible").
+    window.__vis = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => window.__vis });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => window.__vis === 'hidden' });
+    // EMULATED, NOT the real engine: desktop Chromium lets a MediaStream play unmuted with no user
+    // gesture whatever --autoplay-policy says (measured with this bench's Chromium, headless and
+    // headed), so it cannot show the WebView's refusal. This reproduces the rule seen on the salon
+    // panel's companion WebView: with no user activation an unmuted play() is refused and the
+    // element is left paused (the grey "play" button), and unmuting a playing element pauses it.
+    window.__emulateWebViewAutoplay = () => {
+      // Not navigator.userActivation: Playwright's evaluate() counts as a user gesture (measured:
+      // hasBeenActive is true on a page nobody touched), so the bench says who touched the page.
+      const active = () => !!window.__touched;
+      const realPlay = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function () {
+        if (!this.muted && !active()) { this.pause(); return Promise.reject(new DOMException('play() needs a user gesture', 'NotAllowedError')); }
+        return realPlay.call(this);
+      };
+      const d = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'muted');
+      Object.defineProperty(HTMLMediaElement.prototype, 'muted', {
+        configurable: true,
+        get() { return d.get.call(this); },
+        set(v) { d.set.call(this, v); if (!v && !this.paused && !active()) this.pause(); },
+      });
+      window.__webviewAutoplay = true;
+    };
+    // A real MediaStream with a picture and a tone, as a doorbell stream would be.
+    window.tLocalStream = () => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+      const g = c.getContext('2d'); g.fillStyle = '#3a7'; g.fillRect(0, 0, 64, 64);
+      const vs = c.captureStream(5);
+      const ctx = new AudioContext(); const d = ctx.createMediaStreamDestination(); const o = ctx.createOscillator(); o.connect(d); o.start();
+      return new MediaStream([...vs.getVideoTracks(), ...d.stream.getAudioTracks()]);
+    };
+    window.tSetVisible = (v) => { window.__vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

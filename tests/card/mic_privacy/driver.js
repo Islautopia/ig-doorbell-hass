@@ -59,7 +59,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MUTANTS = {
   // _stopTalk no longer cancels a turn still requested (the pre-1.2.2 behaviour), and _startTalk no
   // longer refuses to ask on a hidden view (the two layers that keep getUserMedia from being called)
-  MA: { target: 'P8', also: 'MA2', a: "    if (this._talkTimer) { clearTimeout(this._talkTimer); this._talkTimer = null; }\n    this._talkPending = false;\n    this._talkHeld = false;\n    this._listenOnly = false;\n    this.talkActive = false;\n    this._setAudioOn(this._audioOnBeforeMic, 'mic-closed');", b: "    this._talkHeld = false;\n    this._listenOnly = false;\n    this.talkActive = false;\n    this._setAudioOn(this._audioOnBeforeMic, 'mic-closed');" },
+  MA: { target: 'P8', also: 'MA2', a: "    if (this._talkTimer) { clearTimeout(this._talkTimer); this._talkTimer = null; }\n    this._talkPending = false;\n    this._talkHeld = false;\n    this._listenOnly = false;\n    this.talkActive = false;\n    // ⚠️ (1.5.2) CLOSING THE MIC", b: "    this._talkHeld = false;\n    this._listenOnly = false;\n    this.talkActive = false;\n    // ⚠️ (1.5.2) CLOSING THE MIC" },
   // no check after the permission resolves (the token AND the allowed-state check): kept after the stop
   MB: { target: 'P9', a: "        if (micReq !== this._micReq) {\n", b: "        if (false) {\n", also: 'MB2' },
   MB2: { helper: true, a: "        if (!this._micAllowed()) {\n          // Paused", b: "        if (false) {\n          // Paused" },
@@ -213,7 +213,12 @@ const CASES = {
     await ev(page, () => window.tView().toggleTalk());   // requested, not granted yet
     await sleep(200);
     await ev(page, () => window.tSetVisible(false));
-    await sleep(3500);                                     // the 3 s legacy timer
+    // (1.5.2) A grant INSIDE the 3 s deadline, on the hidden page. Since 1.5.2 the deadline itself ends the
+    // request without opening anything, so a grant sent only after it proves nothing about the hidden
+    // page's own defences (mutant MA survived exactly that way): this one is what they must stop.
+    await sleep(800);
+    await ev(page, () => { const v = window.tView(); v._handleTalkGranted({ slot: v._slot }); });
+    await sleep(2700);                                     // past the 3 s deadline
     const afterTimer = await live(page);
     await ev(page, () => { const v = window.tView(); v._handleTalkGranted({ slot: v._slot }); });   // a late grant
     await sleep(500);

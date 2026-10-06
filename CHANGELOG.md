@@ -6,6 +6,26 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.2] — 2026-10-06
+
+### Fixed
+
+- **The microphone never opens without the doorbell's talk turn.** If the doorbell did not answer
+  the request within three seconds, the card used to open the microphone anyway. Now it stays
+  closed and the card says so ("The doorbell did not give the talk turn. Tap the microphone
+  again.").
+- **A lost connection closes the microphone at once.** When the signalling connection dropped in the
+  middle of a conversation, the microphone could stay open (and shown as open) for up to about
+  25 seconds. It now closes immediately, the card reconnects, and it tells you why the microphone
+  closed. You keep hearing the street after the reconnection; the microphone is never reopened by
+  itself.
+- **"Tap to hear the street" stays on the picture until you tap it.** When the browser refuses to
+  play sound before the page has been touched (typically a wall panel that a ring just woke up),
+  the card used to show a five-second notice and then stay silent with no explanation.
+- **Closing the microphone closes the speaker, always** — also when you were already listening
+  before you opened it. Use the speaker button to keep listening. Leaving and returning to the
+  card still restores the conversation as it was.
+
 ## [1.5.1] — 2026-10-03
 
 ### Changed
