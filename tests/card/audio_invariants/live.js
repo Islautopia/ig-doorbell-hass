@@ -147,6 +147,12 @@ function micWav(file) {
   try {
     const page = await (await browser.newContext({ viewport: { width: 700, height: 900 } })).newPage();
     const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
+    // CARD_FILE: the same checks against another build (the 1.5.1 fixture is red on K7 and K8).
+    if (process.env.CARD_FILE) {
+      const body = fs.readFileSync(process.env.CARD_FILE, 'utf8');
+      await page.route(/ig-doorbell-card\.js/, (r) => r.fulfill({ contentType: 'application/javascript', body }));
+      console.log('card under test: ' + process.env.CARD_FILE);
+    }
     await page.goto(`${base}/tests/card/audio_invariants/live.html?dev=${id}&name=${encodeURIComponent(st0.dname || 'Bench')}`);
     await page.waitForFunction(() => !!customElements.get('ig-doorbell-card'));
     const S = () => page.evaluate(async () => {

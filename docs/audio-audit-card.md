@@ -6,10 +6,10 @@ Home Assistant, no release published.
 
 ## Result
 
-| | `tests/card/audio_invariants` (32 checks) | the rest of `run_all.js` |
-|---|---|---|
-| card 1.5.1 (before) | **red on C1, C1b, C2, C3 and C4** (the control job, `fixtures/legacy/card_1.5.1.js`) | all green (baseline run 2026-10-06, before any edit) |
-| card 1.5.2 (this branch) | **32 of 32 green, mutants MC1–MC6 all caught** | see "Suite" below |
+| | `tests/card/audio_invariants` (32 checks) | live, a real doorbell (`live.js`, 13 checks) | the rest of `run_all.js` |
+|---|---|---|---|
+| card 1.5.1 (before) | **red on C1, C1b, C2, C3 and C4** (the control job, `fixtures/legacy/card_1.5.1.js`) | **red on K7 and K8** (and K9, ambiguous — see below) | all green (baseline run 2026-10-06, before any edit) |
+| card 1.5.2 (this branch) | **32 of 32 green, mutants MC1–MC6 all caught** | **13 of 13 green** | all green: 27 jobs, every control red on its checks |
 
 Run it: `cd tests/card && npm install && node run_all.js` (≈12 min), or only this bench with
 `ONLY_JOBS="audio_invariants,CONTROL audio_invariants" node run_all.js`.
@@ -25,8 +25,22 @@ WebView's autoplay rule is EMULATED (`index.html` says why: desktop Chromium doe
 and sees it stop; the autoplay emulation refuses an unmuted `play()` on an untouched page and
 allows it on a touched one.
 
-**Nothing here touched a real doorbell or the real Home Assistant.** The card's media path to a
-real doorbell was last verified by Iñaki on 1.4.4; this audit did not change it.
+**The live leg** (`node audio_invariants/live.js https://<doorbell>:8443`, not part of
+`run_all.js`): the same real card in a real Chrome against the bench doorbell (the Waveshare,
+firmware 0.107.3), with Home Assistant doubled and this script standing where Home Assistant's
+signalling proxy stands. There the audio is real: packets counted in both directions, the fake
+microphone playing a voice-like file. Measured on 1.5.2: the real doorbell grants the turn and
+voice leaves at ~51 B/packet (0 before, 0 after); hidden, the street's RTP stops completely and the
+same slot resumes; hidden with the mic open and back, the turn is asked and granted again; the
+signalling cut under an open mic (made in the proxy) closes it within 700 ms, a new session comes
+up still sounding, the reason is on the status line; a `talk_request` dropped on the way opens
+nothing. On 1.5.1 the last two are red exactly as read: the mic stayed captured and "open" over a
+session that no longer received anything, and the unanswered request opened it. (K9 on 1.5.1 — one
+client left at the doorbell 4 s after leaving — is ambiguous: other clients were using the bench
+doorbell that morning; it was 0 some 25 s later.)
+
+**The real Home Assistant was not touched**, and the card was never loaded inside one: the
+integration's proxy, the companion apps' WebViews and the wall panel are not in any of this.
 
 ## Findings and fixes
 
@@ -82,11 +96,20 @@ One route column (whatever the OS gives the web view). "capture" = live micropho
 
 ## Suite
 
-`node run_all.js` on this branch: see the last milestone commit of this branch for the run's
-verdict (27 jobs: 19 benches and simulations + 8 controls). Two existing tests were CHANGED, on
-purpose, because they asserted the behaviour this audit removes: `sim_multicliente.js` section 5
-("mic opens anyway after 3s" → "the mic does NOT open") and its §1.10 check ("returns the sound to
-how it was" → "closes the speaker"); `mic_privacy`'s mutant MA got a new anchor.
+`node run_all.js` on this branch (2026-10-06): **ALL BENCHES GREEN, ALL CONTROLS RED ON THEIR CHECKS**
+— 27 jobs, 19 benches and simulations + 8 controls. The Python suite (`pytest`, in the `igd-test`
+container) was NOT run: Docker was not running on the dev machine, and the only non-JavaScript
+change is the version in `manifest.json`.
+
+Existing tests CHANGED on purpose, because they asserted the behaviour this audit removes:
+`sim_multicliente.js` section 5 ("mic opens anyway after 3s" → "the mic does NOT open") and its
+§1.10 check ("returns the sound to how it was" → "closes the speaker"). And one that had gone
+blind: `mic_privacy` P8 sent its late `talk_granted` only after the 3 s deadline, which since 1.5.2
+ends the request by itself — its mutant MA survived; P8 now also sends a grant inside the deadline.
+
+The first full run after the fixes had two reds, both real and both fixed: the new control's
+z-index (31) sat above the temporary quality chip, which `chip_centre_1_5_1` K3 requires on top
+(now 29), and the blind P8 above.
 
 ## Not verified here — for Iñaki, by importance
 
@@ -103,7 +126,11 @@ how it was" → "closes the speaker"); `mic_privacy`'s mutant MA got a new ancho
 5. **A doorbell that does not answer `talk_request`**: the mic no longer opens. With the current
    firmware this should never be seen; if "The doorbell did not give the talk turn" shows up in
    normal use, that is a lost message worth a look, not a regression.
-6. Remote viewing (relay + TURN, 1.4.4) was not re-run (`tests/card/remote_path` needs the VPS).
+6. Remote viewing (relay + TURN, 1.4.4) was not re-run (`tests/card/remote_path` needs the VPS and
+   Docker).
+7. The standing control's place on small layouts (a phone in landscape, the split layouts): the
+   layout matrices ran with it hidden, so nothing checks what it covers when it is up.
+8. `pytest` (see "Suite").
 
 Not covered by the nine rules, noted: neither the card nor the web has the "Hang up" control of
 §1.11-quater.
