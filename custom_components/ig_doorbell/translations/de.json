@@ -10,7 +10,7 @@
       },
       "entities": {
         "title": "Entitäten, die die Türklingel steuern kann",
-        "description": "Wähle die Entitäten aus, die die Türklingel steuern darf – um die Tür zu öffnen oder in einem Schritt einer ihrer Abläufe. Nur diese werden in den Apps angeboten. Bis zu {max}.",
+        "description": "Wähle die Entitäten aus, die die Türklingel steuern darf – um die Tür zu öffnen oder in einem Schritt einer ihrer Abläufe. Auch Skripte und Automationen sind wählbar: die Türklingel startet sie (es gibt kein „Aus“). Nur diese werden in den Apps angeboten. Bis zu {max}.",
         "data": {
           "entities": "Entitäten"
         }

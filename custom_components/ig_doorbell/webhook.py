@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     DOMAIN_CLOSE_SERVICE,
     DOMAIN_OPEN_SERVICE,
+    LAUNCH_ONLY_DOMAINS,
     ALLOWED_DOMAINS,
     SIGNAL_EVENT,
     WEBHOOK_MARKER,
@@ -105,6 +106,12 @@ async def _act_on_entity(
         _LOGGER.warning("%s is not from a domain that turns on and off: doing nothing",
                         entity_id)
         return False, "bad_domain"
+    if not turn_on and domain in LAUNCH_ONLY_DOMAINS:
+        # A script/automation has no "off" (const.py): refused out loud instead of mapping it to
+        # something that stops a script or disables an automation.
+        _LOGGER.warning("The doorbell asks to turn OFF %s, which can only be launched: refused",
+                        entity_id)
+        return False, "no_off"
 
     # ⚠️ NEVER ONE OF THIS INTEGRATION'S OWN ENTITIES (1.3.0). The doorbell's own `lock` opens the
     # door through `/open`; if that same lock were the door's HA entity (`door_m=1`), `/open` would
@@ -126,14 +133,27 @@ async def _act_on_entity(
         _LOGGER.warning("The doorbell asks for %s, which is unavailable right now", entity_id)
         return False, "entity_unavailable"
 
+    if domain == "automation" and state.state == "off":
+        # A disabled automation: `automation.trigger` would still run it, which is surprising for
+        # whoever disabled it on purpose.
+        _LOGGER.warning("The doorbell asks to launch %s, which is disabled in Home Assistant",
+                        entity_id)
+        return False, "disabled"
+
     service_domain, service = (DOMAIN_OPEN_SERVICE if turn_on else DOMAIN_CLOSE_SERVICE)[domain]
+    service_data: dict[str, Any] = {"entity_id": entity_id}
+    if domain == "automation":
+        # Respect the conditions the owner wrote in HA: "launch" is not "force".
+        service_data["skip_condition"] = False
     _LOGGER.info("The doorbell asks to %s %s -> %s.%s",
                  "turn on" if turn_on else "turn off", entity_id, service_domain, service)
     try:
         await hass.services.async_call(
-            service_domain, service, {"entity_id": entity_id},
+            service_domain, service, service_data,
             # ⚠️ BLOCKING ON PURPOSE: the response's `ok` means "done", not "received".
-            blocking=True,
+            # Except launch-only: `automation.trigger` waits for the automation's actions (which
+            # may last minutes) and the doorbell would time out. There `ok` means "launched".
+            blocking=domain not in LAUNCH_ONLY_DOMAINS,
         )
     except Exception:  # noqa: BLE001 - the reason goes to the log; the doorbell only gets "failed"
         _LOGGER.exception("Could not act on %s", entity_id)

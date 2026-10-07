@@ -108,19 +108,41 @@ REQUEST_TIMEOUT = 8  # seconds - one-shot REST calls to the doorbell, not stream
 DOORBELL_HOSTNAME_SUFFIX = "doorbell.islautopia.com"
 
 # --- What the doorbell may act on, and how (contract 4) -------------------------------------
-# ⚠️ ONLY THINGS THAT TURN ON AND OFF (Inaki, 2026-09-25). The same list lives in the firmware
-# (`hass_domain_allowed`, main/hass.c) and each side checks its own half: the doorbell refuses to
-# store anything else, and this integration refuses to act on anything else.
+# Two kinds of entity (1.5.3). The same list lives in the firmware (`hass_domain_allowed`,
+# main/hass.c) and each side checks its own half: the doorbell refuses to store anything else, and
+# this integration refuses to act on anything else.
+#
+# 1. THINGS THAT TURN ON AND OFF (Inaki, 2026-09-25): fan, input_boolean, light, lock, siren,
+#    switch. `on` and `off` both mean something.
+# 2. LAUNCH-ONLY (LAUNCH_ONLY_DOMAINS; Inaki, 2026-10-07): `script` and `automation`. They are
+#    back after being removed on 2026-09-25, and the reason they were removed has not gone away:
+#    they have NO opposite state, so `on: false` means nothing. What changed is what to do about
+#    it: `on: true` LAUNCHES them and `on: false` is REFUSED LOUDLY (`no_off`), never mapped to
+#    something else. The owner's words: "Yo prefiero no ser tan especifico en la secuencia.
+#    Simplemente encender (lanzar) el script Halloween (o la automatizacion). Que sea HASS quien
+#    se encargue de lo especifico. Nosotros solo encendemos y apagamos cosas."
+#    - script: `script.turn_on` (starts it, does not wait for it). NEVER `script.turn_off`: that
+#      would STOP a running script, which is not what "off" means to a user.
+#    - automation: `automation.trigger` with `skip_condition: false` (runs its actions; its own
+#      conditions still apply, they are part of what the owner wrote). NEVER
+#      `automation.turn_on/turn_off`: that enables/disables the automation, a different and
+#      surprising thing. A DISABLED automation (state `off`) answers `disabled`.
+#    Something to UNDO at the end of a sequence is not a script: use an `input_boolean` helper that
+#    an automation reacts to (docs/examples/halloween-lights.md).
 #
 # Left out on purpose, and it is not an oversight:
-# - `button`, `scene`, `script` (accepted up to 0.7.5): they have no opposite state, so the door's
-#   automatic close after `dur` seconds and a sequence step with `on: false` would mean nothing -
-#   a setting that silently does nothing is the failure this project keeps hunting.
+# - `button`, `scene`: no opposite state either, and nobody has decided what `off` would do for
+#   them. They stay out unless Inaki decides otherwise.
 # - `cover`: a blind has positions in between and "open" takes a while; it is not a switch.
 #
 # In a LOCK, "on" means OPEN (`lock.unlock`) and "off" means CLOSE (`lock.lock`). Everything else
 # maps to `turn_on` / `turn_off` of its own domain.
-ALLOWED_DOMAINS: tuple[str, ...] = ("fan", "input_boolean", "light", "lock", "siren", "switch")
+ALLOWED_DOMAINS: tuple[str, ...] = (
+    "automation", "fan", "input_boolean", "light", "lock", "script", "siren", "switch",
+)
+# Domains with no "off": the editors show "Launch" for them. The domain already travels in the list
+# the doorbell receives, so nothing extra is pushed.
+LAUNCH_ONLY_DOMAINS: tuple[str, ...] = ("automation", "script")
 
 DOMAIN_OPEN_SERVICE: dict[str, tuple[str, str]] = {
     "lock": ("lock", "unlock"),
@@ -129,6 +151,9 @@ DOMAIN_OPEN_SERVICE: dict[str, tuple[str, str]] = {
     "input_boolean": ("input_boolean", "turn_on"),
     "fan": ("fan", "turn_on"),
     "siren": ("siren", "turn_on"),
+    "script": ("script", "turn_on"),
+    # Not `automation.turn_on`: that would ENABLE it. `trigger` runs its actions.
+    "automation": ("automation", "trigger"),
 }
 DOMAIN_CLOSE_SERVICE: dict[str, tuple[str, str]] = {
     "lock": ("lock", "lock"),
@@ -137,6 +162,7 @@ DOMAIN_CLOSE_SERVICE: dict[str, tuple[str, str]] = {
     "input_boolean": ("input_boolean", "turn_off"),
     "fan": ("fan", "turn_off"),
     "siren": ("siren", "turn_off"),
+    # script / automation: deliberately absent (LAUNCH_ONLY_DOMAINS); webhook refuses `off`.
 }
 
 # --- Ring notifications sent by the integration itself (1.2.0, docs/design/ha-only-ringing.md) ---

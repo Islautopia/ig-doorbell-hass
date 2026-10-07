@@ -97,5 +97,87 @@ async def test_the_entity_that_already_opens_the_door_is_adopted(hass):
 
 
 async def test_a_door_entity_of_a_refused_domain_is_not_adopted(hass):
-    entry, _ = await _setup(hass, [], {"m": 0, "door_m": 1, "ha_e": "script.abrir"})
+    entry, _ = await _setup(hass, [], {"m": 0, "door_m": 1, "ha_e": "button.abrir"})
     assert entry.options[CONF_ENTITIES] == []
+
+
+# --- Launch-only entities: script and automation (1.5.3, Inaki 2026-10-07) -------------------
+
+
+async def test_script_on_launches_it_and_off_is_refused_without_a_service_call(hass):
+    await _setup(hass, ["script.halloween"])
+    hass.states.async_set("script.halloween", "off")
+    turn_on = async_mock_service(hass, "script", "turn_on")
+    turn_off = async_mock_service(hass, "script", "turn_off")
+
+    assert await webhook._act_on_entity(hass, WID, "script.halloween", True) == (True, None)
+    assert [c.data["entity_id"] for c in turn_on] == ["script.halloween"]
+
+    # NEGATIVE CONTROL: "off" must not stop the script nor call anything.
+    assert await webhook._act_on_entity(hass, WID, "script.halloween", False) == (False, "no_off")
+    assert turn_off == []
+    assert len(turn_on) == 1
+
+
+async def test_automation_on_triggers_it_with_its_conditions_and_off_is_refused(hass):
+    await _setup(hass, ["automation.halloween"])
+    hass.states.async_set("automation.halloween", "on")
+    trigger = async_mock_service(hass, "automation", "trigger")
+    turn_on = async_mock_service(hass, "automation", "turn_on")
+    turn_off = async_mock_service(hass, "automation", "turn_off")
+
+    assert await webhook._act_on_entity(hass, WID, "automation.halloween", True) == (True, None)
+    assert [(c.data["entity_id"], c.data["skip_condition"]) for c in trigger] == [
+        ("automation.halloween", False)]
+
+    assert await webhook._act_on_entity(hass, WID, "automation.halloween", False) == (False, "no_off")
+    # Never the enable/disable services.
+    assert turn_on == [] and turn_off == [] and len(trigger) == 1
+
+
+async def test_a_disabled_automation_answers_disabled_and_is_not_triggered(hass):
+    await _setup(hass, ["automation.halloween"])
+    hass.states.async_set("automation.halloween", "off")
+    trigger = async_mock_service(hass, "automation", "trigger")
+
+    assert await webhook._act_on_entity(hass, WID, "automation.halloween", True) == (False, "disabled")
+    assert trigger == []
+
+
+async def test_an_unlisted_script_or_automation_is_not_listed(hass):
+    await _setup(hass, ["input_boolean.prueba"])
+    hass.states.async_set("script.otro", "off")
+    hass.states.async_set("automation.otra", "on")
+    s = async_mock_service(hass, "script", "turn_on")
+    a = async_mock_service(hass, "automation", "trigger")
+
+    assert await webhook._act_on_entity(hass, WID, "script.otro", True) == (False, "not_listed")
+    assert await webhook._act_on_entity(hass, WID, "automation.otra", True) == (False, "not_listed")
+    assert s == [] and a == []
+
+
+async def test_missing_or_unavailable_script_is_reported(hass):
+    await _setup(hass, ["script.a", "script.b"])
+    hass.states.async_set("script.b", "unavailable")
+    assert await webhook._act_on_entity(hass, WID, "script.a", True) == (False, "entity_missing")
+    assert await webhook._act_on_entity(hass, WID, "script.b", True) == (False, "entity_unavailable")
+
+
+async def test_existing_domains_are_unchanged_off_still_works(hass):
+    await _setup(hass, ["light.a", "lock.b"])
+    hass.states.async_set("light.a", "on")
+    hass.states.async_set("lock.b", "unlocked")
+    off = async_mock_service(hass, "light", "turn_off")
+    lock = async_mock_service(hass, "lock", "lock")
+    assert await webhook._act_on_entity(hass, WID, "light.a", False) == (True, None)
+    assert await webhook._act_on_entity(hass, WID, "lock.b", False) == (True, None)
+    assert len(off) == 1 and len(lock) == 1
+
+
+async def test_script_and_automation_are_pushed_with_their_domain_scene_and_button_are_not(hass):
+    chosen = ["scene.x", "button.y", "script.halloween", "automation.halloween", "light.a"]
+    _entry, push = await _setup(hass, chosen)
+    entity_list = push.call_args.kwargs["entities"]
+    assert [(e["id"], e["domain"]) for e in entity_list] == [
+        ("script.halloween", "script"), ("automation.halloween", "automation"),
+        ("light.a", "light")]

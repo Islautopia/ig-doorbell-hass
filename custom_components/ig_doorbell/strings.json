@@ -57,7 +57,7 @@
       },
       "entities": {
         "title": "Entities the doorbell can act on",
-        "description": "Pick the entities you want to be able to trigger from the doorbell - to unlock the door, or from a step in one of its sequences. Only these will be offered in the apps. Up to {max}.",
+        "description": "Pick the entities you want to be able to trigger from the doorbell - to unlock the door, or from a step in one of its sequences. Scripts and automations can be picked too: the doorbell launches them (there is no \"off\"). Only these will be offered in the apps. Up to {max}.",
         "data": {
           "entities": "Entities"
         }

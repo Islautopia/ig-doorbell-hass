@@ -6,6 +6,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.3] — 2026-10-07
+
+### Added
+
+- **The doorbell can launch scripts and automations.** Both can now be picked in *Configure →
+  Entities the doorbell can act on*. "On" launches a script (`script.turn_on`) or runs an
+  automation's actions (`automation.trigger`, its conditions still apply). "Off" is refused with
+  `no_off` instead of stopping the script or disabling the automation, and a disabled automation
+  answers `disabled`. Contract: `docs/hass-entities-contract.md`; example:
+  `docs/examples/halloween-lights.md`.
+
 ## [1.5.2] — 2026-10-06
 
 ### Fixed

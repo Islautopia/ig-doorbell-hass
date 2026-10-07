@@ -268,7 +268,7 @@ when it starts, and there is no catalog to compare the panel with.
 ### The doorbell can switch your Home Assistant devices
 
 In **Configure → Entities the doorbell can act on**, choose up to 5 entities that turn on and off
-(lock, light, switch, input boolean, fan, siren). The doorbell can then use them as its door, or
+(lock, light, switch, input boolean, fan, siren) or that can be launched (script, automation). The doorbell can then use them as its door, or
 in a step of one of its sequences, and the apps offer them by name. The doorbell cannot touch
 anything that is not on that list.
 
@@ -276,6 +276,15 @@ anything that is not on that list.
 |---|---|---|
 | `lock.front_door` | `lock.unlock` | `lock.lock` |
 | `light.porch`, `switch.gate`, `input_boolean.…`, `fan.…`, `siren.…` | `turn_on` | `turn_off` |
+| `script.…` | `script.turn_on` (launches it) | nothing: a script has no "off" |
+| `automation.…` | `automation.trigger` (runs its actions; its conditions still apply) | nothing |
+
+**Scripts and automations are launch-only** (1.5.3). A sequence step can launch one, but "turn
+off" is refused (`no_off`) instead of stopping the script or disabling the automation, and a
+disabled automation answers `disabled`. For something that must be *undone* at the end of a
+sequence, use a helper (`input_boolean`) and let an automation react to it. Full contract for
+firmware and apps: [docs/hass-entities-contract.md](docs/hass-entities-contract.md). Worked example:
+[docs/examples/halloween-lights.md](docs/examples/halloween-lights.md).
 
 ---
 

@@ -10,7 +10,7 @@
       },
       "entities": {
         "title": "Entidades que a campainha pode acionar",
-        "description": "Escolha as entidades que quer que a campainha possa acionar - para abrir a porta, ou num passo de uma das suas sequências. Só estas serão oferecidas nas apps. Até {max}.",
+        "description": "Escolha as entidades que quer que a campainha possa acionar - para abrir a porta, ou num passo de uma das suas sequências. Também pode escolher scripts e automações: a campainha lança-os (não têm «desligar»). Só estas serão oferecidas nas apps. Até {max}.",
         "data": {
           "entities": "Entidades"
         }

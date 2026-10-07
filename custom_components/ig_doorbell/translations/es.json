@@ -57,7 +57,7 @@
       },
       "entities": {
         "title": "Entidades que puede accionar el videoportero",
-        "description": "Elige las entidades que quieres poder accionar desde el videoportero: para abrir la puerta, o desde un paso de una de sus secuencias. Solo estas se ofrecen en las apps. Hasta {max}.",
+        "description": "Elige las entidades que quieres poder accionar desde el videoportero: para abrir la puerta, o desde un paso de una de sus secuencias. También puedes elegir scripts y automatizaciones: el videoportero los lanza (no tienen «apagar»). Solo estas se ofrecen en las apps. Hasta {max}.",
         "data": {
           "entities": "Entidades"
         }

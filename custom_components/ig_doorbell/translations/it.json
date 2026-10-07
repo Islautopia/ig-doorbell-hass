@@ -57,7 +57,7 @@
       },
       "entities": {
         "title": "Entità su cui il videocitofono può agire",
-        "description": "Scegli le entità che il videocitofono deve poter attivare - per aprire la porta, o da un passaggio di una delle sue sequenze. Solo queste saranno proposte nelle app. Massimo {max}.",
+        "description": "Scegli le entità che il videocitofono deve poter attivare - per aprire la porta, o da un passaggio di una delle sue sequenze. Si possono scegliere anche script e automazioni: il videocitofono li avvia (non hanno «spegni»). Solo queste saranno proposte nelle app. Massimo {max}.",
         "data": {
           "entities": "Entità"
         }

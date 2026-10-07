@@ -10,7 +10,7 @@
       },
       "entities": {
         "title": "Entités que la sonnette peut actionner",
-        "description": "Choisissez les entités que la sonnette doit pouvoir actionner : pour déverrouiller la porte, ou depuis une étape de l'une de ses séquences. Seules celles-ci seront proposées dans les applications. Jusqu'à {max}.",
+        "description": "Choisissez les entités que la sonnette doit pouvoir actionner : pour déverrouiller la porte, ou depuis une étape de l'une de ses séquences. Les scripts et les automatisations sont possibles aussi : la sonnette les lance (pas d'arrêt). Seules celles-ci seront proposées dans les applications. Jusqu'à {max}.",
         "data": {
           "entities": "Entités"
         }
