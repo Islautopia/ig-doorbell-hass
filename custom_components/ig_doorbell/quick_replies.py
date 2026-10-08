@@ -25,6 +25,12 @@ from .coordinator import DoorbellCoordinator
 # What the doorbell's refusals mean to the person who ran the action (§1.4-quinquies).
 ERRORS = {
     "not_found": "That sequence no longer exists on the doorbell.",
+    # Firmware with the "on demand, only quick replies" rule (API_CONTRACT §1.18.10 §1-bis): the sequence is
+    # there, it is just not launchable until it is marked. Said with the remedy, never as a bare HTTP 422.
+    "not_quick_reply": (
+        "That sequence is not a quick reply: mark it as a quick reply on the doorbell "
+        "- hidden if you do not want it offered during calls."
+    ),
     "bad_seq_id": "That is not a valid sequence id.",
     "empty_slot": "That quick-reply slot has no audio.",
     "bad_slot": "Quick-reply slot out of range (1-10).",
@@ -35,14 +41,33 @@ ERRORS = {
 }
 
 
-def quick_list(coordinator: DoorbellCoordinator) -> list[dict]:
-    """The quick replies as last read (`id`, `label`), valid entries only, in the doorbell's order."""
-    items = (coordinator.extra.get("quick") or {}).get("quick_replies")
+# The list a script may name a sequence from: the quick replies AND the hidden ones (§1.18.8, `&hidden=1`).
+# A firmware older than the hidden quick reply ignores the parameter and answers the plain list.
+PATH_QUICK = "/api/sequences?quick=1"
+PATH_QUICK_WITH_HIDDEN = "/api/sequences?quick=1&hidden=1"
+
+
+def items_of(answer: object, with_hidden: bool) -> list[dict]:
+    """The quick replies of a `?quick=1` answer (`id`, `label`), valid entries only, in the doorbell's order.
+
+    A HIDDEN quick reply (`hidden: true`) is a sequence its owner wants launchable from a script and NOT
+    offered to a person during a call. So it is only returned when `with_hidden` is asked - which only the
+    name resolution of the `play_sequence` action does. Everything a person picks from goes without.
+    """
+    items = answer.get("quick_replies") if isinstance(answer, dict) else None
     out = []
     for item in items if isinstance(items, list) else []:
-        if isinstance(item, dict) and isinstance(item.get("id"), int):
-            out.append({"id": item["id"], "label": str(item.get("label") or f"#{item['id']}")})
+        if not (isinstance(item, dict) and isinstance(item.get("id"), int)):
+            continue
+        if item.get("hidden") is True and not with_hidden:
+            continue
+        out.append({"id": item["id"], "label": str(item.get("label") or f"#{item['id']}")})
     return out
+
+
+def quick_list(coordinator: DoorbellCoordinator) -> list[dict]:
+    """The VISIBLE quick replies as last read: what the select and the button offer."""
+    return items_of(coordinator.extra.get("quick"), with_hidden=False)
 
 
 def option_labels(items: list[dict]) -> dict[str, int]:

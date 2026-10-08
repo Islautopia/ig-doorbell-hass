@@ -1,3 +1,5 @@
+# Only QUICK REPLIES can be launched: the visible ones and the hidden ones (a quick reply marked Hidden on the
+# doorbell is not offered during calls but is found here by its name). Texts: strings.json / translations.
 play_sequence:
   fields:
     device_id:

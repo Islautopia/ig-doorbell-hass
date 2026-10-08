@@ -417,7 +417,7 @@
   "services": {
     "play_sequence": {
       "name": "Riproduci sequenza",
-      "description": "Riproduce in strada una delle risposte rapide o sequenze del videocitofono, per nome o per id.",
+      "description": "Riproduce in strada una delle risposte rapide del videocitofono, per nome o per id. Si possono avviare solo le sequenze contrassegnate come risposta rapida sul videocitofono: quelle visibili e quelle nascoste (una risposta rapida nascosta non viene proposta durante le chiamate, ma si può avviare da qui).",
       "fields": {
         "device_id": {
           "name": "Videocitofono",
@@ -425,11 +425,11 @@
         },
         "sequence": {
           "name": "Risposta rapida",
-          "description": "Nome della risposta rapida, come appare nell'app (oppure usa il suo id)."
+          "description": "Nome (etichetta) della risposta rapida, come appare nell'app; anche una risposta rapida nascosta si trova dalla sua etichetta (oppure usa il suo id)."
         },
         "seq_id": {
           "name": "Id sequenza",
-          "description": "Id della sequenza sul videocitofono (al posto del nome)."
+          "description": "Id della sequenza sul videocitofono (al posto del nome). Deve essere una risposta rapida, visibile o nascosta."
         }
       }
     },

@@ -13,7 +13,7 @@ import pytest
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.ig_doorbell import api, net, update
+from custom_components.ig_doorbell import api, net, quick_replies, update
 from custom_components.ig_doorbell.const import DOMAIN
 
 from .conftest import DEVICE_ID
@@ -172,6 +172,89 @@ async def test_play_sequence_by_name_by_id_and_its_errors(hass, doorbell2):
         await hass.services.async_call(DOMAIN, "play_audio", {"device_id": DEVICE_ID, "audio_slot": 1},
                                        blocking=True)
     assert _coordinator(hass, entry) is not None
+
+
+# --- 1.5.4: on demand only quick replies, and the HIDDEN quick reply (API_CONTRACT §1.18.10 §1-bis) ------
+#
+# The doorbell answers `?quick=1` without the hidden ones and `?quick=1&hidden=1` with them (`hidden: true`).
+
+WITH_HIDDEN = {"quick_replies": QUICK["quick_replies"] + [{"id": 21, "hidden": True, "label": "Trick or treat", "steps": 3}]}
+PATH_HIDDEN = "/api/sequences?quick=1&hidden=1"
+
+
+async def test_a_hidden_quick_reply_is_played_by_name_and_never_offered(hass, doorbell2):
+    doorbell2.json[PATH_HIDDEN] = WITH_HIDDEN
+    entry = await _setup(hass, doorbell2)
+    sel = _eid(hass, "select", "quick_reply")
+    visible = ["Leave it at the door", "Coming! (7)", "Coming! (9)"]
+    assert hass.states.get(sel).attributes["options"] == visible            # control: the select before
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": " trick OR treat "},
+                                   blocking=True)
+    assert doorbell2.actions == [("play_sequence", {"seq_id": "21"})]
+    # the name resolution read the extended list; what it left for the select carries no hidden one
+    assert quick_replies.quick_list(_coordinator(hass, entry)) == [
+        {"id": 3, "label": "Leave it at the door"}, {"id": 7, "label": "Coming!"}, {"id": 9, "label": "Coming!"}]
+    # a visible one is still found by name through the same list, and by id nothing is read at all
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "leave it at the door"},
+                                   blocking=True)
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "seq_id": 21}, blocking=True)
+    assert doorbell2.actions[1:] == [("play_sequence", {"seq_id": "3"}), ("play_sequence", {"seq_id": "21"})]
+
+
+async def test_the_select_and_the_button_drop_a_hidden_quick_reply_whatever_the_source_says(hass, doorbell2):
+    # Not what the doorbell does (its plain list has no hidden ones) - the integration's own guard, tested
+    # with the one answer that would show it if the guard were missing.
+    doorbell2.json["/api/sequences?quick=1"] = WITH_HIDDEN
+    await _setup(hass, doorbell2)
+    assert hass.states.get(_eid(hass, "select", "quick_reply")).attributes["options"] == [
+        "Leave it at the door", "Coming! (7)", "Coming! (9)"]
+    assert quick_replies.items_of(WITH_HIDDEN, with_hidden=True)[-1] == {"id": 21, "label": "Trick or treat"}   # control
+
+
+async def test_an_older_firmware_without_the_extended_list_still_resolves_names(hass, doorbell2):
+    await _setup(hass, doorbell2)
+    # (a) it ignores `&hidden=1` and answers the plain list
+    doorbell2.json[PATH_HIDDEN] = QUICK
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "Leave it at the door"},
+                                   blocking=True)
+    # (b) it fails on it (no canned answer -> DoorbellApiError): the plain list is read instead
+    del doorbell2.json[PATH_HIDDEN]
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "Leave it at the door"},
+                                   blocking=True)
+    # (c) it answers something that is not the list
+    doorbell2.json[PATH_HIDDEN] = {"sequences": []}
+    await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "Leave it at the door"},
+                                   blocking=True)
+    assert doorbell2.actions == [("play_sequence", {"seq_id": "3"})] * 3
+    with pytest.raises(HomeAssistantError, match="no quick reply called"):      # and a hidden name is simply unknown there
+        await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "Trick or treat"},
+                                       blocking=True)
+    # neither list readable: said as what it is, not as "no such quick reply"
+    del doorbell2.json[PATH_HIDDEN]
+    del doorbell2.json["/api/sequences?quick=1"]
+    with pytest.raises(HomeAssistantError, match="Could not read the doorbell's quick replies"):
+        await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "sequence": "Leave it at the door"},
+                                       blocking=True)
+
+
+async def test_a_sequence_that_is_not_a_quick_reply_is_refused_in_plain_words(hass, doorbell2):
+    await _setup(hass, doorbell2)
+    doorbell2.action_error = api.CallActionError("not_quick_reply", 422)
+    with pytest.raises(HomeAssistantError, match="not a quick reply: mark it as a quick reply on the doorbell") as exc:
+        await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "seq_id": 5}, blocking=True)
+    assert "hidden if you do not want it offered during calls" in str(exc.value)
+    assert "422" not in str(exc.value) and "refused" not in str(exc.value)
+    # control: a code nobody knows is still said, as the code
+    doorbell2.action_error = api.CallActionError("whatever_new", 418)
+    with pytest.raises(HomeAssistantError, match="The doorbell refused: whatever_new"):
+        await hass.services.async_call(DOMAIN, "play_sequence", {"device_id": DEVICE_ID, "seq_id": 5}, blocking=True)
+
+
+async def test_call_action_reads_the_code_of_a_422():
+    with pytest.raises(api.CallActionError) as exc:
+        await api.async_call_action(_Session(422, {"error": "not_quick_reply"}), DEVICE_ID, "c" * 64, "play_sequence",
+                                    {"seq_id": "5"})
+    assert exc.value.code == "not_quick_reply" and exc.value.status == 422
 
 
 # --- REC -----------------------------------------------------------------------------------------

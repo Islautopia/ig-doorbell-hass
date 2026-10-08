@@ -3,6 +3,10 @@
 Since 1.4.0 over the doorbell's HTTP route (§1.4-quinquies), not the signalling channel - see quick_replies.py.
 `play_sequence` takes the sequence's id OR its name (`sequence`), so an automation can say "Leave it at the door"
 instead of a number it has to look up. Any role may do both (the doorbell's own rule); failures are raised.
+
+Only QUICK REPLIES can be launched (the doorbell's rule since API_CONTRACT §1.18.10 §1-bis): the visible ones and
+the HIDDEN ones - a quick reply its owner does not want offered during calls but does want to launch from here.
+So a name is resolved against the list WITH the hidden ones, while the select keeps showing only the visible.
 """
 from __future__ import annotations
 
@@ -52,12 +56,21 @@ async def _seq_id_for(c: DoorbellCoordinator, data: dict) -> int:
         return data["seq_id"]
     # A name: read the list NOW, not the copy of up to 5 minutes ago - a quick reply renamed in the app a
     # minute ago must be found by its new name.
+    answer = None
     try:
-        answer = await api.async_get_json(c.session, c.device_id, c.credential, "/api/sequences?quick=1")
-    except api.DoorbellApiError as err:
-        raise HomeAssistantError(f"Could not read the doorbell's quick replies: {err}") from err
-    c.extra["quick"] = answer
-    return quick_replies.resolve_name(quick_replies.quick_list(c), data["sequence"])
+        answer = await api.async_get_json(c.session, c.device_id, c.credential, quick_replies.PATH_QUICK_WITH_HIDDEN)
+    except api.DoorbellApiError:
+        pass  # read again below, the way every firmware answers
+    if not (isinstance(answer, dict) and isinstance(answer.get("quick_replies"), list)):
+        # An older firmware is expected to ignore `&hidden=1`; if it does anything else with it, the plain
+        # list is still the right answer there (it has no hidden quick replies to miss).
+        try:
+            answer = await api.async_get_json(c.session, c.device_id, c.credential, quick_replies.PATH_QUICK)
+        except api.DoorbellApiError as err:
+            raise HomeAssistantError(f"Could not read the doorbell's quick replies: {err}") from err
+    # The select's copy is refreshed with the VISIBLE ones only: a hidden quick reply must never reach it.
+    c.extra["quick"] = {"quick_replies": quick_replies.items_of(answer, with_hidden=False)}
+    return quick_replies.resolve_name(quick_replies.items_of(answer, with_hidden=True), data["sequence"])
 
 
 @callback

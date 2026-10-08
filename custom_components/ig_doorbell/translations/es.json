@@ -417,7 +417,7 @@
   "services": {
     "play_sequence": {
       "name": "Reproducir secuencia",
-      "description": "Reproduce en la calle una de las respuestas rápidas o secuencias del videoportero, por nombre o por id.",
+      "description": "Reproduce en la calle una de las respuestas rápidas del videoportero, por nombre o por id. Solo se pueden lanzar las secuencias marcadas como respuesta rápida en el videoportero: las visibles y las ocultas (una respuesta rápida oculta no se ofrece durante las llamadas, pero se puede lanzar desde aquí).",
       "fields": {
         "device_id": {
           "name": "Videoportero",
@@ -425,11 +425,11 @@
         },
         "sequence": {
           "name": "Respuesta rápida",
-          "description": "Nombre de la respuesta rápida, como se ve en la app (o usa su id)."
+          "description": "Nombre (etiqueta) de la respuesta rápida, como se ve en la app; una respuesta rápida oculta también se encuentra por su etiqueta (o usa su id)."
         },
         "seq_id": {
           "name": "Id de la secuencia",
-          "description": "Id de la secuencia en el videoportero (en lugar del nombre)."
+          "description": "Id de la secuencia en el videoportero (en lugar del nombre). Tiene que ser una respuesta rápida, visible u oculta."
         }
       }
     },

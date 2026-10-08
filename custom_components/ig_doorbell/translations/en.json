@@ -417,7 +417,7 @@
   "services": {
     "play_sequence": {
       "name": "Play sequence",
-      "description": "Play one of the doorbell's quick replies or sequences at the street, by name or by id.",
+      "description": "Play one of the doorbell's quick replies at the street, by name or by id. Only sequences marked as quick reply on the doorbell can be launched: the visible ones and the hidden ones (a hidden quick reply is not offered during calls, but can be launched from here).",
       "fields": {
         "device_id": {
           "name": "Doorbell",
@@ -425,11 +425,11 @@
         },
         "sequence": {
           "name": "Quick reply",
-          "description": "Name of the quick reply, as shown in the app (or use its id)."
+          "description": "Name (label) of the quick reply, as shown in the app; a hidden quick reply is found by its label too (or use its id)."
         },
         "seq_id": {
           "name": "Sequence id",
-          "description": "Id of the sequence on the doorbell (instead of the name)."
+          "description": "Id of the sequence on the doorbell (instead of the name). It must be a quick reply, visible or hidden."
         }
       }
     },

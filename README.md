@@ -256,8 +256,12 @@ become *unavailable* — which is what that means — and the card keeps working
 
 ### Actions
 
-`ig_doorbell.play_sequence` plays one of the doorbell's quick replies or sequences at the street, by
+`ig_doorbell.play_sequence` plays one of the doorbell's quick replies at the street, by
 its **name** as shown in the app (`sequence: Leave it at the door`) or by its id (`seq_id`).
+**Only quick replies can be launched** (1.5.4, with firmware that has the rule): a sequence that is
+not marked as a quick reply on the doorbell is refused with the reason. To launch a sequence from a
+script without offering it during calls, mark it as a quick reply **and Hidden** on the doorbell: it
+stays out of the quick-reply select and of the card, and this action still finds it by name.
 `ig_doorbell.play_audio` plays a quick-reply audio slot (1-10). Any pairing may use them; they fail
 with a readable reason (no such quick reply, the doorbell is busy, the firmware is too old) instead of
 doing nothing. Firmware 0.103.1 or newer.

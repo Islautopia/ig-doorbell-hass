@@ -6,6 +6,19 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.4] — 2026-10-08
+
+### Changed
+
+- **`play_sequence` launches quick replies, visible or hidden.** The doorbell's firmware now refuses
+  to launch on demand a sequence that is not marked as a quick reply (its audio is only kept for
+  sequences in use, so it would have played silent). A sequence you want to launch from a script or
+  an automation without offering it during calls can be marked **Hidden** on the doorbell: it stays
+  out of the quick-reply select and of the card, and `play_sequence` still finds it **by name** or by
+  id. A sequence that is not a quick reply is refused with a plain explanation ("mark it as a quick
+  reply on the doorbell - hidden if you do not want it offered during calls"). Doorbells with older
+  firmware keep working as before.
+
 ## [1.5.3] — 2026-10-07
 
 ### Added
