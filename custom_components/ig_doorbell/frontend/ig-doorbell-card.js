@@ -6,7 +6,7 @@
 // the browser kept could diverge with no visible error.
 // The line still earns its place: it ALWAYS runs when the module loads, even before any card
 // instance exists, so DevTools settles "which build is this browser running?" in one look.
-const CARD_VERSION = '1.5.4';
+const CARD_VERSION = '1.6.0';
 // (1.2.4) Captured before anything can navigate: see igPanelNonce().
 const IG_PANEL_NONCE_AT_LOAD = igPanelNonceIn(typeof window !== 'undefined' && window.location ? window.location.search : '');
 const CARD_BUILD_ID = `${CARD_VERSION} 2026-09-30-ig-doorbell`;
@@ -75,6 +75,31 @@ if (!IG_IDLE.hooked && typeof window !== 'undefined' && typeof document !== 'und
 // An idle pause can only be lifted by a person (touch) or a doorbell ring; never a
 // connectedCallback. It's lost on a full reload, which is correct: reloading means starting over.
 const PAUSED_BY_DOORBELL = {};
+
+// ==============================================================================
+// (1.6.0) PANEL ROLES - docs/design/panel-roles.md. A house with several wall panels: on a ring
+// every panel shows the call and ONE loads the live video by itself; the others show the visitor's
+// still picture and a "View" button. The doorbell serves four viewers at most.
+//
+// ⚠️ THE CARD DECIDES NOTHING HERE. Who loads is decided by the integration (panel_roles.py) and
+// arrives as `panel_call` = { call_id, phase, stream, still_entity }: in get_connection_info (before
+// anything is opened) and, for a picked panel, pushed over `subscribe_panel_call`. `stream`:
+//   'auto'    load by yourself;
+//   'standby' the still picture and "View" (somebody else loads);
+//   'release' the call was answered: give the video back UNLESS this page is the one talking;
+//   'keep'    declined / missed / over: leave the stream as it is.
+// A page that is not a picked panel gets no `panel_call` at all and behaves as it always did.
+//
+// The two things only the page can know, and so the only two it contributes:
+//  - a PERSON tapped "View" on this panel for this call (IG_PANEL_ALLOWED): from then on the
+//    stream is theirs - a reconnection or an element Home Assistant re-creates must not take it
+//    back to the still picture. Module-level for that reason, like PAUSED_BY_DOORBELL.
+//  - this page is the one TALKING (IG_PANEL_TALKED): it never releases for that call.
+// ==============================================================================
+const IG_PANEL_ALLOWED = {};   // doorbell id -> call_id this page may stream for
+const IG_PANEL_TALKED = {};    // doorbell id -> call_id this page answered
+// A panel showing only the still picture goes home this soon after the call is over.
+const PANEL_DISMISS_MS = (typeof window !== 'undefined' && window.__igPanelDismissMs) || 4000;
 
 // ⚠️ A VIEW THAT LEFT THE PAGE FOR GOOD MUST NOT KEEP ITS SESSION: A NEW VIEW HANGS UP ITS DETACHED TWIN
 // (2026-09-27).
@@ -258,7 +283,7 @@ const igLocales = {
     door_confirm: "¿Abrir la puerta? Pulsa otra vez", lbl_door_confirm: "¿Abrir?",
     snd_on: "Silenciar", snd_off: "Escuchar", snd_ring: "Están llamando — sonido activado",
     door_opening: "Abriendo la puerta...", lbl_door_opening: "Abriendo", door_no_answer: "El portero no respondió — la puerta NO se ha abierto",
-    conn_lan: "Home Assistant no llega al portero por la red local", retry_no_path: "No hay camino de vídeo hasta el portero desde esta red · reintentando en", path_remote_tip: "Conectado por internet (fuera de la red de casa)", paused: "En pausa", paused_tap: "En pausa para liberar el portero · toca para reanudar", retry_prefix: "Sin conexión · reintentando en",
+    conn_lan: "Home Assistant no llega al portero por la red local", retry_no_path: "No hay camino de vídeo hasta el portero desde esta red · reintentando en", path_remote_tip: "Conectado por internet (fuera de la red de casa)", paused: "En pausa", panel_view: "Ver", panel_ringing: "Están llamando a la puerta", panel_answered: "Atendida en otro dispositivo", panel_missed: "Llamada perdida", panel_declined: "Llamada rechazada", panel_ended: "La llamada ha terminado", paused_tap: "En pausa para liberar el portero · toca para reanudar", retry_prefix: "Sin conexión · reintentando en",
     snd_blocked: "Toca para oír la calle", cred_revoked: "El portero rechazó el emparejamiento — vuelve a emparejarlo en Ajustes › Dispositivos y servicios",
     lbl_rec_off: "REC", lbl_rec_on: "Grabando", rec_start_tip: "Empezar a grabar", rec_stop_tip: "Parar la grabación", rec_no_answer: "Home Assistant no aceptó la orden de grabar", recordings_title: "Grabaciones",
     quick_reply_title: "Respuestas rápidas", qr_empty: "El portero no tiene respuestas rápidas configuradas", qr_load_error: "No se pudo obtener la lista del portero", qr_no_answer: "El portero no aceptó la respuesta rápida",
@@ -283,7 +308,7 @@ const igLocales = {
     door_confirm: "Open the door? Press again", lbl_door_confirm: "Open?",
     snd_on: "Mute", snd_off: "Listen", snd_ring: "Someone is calling — sound on",
     door_opening: "Opening the door...", lbl_door_opening: "Opening", door_no_answer: "No answer from the doorbell — the door did NOT open",
-    conn_lan: "Home Assistant can't reach the doorbell on the local network", retry_no_path: "No video path to the doorbell from this network · retrying in", path_remote_tip: "Connected over the internet (outside the home network)", paused: "Paused", paused_tap: "Paused to free the doorbell · tap to resume", retry_prefix: "No connection · retrying in",
+    conn_lan: "Home Assistant can't reach the doorbell on the local network", retry_no_path: "No video path to the doorbell from this network · retrying in", path_remote_tip: "Connected over the internet (outside the home network)", paused: "Paused", panel_view: "View", panel_ringing: "Someone is at the door", panel_answered: "Answered on another device", panel_missed: "Missed call", panel_declined: "Call declined", panel_ended: "The call is over", paused_tap: "Paused to free the doorbell · tap to resume", retry_prefix: "No connection · retrying in",
     snd_blocked: "Tap to hear the street", cred_revoked: "The doorbell rejected this pairing — re-pair it in Settings › Devices & services",
     lbl_rec_off: "REC", lbl_rec_on: "Recording", rec_start_tip: "Start recording", rec_stop_tip: "Stop recording", rec_no_answer: "Home Assistant did not accept the recording request", recordings_title: "Recordings",
     quick_reply_title: "Quick replies", qr_empty: "The doorbell has no quick replies configured", qr_load_error: "Could not load the list from the doorbell", qr_no_answer: "The doorbell did not accept the quick reply",
@@ -308,7 +333,7 @@ const igLocales = {
     door_confirm: "Abrir a porta? Prima outra vez", lbl_door_confirm: "Abrir?",
     snd_on: "Silenciar", snd_off: "Ouvir", snd_ring: "Estão a chamar — som ligado",
     door_opening: "A abrir a porta...", lbl_door_opening: "A abrir", door_no_answer: "O porteiro não respondeu — a porta NÃO foi aberta",
-    conn_lan: "O Home Assistant não chega ao porteiro pela rede local", retry_no_path: "Sem caminho de vídeo até ao porteiro a partir desta rede · a tentar de novo em", path_remote_tip: "Ligado pela internet (fora da rede de casa)", paused: "Em pausa", paused_tap: "Em pausa para libertar o porteiro · toque para retomar", retry_prefix: "Sem ligação · a tentar de novo em",
+    conn_lan: "O Home Assistant não chega ao porteiro pela rede local", retry_no_path: "Sem caminho de vídeo até ao porteiro a partir desta rede · a tentar de novo em", path_remote_tip: "Ligado pela internet (fora da rede de casa)", paused: "Em pausa", panel_view: "Ver", panel_ringing: "Estão a tocar à porta", panel_answered: "Atendida noutro dispositivo", panel_missed: "Chamada perdida", panel_declined: "Chamada rejeitada", panel_ended: "A chamada terminou", paused_tap: "Em pausa para libertar o porteiro · toque para retomar", retry_prefix: "Sem ligação · a tentar de novo em",
     snd_blocked: "Toca para ouvir a rua", cred_revoked: "O porteiro rejeitou este emparelhamento — volte a emparelhá-lo em Definições › Dispositivos e serviços",
     lbl_rec_off: "REC", lbl_rec_on: "A gravar", rec_start_tip: "Começar a gravar", rec_stop_tip: "Parar a gravação", rec_no_answer: "O Home Assistant não aceitou o pedido de gravação", recordings_title: "Gravações",
     quick_reply_title: "Respostas rápidas", qr_empty: "A campainha não tem respostas rápidas configuradas", qr_load_error: "Não foi possível obter a lista da campainha", qr_no_answer: "A campainha não aceitou a resposta rápida",
@@ -333,7 +358,7 @@ const igLocales = {
     door_confirm: "Tür öffnen? Nochmal drücken", lbl_door_confirm: "Öffnen?",
     snd_on: "Stummschalten", snd_off: "Mithören", snd_ring: "Es klingelt — Ton an",
     door_opening: "Tür wird geöffnet...", lbl_door_opening: "Öffnet", door_no_answer: "Keine Antwort der Türsprechanlage — die Tür wurde NICHT geöffnet",
-    conn_lan: "Home Assistant erreicht die Türsprechanlage im lokalen Netz nicht", retry_no_path: "Kein Videoweg zur Türsprechanlage aus diesem Netz · neuer Versuch in", path_remote_tip: "Über das Internet verbunden (außerhalb des Heimnetzes)", paused: "Pausiert", paused_tap: "Pausiert, um die Türsprechanlage freizugeben · tippen zum Fortsetzen", retry_prefix: "Keine Verbindung · neuer Versuch in",
+    conn_lan: "Home Assistant erreicht die Türsprechanlage im lokalen Netz nicht", retry_no_path: "Kein Videoweg zur Türsprechanlage aus diesem Netz · neuer Versuch in", path_remote_tip: "Über das Internet verbunden (außerhalb des Heimnetzes)", paused: "Pausiert", panel_view: "Ansehen", panel_ringing: "Es klingelt an der Tür", panel_answered: "Auf einem anderen Gerät angenommen", panel_missed: "Verpasster Anruf", panel_declined: "Anruf abgelehnt", panel_ended: "Der Anruf ist beendet", paused_tap: "Pausiert, um die Türsprechanlage freizugeben · tippen zum Fortsetzen", retry_prefix: "Keine Verbindung · neuer Versuch in",
     snd_blocked: "Tippen, um die Straße zu hören", cred_revoked: "Die Türsprechanlage hat diese Kopplung abgelehnt — in Einstellungen › Geräte & Dienste neu koppeln",
     lbl_rec_off: "REC", lbl_rec_on: "Aufnahme läuft", rec_start_tip: "Aufnahme starten", rec_stop_tip: "Aufnahme stoppen", rec_no_answer: "Home Assistant hat die Aufnahme-Anfrage nicht angenommen", recordings_title: "Aufnahmen",
     quick_reply_title: "Schnellantworten", qr_empty: "Für die Klingel sind keine Schnellantworten eingerichtet", qr_load_error: "Liste konnte nicht von der Klingel geladen werden", qr_no_answer: "Die Klingel hat die Schnellantwort nicht angenommen",
@@ -358,7 +383,7 @@ const igLocales = {
     door_confirm: "Ouvrir la porte ? Appuyez encore", lbl_door_confirm: "Ouvrir ?",
     snd_on: "Couper le son", snd_off: "Écouter", snd_ring: "On sonne — son activé",
     door_opening: "Ouverture de la porte...", lbl_door_opening: "Ouverture", door_no_answer: "Pas de réponse du portier — la porte n'a PAS été ouverte",
-    conn_lan: "Home Assistant n'atteint pas l'interphone sur le réseau local", retry_no_path: "Aucun chemin vidéo vers l'interphone depuis ce réseau · nouvel essai dans", path_remote_tip: "Connecté par internet (hors du réseau de la maison)", paused: "En pause", paused_tap: "En pause pour libérer l'interphone · touchez pour reprendre", retry_prefix: "Pas de connexion · nouvel essai dans",
+    conn_lan: "Home Assistant n'atteint pas l'interphone sur le réseau local", retry_no_path: "Aucun chemin vidéo vers l'interphone depuis ce réseau · nouvel essai dans", path_remote_tip: "Connecté par internet (hors du réseau de la maison)", paused: "En pause", panel_view: "Voir", panel_ringing: "Quelqu'un sonne à la porte", panel_answered: "Pris sur un autre appareil", panel_missed: "Appel manqué", panel_declined: "Appel refusé", panel_ended: "L'appel est terminé", paused_tap: "En pause pour libérer l'interphone · touchez pour reprendre", retry_prefix: "Pas de connexion · nouvel essai dans",
     snd_blocked: "Touche pour entendre la rue", cred_revoked: "Le portier a refusé cet appairage — réappairez-le dans Paramètres › Appareils et services",
     lbl_rec_off: "REC", lbl_rec_on: "Enregistrement", rec_start_tip: "Démarrer l'enregistrement", rec_stop_tip: "Arrêter l'enregistrement", rec_no_answer: "Home Assistant n'a pas accepté la demande d'enregistrement", recordings_title: "Enregistrements",
     quick_reply_title: "Réponses rapides", qr_empty: "Aucune réponse rapide configurée sur la sonnette", qr_load_error: "Impossible de récupérer la liste depuis la sonnette", qr_no_answer: "La sonnette n'a pas accepté la réponse rapide",
@@ -383,7 +408,7 @@ const igLocales = {
     door_confirm: "Aprire la porta? Premi di nuovo", lbl_door_confirm: "Aprire?",
     snd_on: "Disattiva audio", snd_off: "Ascolta", snd_ring: "Qualcuno sta chiamando — audio attivato",
     door_opening: "Apertura della porta...", lbl_door_opening: "Apertura", door_no_answer: "Nessuna risposta dal videocitofono — la porta NON si è aperta",
-    conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", retry_no_path: "Nessun percorso video verso il videocitofono da questa rete · nuovo tentativo in", path_remote_tip: "Connesso via internet (fuori dalla rete di casa)", paused: "In pausa", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
+    conn_lan: "Home Assistant non riesce a raggiungere il videocitofono sulla rete locale", retry_no_path: "Nessun percorso video verso il videocitofono da questa rete · nuovo tentativo in", path_remote_tip: "Connesso via internet (fuori dalla rete di casa)", paused: "In pausa", panel_view: "Vedi", panel_ringing: "Qualcuno suona alla porta", panel_answered: "Risposto su un altro dispositivo", panel_missed: "Chiamata persa", panel_declined: "Chiamata rifiutata", panel_ended: "La chiamata è terminata", paused_tap: "In pausa per liberare il videocitofono · tocca per riprendere", retry_prefix: "Nessuna connessione · nuovo tentativo in",
     snd_blocked: "Tocca per sentire la strada", cred_revoked: "Il videocitofono ha rifiutato questo accoppiamento — riaccoppialo in Impostazioni › Dispositivi e servizi",
     lbl_rec_off: "REC", lbl_rec_on: "In registrazione", rec_start_tip: "Avvia registrazione", rec_stop_tip: "Ferma registrazione", rec_no_answer: "Home Assistant non ha accettato la richiesta di registrazione", recordings_title: "Registrazioni",
     quick_reply_title: "Risposte rapide", qr_empty: "Il videocitofono non ha risposte rapide configurate", qr_load_error: "Non è stato possibile ottenere l'elenco dal videocitofono", qr_no_answer: "Il videocitofono non ha accettato la risposta rapida",
@@ -1446,6 +1471,7 @@ class IgDoorbellView extends HTMLElement {
     this._updateModeRow();
     this._updateMotionPill();
     this._updateRingState();
+    this._paintPanelStandby();
     this._updateRecButton();
     this._updateRecordingsButton();
     this._updateQuickReplyButton();
@@ -1827,6 +1853,8 @@ class IgDoorbellView extends HTMLElement {
     VIEWS_WITH_SESSION.delete(this);
     console.info(`[ig-doorbell-card] instance of ${this.config && this.config.device_id} destroyed (${reason})`);
     this._cancelPause();
+    if (this._panelHomeTimer) { clearTimeout(this._panelHomeTimer); this._panelHomeTimer = null; }
+    if (this._panelUnsub) { try { this._panelUnsub(); } catch (err) { /* best effort */ } this._panelUnsub = null; }
     if (this._livePauseAck) { clearTimeout(this._livePauseAck.timer); this._livePauseAck = null; }
     this._clearReconnectTimer();
     this._reconnecting = false;
@@ -2409,7 +2437,8 @@ class IgDoorbellView extends HTMLElement {
     if (this._pauseState) {
       this.statusLine.classList.remove('open');
       this.statusLine.classList.add('warn');
-      this.statusLine.textContent = getLocalText(this._hass, 'paused_tap');
+      this.statusLine.textContent = this._pauseState.reason === 'standby'
+        ? this._panelStandbyText() : getLocalText(this._hass, 'paused_tap');
       return;
     }
     this.statusLine.classList.remove('open', 'warn');
@@ -3604,6 +3633,13 @@ class IgDoorbellView extends HTMLElement {
     if (this._destroyed) return;  // (1.10.0) instance of a doorbell that's no longer being viewed: see _destroy()
     const p = this._pauseState;
     if (!p) return;
+    if (p.reason === 'standby') {
+      // (1.6.0) A PERSON asked for the video on this panel: it is theirs for this call (see
+      // IG_PANEL_ALLOWED). Any other reason (a new ring, the integration) allows nothing by itself:
+      // the start asks the integration again and obeys the answer.
+      if (reason === 'tap' && this._panelCall) IG_PANEL_ALLOWED[this.config.device_id] = this._panelCall.call_id;
+      if (this._panelHomeTimer) { clearTimeout(this._panelHomeTimer); this._panelHomeTimer = null; }
+    }
     // (1.2.2) Past the grace BY WALL CLOCK it is a new session, never a live_resume that re-requests
     // the talk turn: frozen timers (a WebView in the background) could otherwise reopen the mic of a
     // call that ended hours ago, on the first ring that wakes the screen.
@@ -3613,6 +3649,7 @@ class IgDoorbellView extends HTMLElement {
     }
     this._pauseState = null;
     this._paintSoundBlocked();
+    this._paintPanelStandby();
     delete PAUSED_BY_DOORBELL[this.config.device_id];
     if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
     IG_IDLE.last = Date.now();
@@ -3629,6 +3666,159 @@ class IgDoorbellView extends HTMLElement {
       return;
     }
     if (this.isConnected && this.content) this.startWebRTC(`resuming (${reason})`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════════════════
+  //  (1.6.0) PANEL ROLES - the card's half. See IG_PANEL_ALLOWED at the top of this file.
+  // ════════════════════════════════════════════════════════════════════════════════════════
+
+  // Must this start stop at the still picture? Yes when the integration says the call is not
+  // this panel's to load ('standby'), or is already over ('release' / 'keep': a panel woken late
+  // shows what happened, never a live video nobody asked for) - unless a person here tapped
+  // "View" for this very call.
+  _panelMustWait(pc) {
+    if (!pc || !pc.call_id || pc.stream === 'auto') return false;
+    return IG_PANEL_ALLOWED[this.config.device_id] !== pc.call_id;
+  }
+
+  // Only a picked panel of this doorbell listens (`panel_sub`): one subscription per view, kept
+  // across sessions (home-assistant-js-websocket subscribes again after a reconnection).
+  _watchPanelCall(info) {
+    if (!info || info.panel_sub !== true || this._panelUnsub || this._panelSubPending) return;
+    const conn = this._hass && this._hass.connection;
+    if (!conn || typeof conn.subscribeMessage !== 'function') return;
+    this._panelSubPending = true;
+    conn.subscribeMessage((m) => this._onPanelCall(m), { type: `${IG_DOMAIN}/subscribe_panel_call`, device_id: this.config.device_id })
+      .then((unsub) => {
+        this._panelSubPending = false;
+        if (this._destroyed) { try { unsub(); } catch (err) { /* best effort */ } return; }
+        this._panelUnsub = unsub;
+      }, (err) => {
+        this._panelSubPending = false;
+        console.info(`[ig-doorbell-card] panel roles: not listening (${err && (err.message || err.code)})`);
+      });
+  }
+
+  // What the integration tells this panel while a call lasts. Idempotent: the same instruction
+  // twice (get_connection_info and the subscription both carry it) changes nothing.
+  _onPanelCall(pc) {
+    if (this._destroyed || !pc || !pc.call_id || !this.config) return;
+    const dev = this.config.device_id;
+    const waiting = !!(this._pauseState && this._pauseState.reason === 'standby');
+    if (pc.stream === 'auto') {
+      // This panel is the one (from the start, or the main panel did not show up).
+      IG_PANEL_ALLOWED[dev] = pc.call_id;
+      this._panelCall = pc;
+      if (waiting) {
+        console.info('[ig-doorbell-card] panel roles: this panel loads the live video now');
+        this._resume('the integration gave this panel the live video');
+      }
+      return;
+    }
+    if (pc.stream === 'release') {
+      // Answered somewhere. ⚠️ The integration cannot know WHICH page answered, so the one
+      // talking keeps its stream - and keeps it for the rest of that call, also across a
+      // reconnection that closes the microphone for a moment.
+      if (this._callActive() || IG_PANEL_TALKED[dev] === pc.call_id) { IG_PANEL_TALKED[dev] = pc.call_id; return; }
+      delete IG_PANEL_ALLOWED[dev];
+      this._enterPanelStandby(pc, 'answered on another device');
+      return;
+    }
+    // 'standby' while ringing, 'keep' when declined / missed / over: a panel that holds the video
+    // keeps it (its own back-home deadline takes it home, as always); one waiting shows the news.
+    if (waiting) {
+      this._panelCall = pc;
+      this._paintPause();
+      this._paintPanelStandby();
+      this._armPanelHome();
+    }
+  }
+
+  // The still picture and "View": no session, no slot at the doorbell. Built on the pause the card
+  // already has ('hung_up'), so nothing can start underneath it and one tap lifts it.
+  _enterPanelStandby(pc, why) {
+    if (this._destroyed) return;
+    this._panelCall = pc;
+    if (!(this._pauseState && this._pauseState.reason === 'standby')) {
+      console.info(`[ig-doorbell-card] panel roles: still picture and "View", no live video (${why})`);
+      if (this._pauseGraceTimer) { clearTimeout(this._pauseGraceTimer); this._pauseGraceTimer = null; }
+      this._clearIdleWakeLockTimer();
+      this._clearOffscreenTimer();
+      if (this.videoEl) {
+        try { this.videoEl.pause(); } catch (err) { /* best effort */ }
+        this.videoEl.srcObject = null;
+      }
+      this._clearReconnectTimer();
+      this._reconnecting = false;
+      this._teardownConnectionObjects();    // with its `bye` if there was a session: the slot is free NOW
+      this._stopRescue();
+      this._releaseWakeLock();
+      this._pauseState = { reason: 'standby', phase: 'hung_up', micOpen: false };
+      this._registerIdleActivityListeners();
+    }
+    this._paintPause();
+    this._paintPanelStandby();
+    this._armPanelHome();
+  }
+
+  _panelStandbyText() {
+    const phase = (this._panelCall && this._panelCall.phase) || 'ringing';
+    const key = { ringing: 'panel_ringing', answered: 'panel_answered', missed: 'panel_missed', declined: 'panel_declined' }[phase] || 'panel_ended';
+    return getLocalText(this._hass, key);
+  }
+
+  _paintPanelStandby() {
+    if (!this.panelStandbyEl) return;
+    const on = !!(this._pauseState && this._pauseState.reason === 'standby' && !this._destroyed);
+    this.panelStandbyEl.style.display = on ? 'flex' : 'none';
+    if (!on) return;
+    this.panelStandbyEl.dataset.phase = (this._panelCall && this._panelCall.phase) || 'ringing';
+    const text = this.panelStandbyEl.querySelector('#panel-standby-text');
+    if (text) text.textContent = this._panelStandbyText();
+    const lbl = this.panelStandbyEl.querySelector('#panel-view-lbl');
+    if (lbl) lbl.textContent = getLocalText(this._hass, 'panel_view');
+    // ONE picture per ring, fetched by the integration and held by its `image` entity: every panel
+    // reads that same one from Home Assistant. Never a request to the doorbell from here.
+    const img = this.panelStandbyEl.querySelector('#panel-still');
+    const ent = this._panelCall && this._panelCall.still_entity;
+    const st = ent && this._hass && this._hass.states ? this._hass.states[ent] : null;
+    const pic = st && st.attributes ? st.attributes.entity_picture : null;
+    let src = '';
+    if (pic) {
+      const sep = pic.indexOf('?') >= 0 ? '&' : '?';
+      const rel = `${pic}${sep}igt=${encodeURIComponent(String(st.state))}`;   // a new picture = a new URL
+      src = this._hass && typeof this._hass.hassUrl === 'function' ? this._hass.hassUrl(rel) : rel;
+    }
+    if (img && img.dataset.src !== src) {
+      img.dataset.src = src;
+      if (src) { img.style.display = ''; img.src = src; } else { img.removeAttribute('src'); img.style.display = 'none'; }
+    }
+  }
+
+  // A panel that only shows the still picture still goes home: at its back-home deadline while
+  // the call rings, and PANEL_DISMISS_MS after the call is over. `_idleTimeoutMs()` is 0 off a
+  // picked panel and when the owner set "never": then it is never navigated, as with the video.
+  _armPanelHome() {
+    if (this._panelHomeTimer) { clearTimeout(this._panelHomeTimer); this._panelHomeTimer = null; }
+    const deadline = this._idleTimeoutMs();
+    if (!deadline) return;
+    const ringing = !this._panelCall || this._panelCall.phase === 'ringing';
+    this._panelHomeTimer = setTimeout(() => {
+      this._panelHomeTimer = null;
+      this._panelGoHome();
+    }, ringing ? deadline : Math.min(deadline, PANEL_DISMISS_MS));
+  }
+
+  async _panelGoHome() {
+    const from = window.location.pathname;
+    const home = await this._defaultPanel();
+    if (!home || this._destroyed || !this.isConnected) return;
+    if (!this._pauseState || this._pauseState.reason !== 'standby') return;   // somebody tapped "View" meanwhile
+    if (window.location.pathname !== from) return;                             // navigated by hand meanwhile
+    if ((from.split('/')[1] || '') === home) return;                           // the card lives on the default page
+    console.info(`[ig-doorbell-card] panel roles: the call is over, back to the default page /${home}`);
+    window.history.pushState(null, '', `/${home}`);
+    window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
   }
 
   _cancelPause() {
@@ -3962,7 +4152,7 @@ class IgDoorbellView extends HTMLElement {
     // automation) can CREATE this card, and for it that ring is its "first read". If it's
     // from less than RECENT_RING_MS ago, it counts.
     if (prevMarker === null || prevMarker === undefined) {
-      if (this._pauseState && isEvent && stateObj.attributes && stateObj.attributes.event_type === 'ring'
+      if (this._pauseState && this._pauseState.reason !== 'standby' && isEvent && stateObj.attributes && stateObj.attributes.event_type === 'ring'
         && Date.now() - Date.parse(marker) < RECENT_RING_MS && document.visibilityState === 'visible') this._resume('recent ring');
       return;
     }
@@ -5022,6 +5212,19 @@ class IgDoorbellView extends HTMLElement {
                 <span id="hear-lbl">${getLocalText(this._hass, 'snd_blocked')}</span>
               </button>
 
+              <!-- (1.6.0) Panel roles: on a wall panel that is not the one loading the live video,
+                   the visitor's still picture and "View". See _enterPanelStandby(). -->
+              <div class="panel-standby" id="panel-standby" style="display:none;">
+                <img id="panel-still" alt="" style="display:none;">
+                <div class="panel-standby-box">
+                  <div class="panel-standby-text" id="panel-standby-text"></div>
+                  <button type="button" class="panel-view-btn" id="panel-view-btn">
+                    <ha-icon icon="mdi:video"></ha-icon>
+                    <span id="panel-view-lbl"></span>
+                  </button>
+                </div>
+              </div>
+
               <div class="hud-bottom">
                 <div class="audio-pill" id="audio-pill" style="display:none;">
                   <ha-icon icon="mdi:microphone"></ha-icon>
@@ -5226,6 +5429,15 @@ class IgDoorbellView extends HTMLElement {
       this.clientsCount = this.querySelector('#clients-count');
       this.qualityToast = this.querySelector('#quality-toast');
       this.hearBtn = this.querySelector('#hear-btn');
+      this.panelStandbyEl = this.querySelector('#panel-standby');
+      const panelStill = this.querySelector('#panel-still');
+      // No picture (the owner turned it off, the doorbell refused it): the notice without it.
+      if (panelStill) panelStill.addEventListener('error', () => { panelStill.style.display = 'none'; });
+      // The pointerdown on the card already lifts a pause; this covers a click with no pointer.
+      this.querySelector('#panel-view-btn').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (this._pauseState && this._pauseState.reason === 'standby') this._resume('tap');
+      });
       // The tap IS the user activation the browser was waiting for.
       this.hearBtn.addEventListener('click', (ev) => { ev.stopPropagation(); this._setAudioOn(true, 'user'); });
       this.advBtn = this.querySelector('#adv-btn');
@@ -5592,6 +5804,19 @@ class IgDoorbellView extends HTMLElement {
       this._updateRecordingsButton();
       this._updateQuickReplyButton();
       this._updateBell();
+
+      // (1.6.0) PANEL ROLES: the integration said who loads the live video for the call in
+      // progress. Nothing is open yet at this point - which is why the answer travels in
+      // get_connection_info: a panel that is not the one never opens a session at all.
+      this._watchPanelCall(info);
+      if (this._panelMustWait(info.panel_call)) {
+        this._enterPanelStandby(info.panel_call, 'told when starting');
+        return;
+      }
+      if (info.panel_call && info.panel_call.stream === 'auto') {
+        IG_PANEL_ALLOWED[this.config.device_id] = info.panel_call.call_id;
+        this._panelCall = info.panel_call;
+      }
 
       // Wait #2 (TURN credentials: HTTPS to Germany). THIS is the long one, and the one that opened the
       // window for the measured bug. From here on there ARE objects to close, so being
@@ -7053,6 +7278,27 @@ class IgDoorbellView extends HTMLElement {
         padding: 10px 18px; font: inherit; font-size: 14px; font-weight: 700; color: #fff;
       }
       .hear-btn ha-icon { --mdc-icon-size: 20px; color: #00c4d4; }
+      /* (1.6.0) Panel roles: the still picture and "View", over the (empty) video. Under the sound
+         control and the quality chip, above the rest of the picture. */
+      .panel-standby {
+        position: absolute; inset: 0; z-index: 28; display: flex; align-items: flex-end;
+        justify-content: center; background: #000; cursor: pointer;
+      }
+      .panel-standby img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+      .panel-standby-box {
+        position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;
+        margin-bottom: 9%; max-width: 92%;
+      }
+      .panel-standby-text {
+        background: rgba(7,13,26,0.82); border-radius: 999px; padding: 6px 14px;
+        font-size: 14px; font-weight: 600; color: #fff; text-align: center;
+      }
+      .panel-view-btn {
+        display: flex; align-items: center; gap: 8px; cursor: pointer; font: inherit;
+        background: #1976D2; border: 0; border-radius: 999px; padding: 12px 26px;
+        font-size: 16px; font-weight: 700; color: #fff;
+      }
+      .panel-view-btn ha-icon { --mdc-icon-size: 22px; }
 
       .motion-pill {
         position: absolute; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6;
@@ -8107,10 +8353,26 @@ function igShowCallPage(conn, m) {
   document.addEventListener('visibilitychange', onVis);
 }
 
+// The Home Assistant companion app: Android injects `externalApp` (`externalAppV2` on newer builds),
+// iOS exposes its bridge as WKWebView message handlers (`getExternalAuth`, `externalBus`) - the two
+// objects Home Assistant's own frontend looks for to know it runs inside the app.
+function igInCompanionApp() {
+  if (typeof window === 'undefined') return false;
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (/Android/i.test(ua) && (window.externalApp || window.externalAppV2)) return true;
+  const handlers = window.webkit && window.webkit.messageHandlers;
+  return !!(handlers && (handlers.getExternalAuth || handlers.externalBus));
+}
+
 (function igCallPageListener() {
   if (typeof window === 'undefined' || typeof document === 'undefined' || window.__igCallPageListener) return;
-  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
-  if (!/Android/i.test(ua) || !(window.externalApp || window.externalAppV2)) return;   // the Android companion only
+  // (1.6.0) EITHER companion app. Until 1.5.4 this was the Android companion only, by habit and
+  // not by need: the navigation is done by this page, not by the operating system, and the
+  // integration matches a page by its companion LOGIN (panel_identity.py), which is the same on
+  // iOS. So an iPad wall panel that keeps Home Assistant on screen is taken to the call page the
+  // same way. What iOS still lacks is a command to wake the screen or to open the app: an iPad
+  // that is asleep only has its notification. A desktop browser never subscribes.
+  if (!igInCompanionApp()) return;
   // (1.2.4) No `ua` sent: the integration identifies the page by its companion login.
   window.__igCallPageListener = true;
   let timer = null;

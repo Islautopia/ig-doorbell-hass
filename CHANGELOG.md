@@ -6,6 +6,28 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.0] — 2026-10-13
+
+### Added
+
+- **Main panel: with several wall panels, only one loads the live video on a ring.** A house with
+  three tablets used to open three video sessions on the doorbell at every ring. Now every panel
+  still shows the call, and only the **main panel** loads the live video by itself; the others show
+  the visitor's picture and a **View** button, and load the video only when someone taps it. If the
+  main panel has not shown up six seconds after the ring, the next panel of the list takes over.
+  When the call is answered anywhere, the panels that did not answer give the video back and return
+  to their dashboard. Design: `docs/design/panel-roles.md`.
+- **iPad wall panels are taken to the call page too**, when they are showing Home Assistant: the
+  panel's own page navigates, as on Android since 1.2.2. An iPad that is asleep still only gets its
+  notification (iOS has no command to wake it).
+
+### Changed
+
+- **Nothing changes until you save the Ring notifications page.** An installation upgraded from an
+  earlier version keeps loading the video on every panel. Open *Configure → Ring notifications*:
+  the new *Main panel* field shows the first panel of your list; save it (or pick another) and the
+  roles apply from then on. The order of the *Wall panels* list is the order of succession.
+
 ## [1.5.4] — 2026-10-08
 
 ### Changed

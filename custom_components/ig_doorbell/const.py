@@ -171,6 +171,10 @@ DOMAIN_CLOSE_SERVICE: dict[str, tuple[str, str]] = {
 # house that already has its own automation would get every ring twice.
 CONF_NOTIFY_PHONES = "notify_phones"
 CONF_NOTIFY_PANELS = "notify_panels"
+# (1.6.0, docs/design/panel-roles.md) The panel that loads the live video by itself on a ring; the
+# others show a still picture and a "View" button. ABSENT (options from before 1.6.0) = every
+# panel loads, as before: nothing changes on upgrade until the owner saves the options step.
+CONF_NOTIFY_PRIMARY_PANEL = "notify_primary_panel"
 # iOS: critical alert / Android: the alarm stream. Both ring through silent mode.
 CONF_NOTIFY_CRITICAL = "notify_critical"
 # "Open door" button on the phone notification. OFF by default: whether the Android companion asks

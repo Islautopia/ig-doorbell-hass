@@ -33,6 +33,7 @@
         "data": {
           "notify_phones": "Téléphones",
           "notify_panels": "Panneaux muraux",
+          "notify_primary_panel": "Panneau principal (charge la vidéo en direct à la sonnerie)",
           "notify_critical": "Sonner même en mode silencieux",
           "notify_open_door": "Bouton « Ouvrir la porte » sur les téléphones",
           "announce_players": "Enceintes qui annoncent l'appel",
@@ -41,6 +42,7 @@
         "data_description": {
           "notify_phones": "Téléphones avec l'application Home Assistant. Ils reçoivent une notification avec la photo ; un appui ouvre la page d'appel. N'ajoutez pas les téléphones qui utilisent déjà l'application IG Doorbell pour les appels, sinon ils sonneront deux fois. Un téléphone non ajouté continue de recevoir tout le reste de Home Assistant ; le choix se fait téléphone par téléphone.",
           "notify_panels": "Tablettes murales avec l'application Home Assistant. Android : l'écran s'allume et affiche la page d'appel (l'application a besoin de l'autorisation « Afficher par-dessus les autres applis », sinon elle affiche une simple notification sans prévenir) ; elle revient à la page d'accueil après le délai « Panneaux muraux : retour à la page d'accueil après » de la sonnette (0 = jamais), jamais pendant un appel pris. Seuls les panneaux choisis ici reviennent d'eux-mêmes : un ordinateur ou un téléphone est surveillé, et la carte ne le fait jamais quitter la page. iPad : une notification ; pour un vrai panneau, laissez la page d'appel ouverte en Accès guidé. Un panneau est reconnu par son application Home Assistant : automatiquement si son utilisateur Home Assistant n'a pas d'autre application du même type, sinon dès que la page d'appel a été ouverte depuis la notification de sonnerie de ce panneau.",
+          "notify_primary_panel": "Quand quelqu'un sonne, tous les panneaux muraux affichent l'appel, mais seul celui-ci charge la vidéo en direct de lui-même. Les autres affichent la photo du visiteur et un bouton « Voir » : plusieurs tablettes n'ouvrent donc pas plusieurs flux vidéo sur la sonnette à chaque appel. Si le panneau principal ne s'est pas manifesté quelques secondes après la sonnerie, le panneau suivant de la liste ci-dessus prend le relais : l'ordre de cette liste est l'ordre de succession. Dès que l'appel est pris quelque part, les autres panneaux libèrent la vidéo. Vide = le premier panneau de la liste. Une installation antérieure à la 1.6.0 continue de charger la vidéo sur tous les panneaux tant que cette page n'a pas été enregistrée une fois.",
           "notify_critical": "iPhone : alerte critique (autorisez les alertes critiques pour l'application Home Assistant). Android : flux d'alarme.",
           "notify_open_door": "Ajoute un bouton « Ouvrir la porte » à la notification, valable seulement pendant l'appel. L'iPhone demande Face ID. Sur Android, on ne sait pas encore si le téléphone doit être déverrouillé : laissez désactivé si cela compte pour vous.",
           "announce_players": "Elles jouent un carillon quand quelqu'un sonne : Alexa (Echo) son propre carillon de sonnette, les autres enceintes celui d'IG Doorbell. Si vous annoncez déjà la sonnette sur ces enceintes avec une automatisation, vous n'en avez pas besoin, sinon elles annonceront deux fois.",
@@ -53,6 +55,7 @@
       }
     },
     "error": {
+      "primary_not_a_panel": "Le panneau principal doit être l'un des panneaux muraux choisis ci-dessus.",
       "too_many": "Trop d'entités : choisissez-en {max} au maximum",
       "port_in_use": "Le port {port} est déjà utilisé par un autre programme. Choisissez-en un autre.",
       "port_is_ha": "C’est le port de Home Assistant lui-même. Choisissez-en un autre.",

@@ -10,6 +10,36 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.6.0 (2026-10-13): panel roles (docs/design/panel-roles.md)
+
+One wall panel loads the live video on a ring; the others show a still and "View".
+
+- **The card decides nothing.** `get_connection_info.panel_call` = `{call_id, phase, stream,
+  still_entity}` says what to do BEFORE anything is opened (the gate in `startNativeSession`, right
+  after the answer): `auto` goes on, anything else is `_enterPanelStandby()` and no session is ever
+  opened. A picked panel (`panel_sub`) also subscribes to `ig_doorbell/subscribe_panel_call` for
+  the same dict pushed later (`_onPanelCall`): `auto` = the role passed here, `release` = answered
+  elsewhere, `keep` = declined / missed / over.
+- **Standby is a pause** (`_pauseState.reason === 'standby'`, phase `hung_up`): nothing can start
+  under it, one tap lifts it, and the existing "paused" painting applies. It is never lifted by
+  visibility, nor by the first read of the ring entity.
+- **Two module-level facts**, like `PAUSED_BY_DOORBELL` and for the same reason (Home Assistant
+  re-creates the element): `IG_PANEL_ALLOWED` (a person tapped View for this call: a reconnection
+  must not put the still back) and `IG_PANEL_TALKED` (this page answered: it never releases for
+  that call, also when a reconnection closes the mic for a moment).
+- **The still** is `hass.states[still_entity].attributes.entity_picture`, i.e. the integration's
+  one picture per ring; the card never asks the doorbell for it.
+- **Going home in standby** has its own timer (`_armPanelHome` / `_panelGoHome`): the back-home
+  deadline is cleared by every pause and `_idleOnOwnView()` is false while paused, and both are
+  anchors of the `back_home` bench's mutants - left untouched on purpose.
+- **The call page in place now runs in either companion app** (`igInCompanionApp()`), not only
+  Android: iOS exposes `window.webkit.messageHandlers.getExternalAuth`. Not measured on an iPad.
+- **Bench.** `tests/card/panel_roles` (R1-R11, 12 mutants); control against
+  `fixtures/legacy/card_1.5.4.js`, red on R2.
+- Landmine paid again, twice in one day: a backslash-n inside a mutant anchor written through a
+  shell heredoc arrived as a real line break and the driver did not parse - and then the same
+  thing happened to the sentence describing it. Edit anchors with the editor, not through a shell.
+
 ## 1.5.2 (2026-10-06): the audio audit (docs/audio-audit-card.md)
 
 The card against the nine rules of `docs/audio-invariants.md` (firmware repo). Bench:

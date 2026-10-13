@@ -37,7 +37,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import instance_id, selector
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from . import api, net, webhook
+from . import api, net, panel_roles, webhook
 from .const import (
     CONF_CREDENTIAL,
     CONF_DEVICE_ID,
@@ -50,6 +50,7 @@ from .const import (
     CONF_NOTIFY_OPEN_DOOR,
     CONF_NOTIFY_PANELS,
     CONF_NOTIFY_PHONES,
+    CONF_NOTIFY_PRIMARY_PANEL,
     DEFAULT_PAIR_LABEL,
     DOMAIN,
     ALLOWED_DOMAINS,
@@ -472,27 +473,52 @@ class IgDoorbellOptionsFlow(config_entries.OptionsFlow):
         the integration rings them, clears them when the call is resolved and sends the panels
         back home. Nothing picked = off, which is the default (docs/design/ha-only-ringing.md).
         """
+        errors: dict[str, str] = {}
+        shown = dict(self._entry.options)
         if user_input is not None:
             # ⚠️ The other options are kept: an options flow REPLACES the whole dict.
             options = dict(self._entry.options)
             options[CONF_NOTIFY_PHONES] = list(user_input.get(CONF_NOTIFY_PHONES) or [])
             options[CONF_NOTIFY_PANELS] = list(user_input.get(CONF_NOTIFY_PANELS) or [])
+            # (1.6.0, panel_roles.py) THE MIGRATION POINT: a saved form always stores a main
+            # panel when there are panels (an empty field = the first of the list). Options from
+            # before 1.6.0 have none and keep loading the video on every panel until this runs.
+            # A main panel that is not in the list is refused and said, never silently replaced.
+            picked = user_input.get(CONF_NOTIFY_PRIMARY_PANEL) or None
+            if picked and picked not in options[CONF_NOTIFY_PANELS]:
+                errors[CONF_NOTIFY_PRIMARY_PANEL] = "primary_not_a_panel"
+            primary = panel_roles.primary_to_store(options[CONF_NOTIFY_PANELS], picked)
+            if primary is None:
+                options.pop(CONF_NOTIFY_PRIMARY_PANEL, None)
+            else:
+                options[CONF_NOTIFY_PRIMARY_PANEL] = primary
             options[CONF_NOTIFY_CRITICAL] = bool(user_input.get(CONF_NOTIFY_CRITICAL, True))
             options[CONF_NOTIFY_OPEN_DOOR] = bool(user_input.get(CONF_NOTIFY_OPEN_DOOR, False))
             options.pop("panel_return_path", None)     # 1.2.0 dev builds only: the card goes home now
             options[CONF_ANNOUNCE_PLAYERS] = list(user_input.get(CONF_ANNOUNCE_PLAYERS) or [])
             options[CONF_ANNOUNCE_VOICE] = bool(user_input.get(CONF_ANNOUNCE_VOICE, False))
-            return self.async_create_entry(title="", data=options)
+            if not errors:
+                return self.async_create_entry(title="", data=options)
+            # Shown again with what was typed, and the refused main panel still in its field.
+            shown = {**options, CONF_NOTIFY_PRIMARY_PANEL: picked}
 
-        o = self._entry.options
+        o = shown
+        # What the form proposes: the stored main panel, else the first panel of the list - so
+        # an owner who opens this page SEES who will load the video before saving.
+        proposed = (o.get(CONF_NOTIFY_PRIMARY_PANEL) if errors else panel_roles.form_default_primary(
+            o.get(CONF_NOTIFY_PANELS), o.get(CONF_NOTIFY_PRIMARY_PANEL)))
         companion = selector.DeviceSelector(
             selector.DeviceSelectorConfig(integration="mobile_app", multiple=True)
         )
         return self.async_show_form(
             step_id="notifications",
+            errors=errors,
             data_schema=vol.Schema({
                 vol.Optional(CONF_NOTIFY_PHONES, default=list(o.get(CONF_NOTIFY_PHONES) or [])): companion,
                 vol.Optional(CONF_NOTIFY_PANELS, default=list(o.get(CONF_NOTIFY_PANELS) or [])): companion,
+                vol.Optional(CONF_NOTIFY_PRIMARY_PANEL,
+                             description={"suggested_value": proposed}): selector.DeviceSelector(
+                    selector.DeviceSelectorConfig(integration="mobile_app")),
                 vol.Optional(CONF_NOTIFY_CRITICAL, default=o.get(CONF_NOTIFY_CRITICAL, True)): bool,
                 vol.Optional(CONF_NOTIFY_OPEN_DOOR, default=o.get(CONF_NOTIFY_OPEN_DOOR, False)): bool,
                 vol.Optional(CONF_ANNOUNCE_PLAYERS,

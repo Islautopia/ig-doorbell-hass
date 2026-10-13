@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>1.6.0: panel roles - one wall panel loads the live video, the others show a still and "View"</title>
+</head>
+<body style="margin:0;background:#111;">
+  <div id="stage"><div id="host" style="width:480px"></div></div>
+  <script src="../ui_v1_10_0/harness.js"></script>
+  <script>
+    // A panel that only shows the still picture goes home this soon after the call is over
+    // (4 s in the product; shortened so the bench does not wait).
+    window.__igPanelDismissMs = 800;
+    // What the INTEGRATION answers for this page (the driver sets it per case):
+    //   __panelCall  get_connection_info.panel_call ({call_id, phase, stream, still_entity} or null)
+    //   __panelSub   get_connection_info.panel_sub  (this page is a picked panel with the roles on)
+    window.__panelCall = null;
+    window.__panelSub = false;
+    window.__panelSubs = [];          // every subscribe_panel_call the card made
+    const realSend = window.__hass.connection.sendMessagePromise;
+    window.__sent = [];               // every websocket command the page sent, by type
+    window.__hass.connection.sendMessagePromise = async (m) => {
+      window.__sent.push(m.type);
+      const r = await realSend(m);
+      if (m.type === 'ig_doorbell/get_connection_info' && r) {
+        r.live_timeout_entity = 'number.bench_back_home';
+        r.back_home = !!window.__panelSub;
+        r.panel_call = window.__panelCall ? Object.assign({}, window.__panelCall) : null;
+        r.panel_sub = !!window.__panelSub;
+      }
+      return r;
+    };
+    window.__hass.connection.subscribeMessage = async (cb, msg) => {
+      const sub = { cb, msg, open: true };
+      window.__panelSubs.push(sub);
+      return () => { sub.open = false; };
+    };
+    // The integration pushes an instruction to this page's card(s).
+    // Home Assistant's root element, where the card module looks for the connection (R10/R11).
+    window.tHomeAssistant = () => { const ha = document.createElement('home-assistant'); ha.hass = window.__hass; document.body.appendChild(ha); };
+    window.tPushCallPage = (m) => window.__panelSubs.filter((s) => s.open && s.msg.type === 'ig_doorbell/subscribe_call_page').forEach((s) => s.cb(m));
+    window.tPush = (pc) => window.__panelSubs.filter((s) => s.open && s.msg.type === 'ig_doorbell/subscribe_panel_call').forEach((s) => s.cb(Object.assign({}, pc)));
+    window.tDeadline = (s) => { window.__states['number.bench_back_home'] = { entity_id: 'number.bench_back_home', state: String(s) }; };
+    // The integration's ONE picture per ring (its `image` entity), as Home Assistant exposes it.
+    window.tStill = () => { window.__states['image.bench_visitor'] = { entity_id: 'image.bench_visitor', state: '2026-10-13T10:00:00+00:00', attributes: { entity_picture: '/api/image_proxy/image.bench_visitor?token=benchtoken' } }; };
+    window.__homeNavs = 0;
+    const realPush = history.pushState.bind(history);
+    history.pushState = (st, t, url) => { if (url === '/lovelace') window.__homeNavs += 1; return realPush(st, t, url); };
+  </script>
+  <script src="../../../custom_components/ig_doorbell/frontend/ig-doorbell-card.js"></script>
+</body>
+</html>

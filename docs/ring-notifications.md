@@ -46,6 +46,26 @@ counts from the ring. Every visit to the card starts the full time again, and so
 It never leaves during a call that was answered, and it never navigates away if the card is already
 on the default page. `0` means never.
 
+### Several wall panels: the main panel (1.6.0)
+
+With more than one panel, pick a **Main panel** in the same options page. On a ring:
+
+- every panel shows the call;
+- only the main panel loads the live video by itself. The others show the visitor's picture and a
+  **View** button - tap it to see the live video on that panel;
+- if the main panel has not shown up six seconds after the ring (switched off, out of battery),
+  the next panel in the *Wall panels* list takes over. The order of that list is the order of
+  succession: to change it, remove the panels and pick them again in the order you want;
+- when someone answers (on a phone or on a panel), the other panels give the video back, say
+  "Answered on another device" and return to the home page.
+
+This keeps the doorbell from serving one video per tablet on every ring. An installation from
+before 1.6.0 keeps loading the video on every panel until this options page is saved once; the
+*Main panel* field then shows the first panel of your list.
+
+A panel the integration cannot recognise yet (see below) is not treated as a panel at all and
+loads the video as before, until it has been recognised.
+
 How a panel is recognised (1.2.4): by the companion app itself, never by what the page says. The
 page's connection to Home Assistant uses the companion's own login, and the integration links that
 login to the device in one of two ways:

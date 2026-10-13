@@ -95,6 +95,7 @@
         "data": {
           "notify_phones": "Phones",
           "notify_panels": "Wall panels",
+          "notify_primary_panel": "Main panel (loads the live video on a ring)",
           "notify_critical": "Ring through silent mode",
           "notify_open_door": "\"Open door\" button on phones",
           "announce_players": "Speakers that announce the call",
@@ -103,6 +104,7 @@
         "data_description": {
           "notify_phones": "Companion-app phones. They get a notification with the picture; tapping it opens the call page. Don't add phones that already use the IG Doorbell app for calls, or they will ring twice. A phone left out keeps getting everything else from Home Assistant; choose per phone.",
           "notify_panels": "Companion-app tablets on the wall. Android: the screen wakes and shows the call page (the companion app needs the \"Display over other apps\" permission, or it silently shows a plain notification instead); it goes back to the home page after the doorbell's \"Wall panels: back to the home page after\" time (0 = never), and not while an answered call lasts. Only the panels picked here ever go back by themselves: a computer or a phone is attended, and the card never takes it away from the page. iPad: a notification; leave the call page open in Guided Access for a real panel. A panel is recognised by its companion app: automatically if its Home Assistant user has no other companion app of that kind, otherwise once the call page has been opened from that panel's own ring notification.",
+          "notify_primary_panel": "On a ring every wall panel shows the call, but only this one loads the live video by itself. The others show the visitor's picture and a \"View\" button, so several tablets do not open several video streams on the doorbell at every ring. If the main panel has not shown up a few seconds after the ring, the next panel of the list above takes over: the order of that list is the order of succession. When the call is answered anywhere, the other panels give the video back. Empty = the first panel of the list. An installation from before 1.6.0 keeps loading the video on every panel until this page is saved once.",
           "notify_critical": "iPhone: critical alert (allow Critical Alerts for the Home Assistant app). Android: alarm stream.",
           "notify_open_door": "Adds an \"Open door\" button to the notification, valid only during the ring. iPhone asks for Face ID first. On Android it is not yet known whether the phone must be unlocked - leave it off if that matters.",
           "announce_players": "They play a doorbell chime when someone rings: Alexa (Echo) its own doorbell chime, every other speaker the IG Doorbell chime. If you already announce the bell on these speakers with an automation, you don't need this - or they will announce twice.",
@@ -122,6 +124,7 @@
       "invalid_auth": "Wrong administrator email or password",
       "device_not_paired": "The doorbell itself isn't registered yet",
       "cloud_authorize_failed": "The doorbell could not register this pairing",
+      "primary_not_a_panel": "The main panel must be one of the wall panels picked above.",
       "too_many": "Too many entities - pick {max} at most",
       "port_in_use": "Port {port} is already used by another program. Choose another port.",
       "port_is_ha": "That is Home Assistant's own port. Choose another one.",

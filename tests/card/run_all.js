@@ -26,6 +26,8 @@
 //   - back_home against the 1.2.2 build (fixtures/legacy/card_1.2.2.js, a plain copy) must go red
 //     on H1 - once the back-home deadline had fired, every later visit bounced straight home (fixed
 //     in 1.2.3).
+//   - panel_roles against the 1.5.4 build (fixtures/legacy/card_1.5.4.js, a plain copy) must go red
+//     on R2 - a wall panel that is not the main one opened a live session on every ring (1.6.0).
 //   - audio_invariants against the 1.5.1 build (fixtures/legacy/card_1.5.1.js, a plain copy) must go red
 //     on C1, C1b, C2, C3 and C4 - the four findings of the audio audit (fixed in 1.5.2).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
@@ -82,6 +84,7 @@ const JOBS = [
   { name: 'mic_https_1_1_0 (+ mutant)', bench: 'mic_https_1_1_0', args: ['mic_https_1_1_0/driver.js'], expect: 0 },
   { name: 'mic_privacy (+ mutants MA-MN)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
   { name: 'back_home (+ mutants MR-MS)', bench: 'back_home', args: ['back_home/driver.js'], expect: 0 },
+  { name: 'panel_roles (+ mutants MG-ML)', bench: 'panel_roles', args: ['panel_roles/driver.js'], expect: 0 },
   { name: 'audio_invariants (+ mutants MC1-MC6)', bench: 'audio_invariants', args: ['audio_invariants/driver.js'], expect: 0 },
   { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
@@ -107,6 +110,10 @@ const JOBS = [
     failAll: ['C1', 'C1b', 'C2', 'C3', 'C4'] },
   { name: 'CONTROL back_home vs 1.2.2 card (must fail H1)', bench: 'back_home', control: true,
     args: ['back_home/driver.js'], env: { CARD_FILE: LEGACY('card_1.2.2.js'), ONLY_CASES: 'H1', SKIP_MUTANTS: '1' }, expect: 1, failText: /^ {2}FAIL \[H1\]/m, },
+  // Panel roles' baseline: the card before 1.6.0 ignores the integration's answer, so a secondary
+  // panel opens a session at the doorbell (R2) - the load the feature exists to remove.
+  { name: 'CONTROL panel_roles vs 1.5.4 card (must fail R2)', bench: 'panel_roles', control: true,
+    args: ['panel_roles/driver.js'], env: { CARD_FILE: LEGACY('card_1.5.4.js'), ONLY_CASES: 'R2', SKIP_MUTANTS: '1' }, expect: 1, failText: /^ {2}FAIL \[R2\]/m, },
 ];
 
 (async () => {

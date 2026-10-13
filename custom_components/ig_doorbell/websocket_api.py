@@ -58,6 +58,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_https_status)
     websocket_api.async_register_command(hass, websocket_subscribe_call_page)
     websocket_api.async_register_command(hass, websocket_call_page_ack)
+    websocket_api.async_register_command(hass, websocket_subscribe_panel_call)
 
 
 def _find_entry_data(hass: HomeAssistant, device_id: str) -> dict | None:
@@ -128,6 +129,12 @@ async def websocket_get_connection_info(hass: HomeAssistant, connection, msg) ->
         # The page was opened from a URL only one picked panel received: its login IS that panel.
         panel_identity.async_get(hass).bind(msg["panel_nonce"][:64], user_id, token_id)
     back_home = call_page_nav.is_configured_panel(hass, user_id, token_id)
+    # (1.6.0, docs/design/panel-roles.md) Which panel this page is, by the SAME identity as
+    # back_home - and what it must do about the call in progress, decided here and only here.
+    notifier = entry_data.get("ring_notifier")
+    panel_id = panel_identity.async_get(hass).identify(user_id, token_id)
+    panel_sub = notifier is not None and notifier.roles_configured(panel_id)
+    panel_call = notifier.panel_instruction(panel_id, claim=True) if panel_sub else None
     connection.send_result(
         msg["id"],
         {
@@ -139,6 +146,12 @@ async def websocket_get_connection_info(hass: HomeAssistant, connection, msg) ->
             "events_entity": registry.async_get_entity_id("event", DOMAIN, f"{device_id}_events"),
             # (1.2.3) Only a configured wall panel goes back to the home page; see is_configured_panel.
             "back_home": back_home,
+            # (1.6.0) `panel_call`: None, or {call_id, phase, stream, still_entity} - "auto" = load
+            # the live video by yourself, anything else = show the still picture and "View".
+            # `panel_sub`: this page is a picked panel of THIS doorbell with the roles on, so it
+            # should listen (subscribe_panel_call) for the role passing to it and for the end.
+            "panel_call": panel_call,
+            "panel_sub": panel_sub,
         },
     )
 
@@ -305,3 +318,38 @@ def websocket_call_page_ack(hass: HomeAssistant, connection, msg) -> None:
     ok = call_page_nav.async_get(hass).async_ack(
         msg["token"], connection.user.id, getattr(connection, "refresh_token_id", None))
     connection.send_result(msg["id"], {"ok": ok})
+
+
+# ---- which panel loads the live video, and when to give it back (1.6.0, panel_roles.py) ---------
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "ig_doorbell/subscribe_panel_call", vol.Required("device_id"): str}
+)
+@callback
+def websocket_subscribe_panel_call(hass: HomeAssistant, connection, msg) -> None:
+    """The card on a picked wall panel listens for what to do about a call.
+
+    Events are the same dict as get_connection_info's `panel_call` (notify_ring.panel_instruction
+    builds both). Only a page identified as a picked panel of THIS doorbell is ever sent anything:
+    a browser, a phone, a panel of another doorbell subscribe to silence - never an error the card
+    would have to interpret, never a hint about who the panels are.
+    """
+    from . import panel_identity  # noqa: PLC0415
+
+    msg_id = msg["id"]
+    entry_data = _find_entry_data(hass, msg["device_id"])
+    notifier = entry_data.get("ring_notifier") if entry_data else None
+    user = getattr(connection, "user", None)
+    panel_id = panel_identity.async_get(hass).identify(
+        user.id if user else None, getattr(connection, "refresh_token_id", None))
+    if notifier is None or not notifier.roles_configured(panel_id):
+        connection.subscriptions[msg_id] = lambda: None
+        connection.send_result(msg_id)
+        return
+
+    @callback
+    def _send(payload: dict) -> None:
+        connection.send_message(websocket_api.event_message(msg_id, payload))
+
+    connection.send_result(msg_id)
+    connection.subscriptions[msg_id] = notifier.async_panel_subscribe(panel_id, _send)

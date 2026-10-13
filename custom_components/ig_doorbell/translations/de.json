@@ -33,6 +33,7 @@
         "data": {
           "notify_phones": "Telefone",
           "notify_panels": "Wand-Panels",
+          "notify_primary_panel": "Hauptpanel (lädt beim Klingeln das Live-Video)",
           "notify_critical": "Auch im Lautlos-Modus klingeln",
           "notify_open_door": "Schaltfläche „Tür öffnen“ auf den Telefonen",
           "announce_players": "Lautsprecher, die den Anruf ansagen",
@@ -41,6 +42,7 @@
         "data_description": {
           "notify_phones": "Telefone mit der Home-Assistant-App. Sie erhalten eine Benachrichtigung mit Foto; Antippen öffnet die Anrufseite. Füge keine Telefone hinzu, die schon die IG-Doorbell-App für Anrufe nutzen, sonst klingeln sie doppelt. Ein nicht hinzugefügtes Telefon bekommt weiterhin alles andere von Home Assistant; die Wahl gilt pro Telefon.",
           "notify_panels": "Wand-Tablets mit der Home-Assistant-App. Android: Der Bildschirm geht an und zeigt die Anrufseite (die App braucht die Berechtigung „Über anderen Apps einblenden“, sonst zeigt sie stillschweigend nur eine normale Benachrichtigung); sie kehrt nach der Zeit „Wand-Panels: zurück zur Startseite nach“ der Türklingel zur Startseite zurück (0 = nie), nie während eines angenommenen Anrufs. Nur die hier gewählten Panels kehren von selbst zurück: Ein Computer oder Telefon wird bedient, und die Karte holt ihn nie von der Seite weg. iPad: eine Benachrichtigung; für ein echtes Panel die Anrufseite im geführten Zugriff offen lassen. Ein Panel wird an seiner Home-Assistant-App erkannt: automatisch, wenn sein Home-Assistant-Benutzer keine andere App dieser Art hat, sonst sobald die Anrufseite aus der Klingel-Benachrichtigung dieses Panels geöffnet wurde.",
+          "notify_primary_panel": "Beim Klingeln zeigen alle Wandpanels den Anruf, aber nur dieses lädt das Live-Video von selbst. Die anderen zeigen das Bild des Besuchers und eine Schaltfläche „Ansehen“, damit mehrere Tablets nicht bei jedem Klingeln mehrere Videostreams an der Türklingel öffnen. Meldet sich das Hauptpanel einige Sekunden nach dem Klingeln nicht, übernimmt das nächste Panel der Liste oben: Die Reihenfolge dieser Liste ist die Reihenfolge der Nachfolge. Sobald der Anruf irgendwo angenommen wird, geben die anderen Panels das Video wieder frei. Leer = das erste Panel der Liste. Eine Installation von vor 1.6.0 lädt das Video weiter auf allen Panels, bis diese Seite einmal gespeichert wurde.",
           "notify_critical": "iPhone: kritischer Hinweis (kritische Hinweise für die Home-Assistant-App erlauben). Android: Wecker-Kanal.",
           "notify_open_door": "Fügt der Benachrichtigung eine Schaltfläche „Tür öffnen“ hinzu, nur während des Klingelns gültig. Das iPhone fragt vorher nach Face ID. Bei Android ist noch nicht bekannt, ob das Telefon entsperrt sein muss – ausgeschaltet lassen, wenn das wichtig ist.",
           "announce_players": "Sie spielen einen Gong, wenn jemand klingelt: Alexa (Echo) ihren eigenen Türklingel-Gong, alle anderen Lautsprecher den IG-Doorbell-Gong. Wenn du die Klingel auf diesen Lautsprechern schon per Automatisierung ansagst, brauchst du das nicht – sonst sagen sie zweimal an.",
@@ -53,6 +55,7 @@
       }
     },
     "error": {
+      "primary_not_a_panel": "Das Hauptpanel muss eines der oben gewählten Wandpanels sein.",
       "too_many": "Zu viele Entitäten – wähle höchstens {max} aus",
       "port_in_use": "Port {port} wird bereits von einem anderen Programm benutzt. Wähle einen anderen.",
       "port_is_ha": "Das ist der Port von Home Assistant selbst. Wähle einen anderen.",

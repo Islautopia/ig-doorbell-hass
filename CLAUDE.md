@@ -26,6 +26,16 @@ real cameras, no personal Home Assistant details. The doorbell's interface is de
   by anything local. Signalling stays on HA's proxy (no relay WebSocket). Real bench:
   `tests/card/remote_path/` (docs/card.md 1.4.4); its case D must run first (TURN permissions).
 
+- **Panel roles (1.6.0)**: `panel_roles.py` (pure rules) + `notify_ring.panel_instruction()` (the
+  one answer a panel page gets) + the card's `_onPanelCall`. Design and failure cases:
+  `docs/design/panel-roles.md`. Off until `notify_primary_panel` is stored (saving the options step).
+- **pytest without the container** (Windows, 2026-10-13, when Docker was not to be started): a
+  Python 3.13 venv with `uv pip install --override` pinning `lru-dict` to a version that has a
+  wheel, plus `PyTurboJPEG`; stub `fcntl` and `resource` modules on `PYTHONPATH`; and a `-p`
+  plugin that turns `pytest_socket.disable_socket` into a no-op (the Windows event loop needs a
+  loopback socket pair). Three TLS tests of `test_https` then fail on that Python's OpenSSL, with
+  or without any change - so `tools/mutants.py` (which wants the whole suite green) aborts there.
+
 Landmines already paid for:
 - **Never serve the card benches with a hand-started `python -m http.server`.** Old servers from
   earlier sessions were still serving the card's former repository on the same ports and paths;
