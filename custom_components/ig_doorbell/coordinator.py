@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Callable
@@ -31,10 +32,12 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import api
-from .const import DOMAIN, POLL_INTERVAL, generic_name
+from .cloud_link import CloudLinkTracker
+from .const import DOMAIN, POLL_INTERVAL, SIGNAL_EVENT, generic_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,6 +129,8 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         # 1.4.0: the quick reply picked in the select, played by the button (both entities read THIS, so
         # they can never disagree about which one "the selected quick reply" is). None = the first one.
         self.selected_quick_reply: int | None = None
+        # 1.7.0: the doorbell's link to the relay, as the DOORBELL reports it (cloud_link.py).
+        self.cloud_link = CloudLinkTracker()
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -145,6 +150,18 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
             ) from err
         except api.DoorbellApiError as err:
             raise UpdateFailed(str(err)) from err
+
+        # 1.7.0: the cloud link. Its events travel the SAME road as the doorbell's own (the
+        # events entity), so an automation sees one list - see cloud_link.py for the rules.
+        link_event = self.cloud_link.update(state, time.monotonic())
+        if link_event is not None:
+            ev, d = link_event
+            _LOGGER.info("%s: %s (%s)", self.device_id, ev, d)
+            async_dispatcher_send(
+                self.hass, SIGNAL_EVENT.format(device_id=self.device_id),
+                {"type": "event", "ev": ev, "device_id": self.device_id,
+                 "ts": int(time.time()), "d": d},
+            )
 
         if self._cycles_until_firmware <= 0:
             try:

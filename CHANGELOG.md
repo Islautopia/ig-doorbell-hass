@@ -6,6 +6,21 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0] — unreleased (branch `cloud-link-events`)
+
+### Added
+
+- **Cloud connection** (`binary_sensor.<doorbell>_cloud_connection`, connectivity, diagnostic):
+  whether the doorbell is connected to the relay that lets the apps reach it from outside the
+  house. Told by the doorbell itself over the LAN (`cloud` / `cloud_s` in `get_states`), never
+  asked of the VPS, with the relay's rules: down 90 s before it counts, back 60 s before it is
+  over, so it agrees with the apps' "offline" / "back online" notifications. Unavailable until the
+  doorbell's firmware reports those two fields.
+- **Events `cloud_link_lost` and `cloud_link_restored`** on the events entity, with `offline_s`.
+  A restored event only closes an outage that was seen; a flapping link is one outage.
+
+---
+
 ## [1.6.0] — 2026-10-13
 
 ### Added

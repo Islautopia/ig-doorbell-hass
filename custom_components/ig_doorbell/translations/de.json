@@ -90,6 +90,9 @@
       },
       "in_call": {
         "name": "Im Gespräch"
+      },
+      "cloud_connection": {
+        "name": "Cloud-Verbindung"
       }
     },
     "event": {
@@ -119,7 +122,9 @@
               "call_answered": "Anruf angenommen",
               "call_declined": "Anruf abgelehnt",
               "call_missed": "Verpasster Anruf",
-              "call_finished": "Gespräch beendet"
+              "call_finished": "Gespräch beendet",
+              "cloud_link_lost": "Cloud-Verbindung verloren",
+              "cloud_link_restored": "Cloud-Verbindung wiederhergestellt"
             }
           }
         }

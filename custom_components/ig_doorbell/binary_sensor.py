@@ -52,6 +52,7 @@ async def async_setup_entry(
         InCallBinarySensor(c, hass.data[DOMAIN][entry.entry_id]["call_state"]),
         FlipBinarySensor(c, "flip_v", "flip_vertical"),
         FlipBinarySensor(c, "flip_h", "flip_horizontal"),
+        CloudConnectionBinarySensor(c),
     ])
 
 
@@ -256,3 +257,28 @@ class FlipBinarySensor(DoorbellEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         value = (self.coordinator.data or {}).get(self._field)
         return None if value is None else bool(value)
+
+
+class CloudConnectionBinarySensor(DoorbellEntity, BinarySensorEntity):
+    """The doorbell's link to our relay (1.7.0): what decides whether the apps reach it from outside.
+
+    Told by the DOORBELL over the LAN, never asked of the VPS (cloud_link.py says why), with the
+    relay's own grace (90 s) and stability window (60 s), so it agrees with the apps' "offline" /
+    "back online" pushes. Unavailable with a firmware that does not report `cloud`/`cloud_s`.
+    Its changes are also events (`cloud_link_lost` / `cloud_link_restored`) on the events entity.
+    """
+
+    _attr_translation_key = "cloud_connection"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "cloud_connection")
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.cloud_link.supported
+
+    @property
+    def is_on(self) -> bool | None:
+        return self.coordinator.cloud_link.connected

@@ -159,6 +159,9 @@
       },
       "in_call": {
         "name": "In call"
+      },
+      "cloud_connection": {
+        "name": "Cloud connection"
       }
     },
     "event": {
@@ -188,7 +191,9 @@
               "call_answered": "Call answered",
               "call_declined": "Call declined",
               "call_missed": "Missed call",
-              "call_finished": "Call finished"
+              "call_finished": "Call finished",
+              "cloud_link_lost": "Cloud connection lost",
+              "cloud_link_restored": "Cloud connection restored"
             }
           }
         }

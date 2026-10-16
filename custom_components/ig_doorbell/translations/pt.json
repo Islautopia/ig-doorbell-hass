@@ -90,6 +90,9 @@
       },
       "in_call": {
         "name": "Em chamada"
+      },
+      "cloud_connection": {
+        "name": "Ligação à nuvem"
       }
     },
     "event": {
@@ -119,7 +122,9 @@
               "call_answered": "Chamada atendida",
               "call_declined": "Chamada recusada",
               "call_missed": "Chamada perdida",
-              "call_finished": "Chamada terminada"
+              "call_finished": "Chamada terminada",
+              "cloud_link_lost": "Ligação à nuvem perdida",
+              "cloud_link_restored": "Ligação à nuvem restabelecida"
             }
           }
         }

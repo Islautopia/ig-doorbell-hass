@@ -447,6 +447,20 @@ MUTANTS = [
     ("ipad: an iPad is sent Android's command_webview", PKG + "notify_ring.py",
      "            if android:\n                await self._send(target, \"command_webview\",",
      "            if True:\n                await self._send(target, \"command_webview\","),
+    # --- 1.7.0: the doorbell's cloud link (cloud_link.py, tests/test_cloud_link.py) ---------------
+    ("cloud link: no grace, a short drop is an outage", PKG + "cloud_link.py",
+     "            if cloud_s < LOST_AFTER_S:\n", "            if False:\n"),
+    ("cloud link: no stability window, a flap is two outages", PKG + "cloud_link.py",
+     "            if cloud_s < RESTORED_AFTER_S:\n", "            if False:\n"),
+    ("cloud link: restored fired without an outage", PKG + "cloud_link.py",
+     "        # cloud == 1\n        if self.lost:\n", "        # cloud == 1\n        if True:\n"),
+    ("cloud link: an old outage is re-announced at the first reading", PKG + "cloud_link.py",
+     "            if first:\n", "            if False:\n"),
+    ("cloud link: older firmware shows a guessed state", PKG + "binary_sensor.py",
+     "        return super().available and self.coordinator.cloud_link.supported\n",
+     "        return super().available\n"),
+    ("cloud link: the events never reach Home Assistant", PKG + "coordinator.py",
+     "        if link_event is not None:\n", "        if False:\n"),
 ]
 
 
