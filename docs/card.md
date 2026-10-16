@@ -10,6 +10,23 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.7.0 (2026-10-16): closing the mic closes the street, whoever closes it
+
+Owner, 2026-10-16 (`docs/audio-invariants.md` rule 5, firmware repo; API_CONTRACT §1.10 note of
+the same day). 1.5.2 closed the sound only on a tap on the mic; two other ends left it on:
+
+- **The doorbell takes the turn** (`talk_state` to another slot or to -1): `_micClosedByDoorbell()`
+  - same end as a tap, but NO `talk_release` (the turn is not ours any more). "Listen only"
+  (`_enterListenOnly`) is now only for `talk_denied`, where no mic was ever open.
+- **The session drops under an open mic**: `_teardownConnectionObjects()` turns the sound off when
+  `talkActive || _listenOnly || _talkHeld`; the new picture comes back silent. A pause does not
+  reach it with the mic open (`_stopTalk(true)` first), so "coming back restores the same state"
+  still holds for pauses.
+- Bench: `audio_invariants` C3 and T1 now assert silence; new C5 (ring-opened sound, the doorbell's
+  silence net, a signalling drop; each re-opened by one speaker tap); mutants MC7/MC8; control
+  against `fixtures/legacy/card_1.6.0.js`, red on C3, C5 and T1. `sim_multicliente` section 3 too.
+- The web (1.4.1) and the apps make the same change; not measured on a real doorbell here.
+
 ## 1.6.0 (2026-10-13): panel roles (docs/design/panel-roles.md)
 
 One wall panel loads the live video on a ring; the others show a still and "View".

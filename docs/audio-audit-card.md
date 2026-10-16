@@ -82,14 +82,14 @@ One route column (whatever the OS gives the web view). "capture" = live micropho
 | mic open (turn granted) | sounding (follows the mic) | 1 track | C2p — MEASURED |
 | turn asked, never answered | as it was | none, never asked of the browser; said | C2 — MEASURED |
 | turn denied | sounding (listen only), said | none | T2 — MEASURED |
-| turn taken by another client | sounding, said | stopped | T1 — MEASURED |
+| turn taken by another client / the doorbell's silence net | muted: closes with the mic (rule 5, 1.7.0; sounding until 1.6.x), said | stopped | T1, C5 — MEASURED |
 | mic closed by hand | muted | none, no notice | C4, N1 — MEASURED |
 | ring, page touched before | sounding, "someone is calling" | none | R1, C1c — MEASURED |
 | ring, page never touched (wall panel) | picture plays muted + the standing control | none | C1 — MEASURED, EMULATED rule |
 | new stream while the sound was wanted, refused | same | none | C1b — MEASURED, EMULATED |
 | hidden while listening | paused here + `live_pause` | none | H1 — MEASURED |
 | hidden with the mic open, and back | paused; back: sounding, turn asked again, mic open again on the grant | stopped at once; reopened only on the new grant | C4b — MEASURED |
-| signalling dropped mid-conversation | still sounding on the new session | stopped within 300 ms, not reopened, said | C3 — MEASURED |
+| signalling dropped mid-conversation | muted on the new session (rule 5, 1.7.0; still sounding until 1.6.x) | stopped within 300 ms, not reopened, said | C3, C5 — MEASURED |
 | doorbell switched / card removed / `pagehide` | session torn down | stopped | `mic_privacy` P3, P5, P6 — MEASURED (existing bench) |
 | quick-reply preview, recordings | the card plays neither: quick replies are sent to the doorbell, recordings open in Home Assistant's media browser | — | READ |
 | voice disguise | not implemented in the card | — | READ |

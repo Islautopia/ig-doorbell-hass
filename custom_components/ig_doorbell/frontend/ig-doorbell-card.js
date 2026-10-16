@@ -1228,11 +1228,15 @@ class IgDoorbellView extends HTMLElement {
     this._stopLifeWatchdog();
     this._stopAudioSendDiagnostics();
     // Computed up here because _resetMulticlientState() (below) clears _listenOnly.
-    // (1.5.2) THE SOUND IS LEFT AS IT IS. A session that drops under an open mic (a reconnection) is
-    // not the person closing the conversation: whoever was talking keeps HEARING when the picture
-    // returns (setupRemoteStream applies `_audioOn` to the new stream), and only the microphone has
-    // to be asked for again. Until 1.5.1 the sound went back to what it was before the mic.
     const micWasOpen = this.talkActive || this._listenOnly;
+    // ⚠️ (1.7.0) A SESSION THAT DROPS UNDER AN OPEN MIC CLOSES THE STREET TOO (docs/audio-invariants.md
+    // rule 5, owner 2026-10-16: «closing the microphone also closes the street audio», whoever closes
+    // it -- the person, the doorbell, or a signalling drop). From 1.5.2 to 1.6.x the sound was left on
+    // here, so after a reconnection the street came back SOUNDING with the mic closed. The new picture
+    // now comes back silent (setupRemoteStream applies `_audioOn`); hearing again is a tap. A pause
+    // does not reach this with the mic open: _pause() closes it first with _stopTalk(true), and that
+    // keepSound is deliberate (rule 4: coming back restores the same state).
+    if (micWasOpen || this._talkHeld) this._setAudioOn(false, 'mic-closed-by-session-drop');
     // Real bug found and fixed (2026-07-10, see COORDINATION.md - user's suspicion
     // about the audio return channel): this function is the ONLY shared teardown point
     // used by disconnectedCallback(), startWebRTC() and _scheduleReconnect() - but until now it
@@ -2638,12 +2642,30 @@ class IgDoorbellView extends HTMLElement {
 
     const takenByOther = this._talkerSlot >= 0;
     this._talkHeld = false;
-    this._enterListenOnly();
+    this._micClosedByDoorbell();
     this._flashStatusLine(takenByOther ? 'talk_taken' : 'talk_silence', 5000);
   }
 
-  // The doorbell can be heard, but with no mic. Reuses the same mic-closing path as
-  // _stopTalk() to avoid duplicating the replaceTrack/stop-tracks logic.
+  // ⚠️ (1.7.0) THE DOORBELL TOOK THE TURN AWAY: the mic closes AND THE STREET WITH IT
+  // (docs/audio-invariants.md rule 5, owner 2026-10-16: «closing the microphone also closes the street
+  // audio»). Until 1.6.x this went to "listen only" with the sound ON, so a conversation cut by
+  // another user or by the doorbell's silence net left the street sounding in the house. Now it is
+  // the same end as a tap on the mic -- picture only, silent; hearing again is a tap on the speaker --
+  // except that no talk_release is sent: the turn is not ours any more (another client may hold it).
+  // "Listen only" (_enterListenOnly) is left for a turn DENIED, where no mic was ever open.
+  _micClosedByDoorbell() {
+    this._closeMicHardware();
+    this.talkActive = false;
+    this._listenOnly = false;
+    this._setAudioOn(false, 'mic-closed-by-doorbell');
+    this._setLiveState('live');
+    if (this.audioPill) this.audioPill.style.display = 'none';
+    this._paintMicState();
+    this._updateMotionPill();
+  }
+
+  // Turn DENIED: the doorbell can be heard, but with no mic (no mic was open). Reuses the same
+  // mic-closing path as _stopTalk() to avoid duplicating the replaceTrack/stop-tracks logic.
   _enterListenOnly() {
     this._closeMicHardware();
     this.talkActive = false;
@@ -6713,8 +6735,8 @@ class IgDoorbellView extends HTMLElement {
   }
 
   // Real closing of the microphone (hardware + sender), without touching the turn's logical state - it's
-  // shared by _stopTalk() (the user turns it off) and _enterListenOnly() (the device
-  // takes the turn away from us). Extracted so neither path can forget a step.
+  // shared by _stopTalk() (the user turns it off), _micClosedByDoorbell() (the device takes the
+  // turn away from us) and _enterListenOnly() (the turn was denied). Extracted so neither path can forget a step.
   _closeMicHardware() {
     this._stopAudioSendDiagnostics();
     this._micReq = null;     // (1.2.2) a getUserMedia() still pending opens nothing when it resolves
@@ -6789,6 +6811,8 @@ class IgDoorbellView extends HTMLElement {
     // quiere sonido sin mic abierto, que pulse el altavoz»). Until 1.5.1 the card RESTORED the sound to
     // what it was before the mic, so whoever was listening first kept the street in the house after
     // the conversation. Nothing is saved, nothing is restored -- the web and the apps do the same.
+    // (1.7.0) And it is the same when the DOORBELL closes the mic (_micClosedByDoorbell) or the
+    // session drops under it (_teardownConnectionObjects): docs/audio-invariants.md rule 5.
     if (!keepSound) this._setAudioOn(false, 'mic-closed');
     this._closeMicHardware();
     this._setLiveState('live');

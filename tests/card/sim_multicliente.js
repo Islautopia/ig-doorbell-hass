@@ -158,7 +158,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   c._talkGrantedAt = 0; // skips the 1.5s anti-race grace period
   await c.handleNativeSignal({ type: 'talk_state', slot: 2, talker: -1 });
   check('mic closed on losing the turn', c.talkActive === false);
-  check('left in listen-only, not disconnected', c._listenOnly === true);
+  // (1.7.0) Rule 5, owner 2026-10-16: the street closes WITH the mic, also when the doorbell closes it.
+  // Until 1.6.x this was "left in listen-only" with the sound on.
+  check('the street closed with the mic, not "listen only" (rule 5, 1.7.0)', c._listenOnly === false && c._audioOn === false && c.videoEl.muted === true);
   check('reason "silence" explained', c._flashes.includes('talk_silence'));
   c = newCard();
   await c.handleNativeSignal({ type: 'session_info', clients: 2, slot: 0, talker: -1 });

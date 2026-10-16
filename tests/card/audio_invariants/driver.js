@@ -20,22 +20,30 @@
 //   C2p positive control: with a talk_granted the mic does open (L=1).
 //   C3  rules 5/6/9 - the signalling SSE errors under a live session with the mic open: L=0 within
 //       300 ms, not shown open; a new session is started; the mic is NOT reopened by it; the reason
-//       is on the status line when the picture returns; whoever was hearing still hears.
+//       is on the status line when the picture returns; the new picture comes back SILENT (rule 5,
+//       owner 2026-10-16 - until 1.6.x whoever was talking still heard the street after it).
 //       (until 1.5.1: L=1 for the 20 s of the life watchdog.)
 //   C4  contract 1.10 - closing the mic closes the speaker, also when the user was listening BEFORE
 //       opening it (until 1.5.1: restored to "as before").
 //   C4b a pause with the mic open and back: "the same state" - the turn asked again, and once
 //       granted the mic and the sound are as they were.
-//   T1  the doorbell takes the turn away: L=0, said, the street still sounds (listen only).
+//   T1  the doorbell takes the turn away: L=0, said, and the street closes with the mic (rule 5,
+//       2026-10-16; until 1.6.x it went to "listen only" with the street still sounding).
 //   T2  talk_denied: L=0 and G=0, said, the street sounds.
 //   R1  a ring opens the sound and NEVER the microphone (G=0).
 //   H1  hidden while only listening: the <video> is paused HERE (not just asked of the doorbell),
 //       live_pause sent; back: live_resume and the sound as it was.
 //   N1  rule 8, second half - closing the mic by hand shows no notice about it.
+//   C5  rule 5, owner 2026-10-16: CLOSING THE MIC ALSO CLOSES THE STREET, whatever it was before and
+//       whoever closes it. (a) a ring opened the sound by itself, mic opened, closed by hand -> silent;
+//       (b) listening first, mic opened, the doorbell's silence net takes the turn -> silent, no
+//       talk_release sent for a turn that is not ours; (c) listening first, mic opened, the
+//       signalling drops -> the new picture is back silent. Each time one tap on the speaker opens
+//       the street again (the explicit tap), mic untouched. Red on the 1.6.0 card on (b) and (c).
 //
 // POSITIVE CONTROLS: the same cases against MUTANTS of the card (each must turn its target red on a
 // check), and run_all.js runs the whole bench against fixtures/legacy/card_1.5.1.js, which must go
-// red on C1, C2, C3 and C4.
+// red on C1, C2, C3 and C4, and against fixtures/legacy/card_1.6.0.js, which must go red on C3, C5, T1.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -61,6 +69,10 @@ const MUTANTS = {
   // the reason of a mic lost with its session is never said
   MC5: { target: 'C3', a: "      if (this._micLostPending) { this._micLostPending = false; this._sayMicLost(); }" + NL, b: '' },
   // a pause forgets that the street was being heard
+  // the doorbell taking the turn away leaves the street sounding (the 1.6.0 behaviour)
+  MC7: { target: 'C5', a: "    this._setAudioOn(false, 'mic-closed-by-doorbell');" + NL, b: '' },
+  // a session that drops under an open mic leaves the street sounding (the 1.5.2-1.6.0 behaviour)
+  MC8: { target: 'C5', a: "    if (micWasOpen || this._talkHeld) this._setAudioOn(false, 'mic-closed-by-session-drop');" + NL, b: '' },
   MC6: { target: 'C4b', a: '    if (micOpen) this._stopTalk(true);' + NL + '    this._sendLivePause(true);', b: '    if (micOpen) this._stopTalk();' + NL + '    this._sendLivePause(true);' },
 };
 
@@ -236,7 +248,7 @@ const CASES = {
     check('C3', `a NEW session was started (${s.sessions} sessions) and its picture is back; the mic was not reopened by it (L=${s.L} G=${s.G}, shown=${s.micShown})`,
       s.sessions === before.sessions + 1 && s.L === 0 && s.G === before.G && !s.micShown);
     check('C3', `the reason is said once the picture is back, and is still up (status line went: ${JSON.stringify(seen)})`, s.status === await text(page, 'mic_lost_conn'));
-    check('C3', `and whoever was in the conversation still HEARS (speaker on=${s.sndOn}, muted=${s.muted})`, s.sndOn && !s.muted);
+    check('C3', `and the street closed with the mic: the new picture is silent (speaker on=${s.sndOn}, muted=${s.muted}, playing=${!s.paused})`, !s.sndOn && s.muted && !s.paused);
   },
   C4: async (page, check) => {
     await mountLive(page);
@@ -282,8 +294,8 @@ const CASES = {
     await fromDoorbell(page, { type: 'talk_state', talker: 3 });
     await sleep(400);
     const s = await state(page);
-    check('T1', `the doorbell gave the turn to another client: L=${s.L}, not shown open (${!s.micShown}), said ("${s.status}"), the street still sounds (on=${s.sndOn})`,
-      s.L === 0 && !s.micShown && s.listenOnly && s.status === await text(page, 'talk_taken') && s.sndOn && !s.muted);
+    check('T1', `the doorbell gave the turn to another client: L=${s.L}, not shown open (${!s.micShown}), said ("${s.status}"), the street closed with the mic (on=${s.sndOn}, muted=${s.muted})`,
+      s.L === 0 && !s.micShown && !s.listenOnly && s.status === await text(page, 'talk_taken') && !s.sndOn && s.muted);
   },
   T2: async (page, check) => {
     await mountLive(page);
@@ -317,6 +329,45 @@ const CASES = {
     s = await state(page);
     check('H1', `back: live_resume (${s.posts.includes('live_resume')}), sounding as it was (on=${s.sndOn}, muted=${s.muted}, paused=${s.paused}), no mic (G=${s.G})`,
       s.posts.includes('live_resume') && s.sndOn && !s.muted && !s.paused && s.G === 0);
+  },
+  C5: async (page, check) => {
+    await mountLive(page);
+    await ev(page, () => { window.__touched = true; });
+    // (a) the sound opened BY ITSELF on a ring, then the mic is opened and closed by hand
+    await ring(page); await sleep(700);
+    const rang = await state(page);
+    await talkOn(page);
+    await tapMic(page); await sleep(400);
+    let s = await state(page);
+    check('C5', `(a) ring opened the street (control: on=${rang.sndOn}), mic opened and closed by hand: silent (on=${s.sndOn}, muted=${s.muted}), picture on (${!s.paused}), L=${s.L}`,
+      rang.sndOn && !rang.muted && !s.sndOn && s.muted && !s.paused && s.L === 0);
+    // (b) listening first, mic opened, the doorbell's silence net takes the turn away
+    await tapSnd(page); await sleep(300);
+    const listening = await state(page);
+    await talkOn(page);
+    await sleep(1600);                          // past the anti-race grace of a fresh grant
+    const releasesBefore = (await state(page)).posts.filter((t) => t === 'talk_release').length;
+    await fromDoorbell(page, { type: 'talk_state', talker: -1 });
+    await sleep(400);
+    s = await state(page);
+    const releases = s.posts.filter((t) => t === 'talk_release').length;
+    check('C5', `(b) listening first (control: on=${listening.sndOn}), the doorbell closed the mic: L=${s.L}, said ("${s.status}"), silent (on=${s.sndOn}, muted=${s.muted}), not "listen only" (${!s.listenOnly})`,
+      listening.sndOn && s.L === 0 && !s.micShown && !s.listenOnly && s.status === await text(page, 'talk_silence') && !s.sndOn && s.muted && !s.paused);
+    check('C5', `(b) and no talk_release for a turn that is not ours any more (${releasesBefore} -> ${releases})`, releases === releasesBefore);
+    await tapSnd(page); await sleep(300);
+    s = await state(page);
+    check('C5', `(b) one tap on the speaker opens the street again (on=${s.sndOn}, muted=${s.muted}), mic untouched (L=${s.L} shown=${s.micShown})`, s.sndOn && !s.muted && s.L === 0 && !s.micShown);
+    // (c) listening, mic opened, the signalling drops: the new picture comes back silent
+    await talkOn(page);
+    const before = await state(page);
+    await ev(page, () => { const v = window.tView(); v.nativeSSE.onerror(new Event('error')); });
+    await sleep(3600);                          // the reconnection's 2 s back-off, the new offer and its stream
+    s = await state(page);
+    check('C5', `(c) listening + mic open (control: on=${before.sndOn}, L=${before.L}), the signalling dropped: new session (${s.sessions} > ${before.sessions}), picture back (${!s.paused}) and SILENT (on=${s.sndOn}, muted=${s.muted}), L=${s.L}`,
+      before.sndOn && before.L === 1 && s.sessions === before.sessions + 1 && !s.paused && !s.sndOn && s.muted && s.L === 0);
+    await tapSnd(page); await sleep(300);
+    s = await state(page);
+    check('C5', `(c) one tap on the speaker opens the street again (on=${s.sndOn}, muted=${s.muted}), mic untouched (L=${s.L})`, s.sndOn && !s.muted && s.L === 0);
   },
   N1: async (page, check) => {
     await mountLive(page);

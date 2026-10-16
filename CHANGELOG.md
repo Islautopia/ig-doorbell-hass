@@ -19,6 +19,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 - **Events `cloud_link_lost` and `cloud_link_restored`** on the events entity, with `offline_s`.
   A restored event only closes an outage that was seen; a flapping link is one outage.
 
+### Changed
+
+- **Closing the microphone also closes the street audio, whoever closes it.** A tap on the mic
+  already did; now the same happens when the doorbell takes the talk turn away (another user, or
+  its silence timeout) and when the connection drops with the mic open: the live view goes back to
+  picture only, silent, even if the sound had opened by itself on answering a ring. One tap on the
+  speaker brings the street back. Before, those two cases left the street sounding in the house.
+
 ---
 
 ## [1.6.0] — 2026-10-13

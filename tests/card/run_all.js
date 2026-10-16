@@ -30,6 +30,9 @@
 //     on R2 - a wall panel that is not the main one opened a live session on every ring (1.6.0).
 //   - audio_invariants against the 1.5.1 build (fixtures/legacy/card_1.5.1.js, a plain copy) must go red
 //     on C1, C1b, C2, C3 and C4 - the four findings of the audio audit (fixed in 1.5.2).
+//   - audio_invariants against the 1.6.0 build (fixtures/legacy/card_1.6.0.js, a plain copy) must go red
+//     on C3, C5 and T1 - closing the mic left the street sounding when the doorbell or a signalling drop
+//     closed it (rule 5, owner 2026-10-16; fixed in 1.7.0).
 //   - sim_carrera_reentrada.js --controls: negative control (the build before the reentrancy fix,
 //     fixtures/legacy/card_3983f68.js) plus its own mutants.
 const http = require('http');
@@ -85,7 +88,7 @@ const JOBS = [
   { name: 'mic_privacy (+ mutants MA-MN)', bench: 'mic_privacy', args: ['mic_privacy/driver.js'], expect: 0 },
   { name: 'back_home (+ mutants MR-MS)', bench: 'back_home', args: ['back_home/driver.js'], expect: 0 },
   { name: 'panel_roles (+ mutants MG-ML)', bench: 'panel_roles', args: ['panel_roles/driver.js'], expect: 0 },
-  { name: 'audio_invariants (+ mutants MC1-MC6)', bench: 'audio_invariants', args: ['audio_invariants/driver.js'], expect: 0 },
+  { name: 'audio_invariants (+ mutants MC1-MC8)', bench: 'audio_invariants', args: ['audio_invariants/driver.js'], expect: 0 },
   { name: 'registry_race (+ mutants Z1-Z3)', bench: 'registry_race', args: ['registry_race/driver.js'], expect: 0 },
   { name: 'sim_multicliente', args: ['sim_multicliente.js', CARD], expect: 0 },
   { name: 'sim_carrera_reentrada', args: ['sim_carrera_reentrada.js', CARD], expect: 0 },
@@ -108,6 +111,11 @@ const JOBS = [
   { name: 'CONTROL audio_invariants vs 1.5.1 card (must fail C1, C2, C3 and C4)', bench: 'audio_invariants', control: true,
     args: ['audio_invariants/driver.js'], env: { CARD_FILE: LEGACY('card_1.5.1.js') }, expect: 1, failText: /^ {2}FAIL /m,
     failAll: ['C1', 'C1b', 'C2', 'C3', 'C4'] },
+  // Rule 5 as the owner restated it on 2026-10-16: the 1.6.0 card closed the street only when the mic
+  // was closed BY HAND; the doorbell taking the turn (T1, C5b) and a signalling drop (C3, C5c) left it on.
+  { name: 'CONTROL audio_invariants vs 1.6.0 card (must fail C3, C5 and T1)', bench: 'audio_invariants', control: true,
+    args: ['audio_invariants/driver.js'], env: { CARD_FILE: LEGACY('card_1.6.0.js'), ONLY_CASES: 'C3,C5,T1' }, expect: 1, failText: /^ {2}FAIL /m,
+    failAll: ['C3', 'C5', 'T1'] },
   { name: 'CONTROL back_home vs 1.2.2 card (must fail H1)', bench: 'back_home', control: true,
     args: ['back_home/driver.js'], env: { CARD_FILE: LEGACY('card_1.2.2.js'), ONLY_CASES: 'H1', SKIP_MUTANTS: '1' }, expect: 1, failText: /^ {2}FAIL \[H1\]/m, },
   // Panel roles' baseline: the card before 1.6.0 ignores the integration's answer, so a secondary
