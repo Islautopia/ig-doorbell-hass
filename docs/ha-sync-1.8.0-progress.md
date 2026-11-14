@@ -19,7 +19,7 @@ Branch `ha-sync-1-2` (from `mic-cierra-calle-card`, which carried the unreleased
 | er10v2 keypad / fingerprint | nothing | state sensors (disabled, only if fitted) |
 | Fingerprint enrolment, chime pairing key | - | NOT exposed on purpose: enrolment is not wired to keys yet (1.23.4); the pairing key is local-only and must not live in HA |
 
-## Region-down drill on the er10v2 (192.168.41.208, firmware 1.2.0)
+## Region-down drill on the er10v2 bench (firmware 1.2.0)
 
 - (a) added to the real HA as "IG Doorbell 3" (replaced an ignored discovery of the same unit).
 - (b) `assign` -> `us` on both VPS (backups `regions.json.bak-hasync-20261114-2228`), reboot to
