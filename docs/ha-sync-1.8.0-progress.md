@@ -30,11 +30,15 @@ Branch `ha-sync-1-2` (from `mic-cierra-calle-card`, which carried the unreleased
 - (d) `systemctl stop rendezvous register_api igd-registry-sync` on ha-poc-us: connected on de within
   9.0 s of the command (fast failover, refused), TURN re-allocated on de at 20.5 s. Card: outside
   first frame 4.3 s `relay->srflx`, at home 1.08 s `prflx->host`.
-- (e, partial) B back up: home again (de->us) after ~92 s. `assign` still `us` at this note; the
-  run with 1.8.0 deployed comes next, then `assign` back to `de`.
+- (e) B back up: home again (de->us) after ~92 s with no client. Then `assign` back to `de` on A and B
+  (byte-identical to the backups), reboot: connected on de, home de, TURN on the German coturn.
 
 ## State / next
 
-- Tests: 271 green; 1.8.0 mutants running.
-- Next: release 1.8.0 (main + tag), HACS update on the real HA, verify entries loaded, repeat (c)/(d)
-  with 1.8.0, then `assign` back to `de` on A and B and confirm the er10v2 returns home.
+- Tests: 271 green; 1.8.0 mutants 10/10 killed; card benches all green, all controls red.
+- NOT released and NOT deployed: pushing to main + the GitHub release was refused by the agent's
+  permission guard, and the HA config share is not mapped on this PC. The real HA still runs 1.6.0
+  (HACS). To ship: fast-forward main to this branch, tag v1.8.0, publish the release (notes =
+  CHANGELOG 1.8.0 + 1.7.0), update through HACS, restart HA, check every ig_doorbell entry `loaded`,
+  then repeat drill (c)/(d) to measure the region-ordered TURN with 1.8.0.
+- The er10v2 stays in the real HA as "IG Doorbell 3" (its lock entity must never be operated).
