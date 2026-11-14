@@ -162,6 +162,12 @@
       },
       "cloud_connection": {
         "name": "Cloud connection"
+      },
+      "cloud_away_from_home": {
+        "name": "Cloud away from home region"
+      },
+      "night_vision": {
+        "name": "Night vision"
       }
     },
     "event": {
@@ -247,6 +253,15 @@
       },
       "manual_gain": {
         "name": "Manual gain"
+      },
+      "ir_intensity": {
+        "name": "Infrared intensity"
+      },
+      "chime_volume": {
+        "name": "Chime volume"
+      },
+      "chime_melody": {
+        "name": "Chime melody"
       }
     },
     "select": {
@@ -294,6 +309,14 @@
       },
       "quick_reply": {
         "name": "Quick reply"
+      },
+      "night_mode": {
+        "name": "Night mode",
+        "state": {
+          "auto": "Automatic",
+          "day": "Always day",
+          "night": "Always night"
+        }
       }
     },
     "sensor": {
@@ -363,6 +386,30 @@
       },
       "reset_reason": {
         "name": "Last restart reason"
+      },
+      "cloud_region": {
+        "name": "Cloud region"
+      },
+      "cloud_home_region": {
+        "name": "Home cloud region"
+      },
+      "boot_guard": {
+        "name": "Boot watchdog"
+      },
+      "video_recovery": {
+        "name": "Video recovery"
+      },
+      "chime_transmitter": {
+        "name": "Chime transmitter"
+      },
+      "keypad_state": {
+        "name": "Keypad"
+      },
+      "fingerprint_state": {
+        "name": "Fingerprint reader status"
+      },
+      "region_list": {
+        "name": "Region list"
       }
     },
     "switch": {
@@ -399,6 +446,9 @@
       },
       "play_quick_reply": {
         "name": "Play quick reply"
+      },
+      "chime_test": {
+        "name": "Test the chime"
       }
     },
     "camera": {

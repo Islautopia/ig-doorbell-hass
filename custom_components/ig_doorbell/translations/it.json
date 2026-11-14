@@ -162,6 +162,12 @@
       },
       "cloud_connection": {
         "name": "Connessione al cloud"
+      },
+      "cloud_away_from_home": {
+        "name": "Cloud fuori dalla sua regione"
+      },
+      "night_vision": {
+        "name": "Visione notturna"
       }
     },
     "event": {
@@ -247,6 +253,15 @@
       },
       "manual_gain": {
         "name": "Guadagno manuale"
+      },
+      "ir_intensity": {
+        "name": "Intensità infrarossi"
+      },
+      "chime_volume": {
+        "name": "Volume del campanello interno"
+      },
+      "chime_melody": {
+        "name": "Melodia del campanello interno"
       }
     },
     "select": {
@@ -294,6 +309,14 @@
       },
       "quick_reply": {
         "name": "Risposta rapida"
+      },
+      "night_mode": {
+        "name": "Modalità notte",
+        "state": {
+          "auto": "Automatica",
+          "day": "Sempre giorno",
+          "night": "Sempre notte"
+        }
       }
     },
     "sensor": {
@@ -363,6 +386,30 @@
       },
       "reset_reason": {
         "name": "Motivo dell'ultimo riavvio"
+      },
+      "cloud_region": {
+        "name": "Regione cloud"
+      },
+      "cloud_home_region": {
+        "name": "Regione cloud di origine"
+      },
+      "boot_guard": {
+        "name": "Controllo dell'avvio"
+      },
+      "video_recovery": {
+        "name": "Recupero del video"
+      },
+      "chime_transmitter": {
+        "name": "Trasmettitore del campanello interno"
+      },
+      "keypad_state": {
+        "name": "Tastierino"
+      },
+      "fingerprint_state": {
+        "name": "Stato del lettore di impronte"
+      },
+      "region_list": {
+        "name": "Elenco delle regioni"
       }
     },
     "switch": {
@@ -399,6 +446,9 @@
       },
       "play_quick_reply": {
         "name": "Riproduci risposta rapida"
+      },
+      "chime_test": {
+        "name": "Prova il campanello interno"
       }
     },
     "camera": {

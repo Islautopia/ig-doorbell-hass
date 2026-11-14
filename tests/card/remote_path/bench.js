@@ -3,6 +3,7 @@
 //
 //   docker build -t igd-remote-bench remote_path/image          (once)
 //   HASS_URL=... HASS_TOKEN=... IGD_BENCH_IP=<Waveshare LAN IP> [IGD_HOME_IP=<Ermita 10 LAN IP>] \
+//     [IGD_BENCH_RE=<regex on the bench doorbell's HA device name, default waveshare>] \
 //     node remote_path/bench.js                    (from tests/card; Docker Desktop running)
 //
 // "OUTSIDE" IS MADE WITH THE NETWORK, NOT WITH JAVASCRIPT. The browser runs in a container
@@ -117,7 +118,7 @@ const CASES = [
     }
     const env = {
       HASS_URL, HASS_TOKEN: process.env.HASS_TOKEN, DOORBELL_IP: IPS[c.doorbell],
-      DOORBELL_RE: c.doorbell === 'Waveshare' ? 'waveshare' : 'ermita', NET: c.net, EXPECT: c.expect,
+      DOORBELL_RE: c.doorbell === 'Waveshare' ? (process.env.IGD_BENCH_RE || 'waveshare') : 'ermita', NET: c.net, EXPECT: c.expect,
       FORCE_RELAY: process.env.FORCE_RELAY || '0',
       WAIT_MS: String(c.wait || 45000), SAYS_NO_PATH: c.card === 'new' && c.expect === 'fail' ? '1' : '0',
       CARD_FILE: c.card === 'old' ? (c.native ? oldCard() : '/tmp/igd-card-1.4.3.js') : (c.native ? path.join(REPO, CARD) : '/repo/' + CARD),

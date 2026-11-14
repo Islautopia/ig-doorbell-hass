@@ -40,6 +40,7 @@ async def async_setup_entry(
         StateSelect(c, "main_stream_rate_control", "rc", RATE_CONTROL, "mdi:tune", enabled=False),
         ExposureModeSelect(c),
         QuickReplySelect(c),
+        *([NightModeSelect(c)] if "night" in c.features else []),
     ])
 
 
@@ -271,3 +272,28 @@ class ExposureModeSelect(AdminEntity, SelectEntity):
         if option not in self._attr_options:
             raise HomeAssistantError(f"Unknown exposure mode: {option}")
         await self.coordinator.async_save_img({"mode": option}, "the exposure mode")
+
+
+class NightModeSelect(AdminEntity, SelectEntity):
+    """er10v2 night mode (API_CONTRACT 1.23.2): `auto` follows the scene light, `day` / `night`
+    force it. IR LEDs and the IR-cut filter are ONE state on purpose: there is no way to set one
+    without the other. Created only on a doorbell that has the route."""
+
+    _source = "night"
+    _attr_translation_key = "night_mode"
+    _attr_icon = "mdi:theme-light-dark"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = ["auto", "day", "night"]
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "night_mode")
+
+    @property
+    def current_option(self) -> str | None:
+        mode = (self.source or {}).get("mode")
+        return mode if mode in self._attr_options else None
+
+    async def async_select_option(self, option: str) -> None:
+        if option not in self._attr_options:
+            raise HomeAssistantError(f"Unknown night mode: {option}")
+        await self.coordinator.async_post_source("night", {"mode": option}, "the night mode")

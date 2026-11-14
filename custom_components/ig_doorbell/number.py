@@ -53,6 +53,10 @@ async def async_setup_entry(
         ExposureCompensationNumber(c),
         ManualExposureNumber(c),
         ManualGainNumber(c),
+        *([IrIntensityNumber(c)] if "night" in c.features else []),
+        *([ChimeNumber(c, "volume", "chime_volume", 100, "mdi:volume-high"),
+           ChimeNumber(c, "melody", "chime_melody", 255, "mdi:music-note")]
+          if "chime" in c.features else []),
     ])
 
 
@@ -306,3 +310,62 @@ class ManualGainNumber(_ManualNumber):
         if exposure is None:
             raise HomeAssistantError("The doorbell has not reported its manual exposure yet")
         await self._send(int(exposure), int(round(value)), "the manual gain")
+
+
+class IrIntensityNumber(AdminEntity, NumberEntity):
+    """er10v2 IR LED intensity while in night (`ir_pct`, 0-100 %, API_CONTRACT 1.23.2)."""
+
+    _source = "night"
+    _attr_translation_key = "ir_intensity"
+    _attr_icon = "mdi:led-on"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_native_min_value = 0
+    _attr_native_max_value = 100
+    _attr_native_step = 5
+    _attr_mode = NumberMode.SLIDER
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "ir_intensity")
+
+    @property
+    def native_value(self) -> float | None:
+        v = (self.source or {}).get("ir_pct")
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self.coordinator.async_post_source(
+            "night", {"ir_pct": str(int(round(value)))}, "the IR intensity")
+
+
+class ChimeNumber(AdminEntity, NumberEntity):
+    """The 433 MHz chime's volume (0-100) and melody (0-255), carried in every RING the doorbell
+    sends (API_CONTRACT 1.23.5). Setting them does NOT ring anything: the chime applies them at the
+    next press of the button."""
+
+    _source = "chime"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_min_value = 0
+    _attr_native_step = 1
+
+    def __init__(self, coordinator: DoorbellCoordinator, field: str, key: str, maximum: int,
+                 icon: str) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._attr_translation_key = key
+        self._attr_native_max_value = maximum
+        self._attr_icon = icon
+        if field == "volume":
+            self._attr_native_unit_of_measurement = PERCENTAGE
+            self._attr_mode = NumberMode.SLIDER
+        else:
+            self._attr_mode = NumberMode.BOX
+
+    @property
+    def native_value(self) -> float | None:
+        v = (self.source or {}).get(self._field)
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    async def async_set_native_value(self, value: float) -> None:
+        await self.coordinator.async_post_source(
+            "chime", {self._field: str(int(round(value)))}, f"the chime {self._field}")

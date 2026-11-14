@@ -213,8 +213,14 @@ async def websocket_get_ice_servers(hass: HomeAssistant, connection, msg) -> Non
             msg["id"], "not_found", "Doorbell not configured on this Home Assistant instance"
         )
         return
+    # 1.8.0: the doorbell's own word on which region it is on and which is home (get_states, over
+    # the LAN), so the TURN is asked of the region the doorbell actually uses (turn_cloud.py).
+    coordinator = entry_data.get("coordinator")
+    state = (coordinator.data if coordinator is not None else None) or {}
+    region = state.get("cloud_region") if isinstance(state.get("cloud_region"), str) else None
+    home = state.get("cloud_home") if isinstance(state.get("cloud_home"), str) else None
     servers, source = await turn_cloud.async_get_ice_servers(
-        hass, entry_data[CONF_DEVICE_ID], entry_data[CONF_CREDENTIAL]
+        hass, entry_data[CONF_DEVICE_ID], entry_data[CONF_CREDENTIAL], region, home
     )
     connection.send_result(msg["id"], {"ice_servers": servers, "source": source})
 

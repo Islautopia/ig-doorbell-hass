@@ -104,7 +104,8 @@ def doorbell2(doorbell_json):
          patch.object(api, "async_get_snapshot", AsyncMock(side_effect=fake.snapshot)), \
          patch.object(api, "async_call_action", AsyncMock(side_effect=fake.call_action)), \
          patch.object(api, "async_ota_install", AsyncMock(side_effect=fake.ota_install)), \
-         patch.object(update, "PROGRESS_EVERY_S", 0):
+         patch.object(update, "PROGRESS_EVERY_S", 0), \
+         patch.object(update, "QUIET_AFTER_RESTART_S", 0):
         fake.json = doorbell_json
         yield fake
 

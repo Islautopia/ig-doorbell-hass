@@ -6,7 +6,45 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.7.0] — unreleased (branch `cloud-link-events`)
+## [1.8.0] — 2026-11-14
+
+Catches the integration up with doorbell firmware 1.2.0 (multi-region cloud, boot watchdog, video
+recovery, er10v2 hardware, board check on updates). Includes 1.7.0, which was never released.
+
+### Added
+
+- **Cloud region** and **Home cloud region** (diagnostic sensors): the region of our cloud the
+  doorbell is connected to now, and the one it belongs to. Told by the doorbell over the LAN
+  (`cloud_region` / `cloud_home` in `get_states`), never asked of the cloud.
+- **Cloud away from home region** (diagnostic problem sensor): on while the doorbell runs on a
+  region that is not its home (its home region failed). It goes back by itself at a quiet moment.
+- **Region list** (diagnostic, disabled by default): the serial of the signed region list the
+  doorbell holds, with where its TURN is allocated, whether the list verified, failovers and moves
+  home as attributes (`/api/debug/boot`, read only while this entity is enabled).
+- **Boot watchdog** and **Video recovery** (diagnostic, disabled by default): firmware 1.2.0's
+  boot guard state and the video self-healing ladder, with their counters.
+- **er10v2 hardware, only on a doorbell that has it** (the routes answer 404 elsewhere, and then the
+  entities are not created at all): **Night mode** select (automatic / always day / always night),
+  **Infrared intensity**, **Night vision** (on while IR is in use), **Chime volume**, **Chime
+  melody**, **Test the chime** (rings the paired 433 MHz chime once; the doorbell itself does not
+  ring), **Chime transmitter** state; **Keypad** and **Fingerprint reader status** (disabled by
+  default, only where the part is fitted).
+
+### Changed
+
+- **Remote live view follows the doorbell's cloud region.** The card's TURN credential is asked of
+  the region the doorbell says it is on, then its home, then the other regions of the signed list,
+  then the bootstrap host - before, always the bootstrap host (Germany), so with Germany down the
+  card had no TURN even with the doorbell connected to another region. The cached credential is
+  dropped as soon as the doorbell changes region. The region list is the firmware's signed one:
+  verified with the firmware's public keys and its monotonic serial, hosts only under
+  `doorbell.islautopia.com`; refreshed from the public `GET /regions` (no credential) and kept in
+  Home Assistant's storage.
+- **Firmware update: the doorbell's verdicts in words** (`rejected_board`: the image is for another
+  board, refused before anything was installed; `rolled_back`, `not_booted`...), and the entity
+  leaves the doorbell alone for 90 s after it starts restarting into the new image.
+
+## [1.7.0] — never released (included in 1.8.0)
 
 ### Added
 

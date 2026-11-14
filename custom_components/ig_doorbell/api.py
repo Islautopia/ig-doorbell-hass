@@ -296,6 +296,11 @@ class NotAllowedError(DoorbellApiError):
     """
 
 
+class NotSupportedError(DoorbellApiError):
+    """404 on a route that only some boards have (er10v2 hardware, API_CONTRACT 1.23): "this
+    doorbell does not have it", which is not an outage and must not be retried as one."""
+
+
 async def async_check_recording_playable(
     session: aiohttp.ClientSession, device_id: str, credential: str, filename: str
 ) -> None:
@@ -595,6 +600,8 @@ async def async_get_json(
                 raise AuthenticationError("Pairing credential rejected by the doorbell")
             if resp.status == 403:
                 raise NotAllowedError(await _error_code(resp))
+            if resp.status == 404:
+                raise NotSupportedError(f"GET {path}: not on this doorbell")
             if resp.status != 200:
                 raise DoorbellApiError(f"GET {path} -> {await _error_code(resp)}")
             data = await resp.json(content_type=None)
@@ -646,6 +653,34 @@ async def async_post_img_settings(
                 raise DoorbellApiError(f"POST img_settings -> {await _error_code(resp)}")
     except (aiohttp.ClientError, TimeoutError) as err:
         raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
+
+
+async def async_post_form(
+    session: aiohttp.ClientSession, device_id: str, credential: str, path: str,
+    fields: dict[str, str],
+) -> dict:
+    """POST <path> with a FORM body (admin routes of the er10v2: `/api/night`, `/api/chime`,
+    API_CONTRACT 1.23.2 / 1.23.5). Returns the doorbell's JSON answer (both routes answer the full
+    object, which is what the caller then shows - never the value it sent).
+
+    404 is its own error (`NotSupportedError`): the route only exists on boards that have that
+    hardware, and "this doorbell has no night mode" must not read as "the doorbell is down".
+    """
+    url = _url(device_id, path, credential)
+    try:
+        async with session.post(url, data=fields, timeout=_TIMEOUT) as resp:
+            if resp.status == 401:
+                raise AuthenticationError("Pairing credential rejected by the doorbell")
+            if resp.status == 403:
+                raise NotAllowedError(await _error_code(resp))
+            if resp.status == 404:
+                raise NotSupportedError(f"POST {path}: not on this doorbell")
+            if resp.status not in (200, 202):
+                raise DoorbellApiError(f"POST {path} -> {await _error_code(resp)}")
+            data = await resp.json(content_type=None)
+    except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+        raise DoorbellApiError(f"Could not reach the doorbell: {err}") from err
+    return data if isinstance(data, dict) else {}
 
 
 async def async_reboot(session: aiohttp.ClientSession, device_id: str, credential: str) -> None:

@@ -93,6 +93,12 @@
       },
       "cloud_connection": {
         "name": "Cloud-Verbindung"
+      },
+      "cloud_away_from_home": {
+        "name": "Cloud außerhalb der Heimatregion"
+      },
+      "night_vision": {
+        "name": "Nachtsicht"
       }
     },
     "event": {
@@ -178,6 +184,15 @@
       },
       "manual_gain": {
         "name": "Manuelle Verstärkung"
+      },
+      "ir_intensity": {
+        "name": "Infrarot-Intensität"
+      },
+      "chime_volume": {
+        "name": "Gong-Lautstärke"
+      },
+      "chime_melody": {
+        "name": "Gong-Melodie"
       }
     },
     "select": {
@@ -225,6 +240,14 @@
       },
       "quick_reply": {
         "name": "Schnellantwort"
+      },
+      "night_mode": {
+        "name": "Nachtmodus",
+        "state": {
+          "auto": "Automatisch",
+          "day": "Immer Tag",
+          "night": "Immer Nacht"
+        }
       }
     },
     "sensor": {
@@ -294,6 +317,30 @@
       },
       "reset_reason": {
         "name": "Grund des letzten Neustarts"
+      },
+      "cloud_region": {
+        "name": "Cloud-Region"
+      },
+      "cloud_home_region": {
+        "name": "Heimat-Cloud-Region"
+      },
+      "boot_guard": {
+        "name": "Startüberwachung"
+      },
+      "video_recovery": {
+        "name": "Video-Wiederherstellung"
+      },
+      "chime_transmitter": {
+        "name": "Gong-Sender"
+      },
+      "keypad_state": {
+        "name": "Tastenfeld"
+      },
+      "fingerprint_state": {
+        "name": "Status des Fingerabdrucklesers"
+      },
+      "region_list": {
+        "name": "Regionsliste"
       }
     },
     "switch": {
@@ -330,6 +377,9 @@
       },
       "play_quick_reply": {
         "name": "Schnellantwort abspielen"
+      },
+      "chime_test": {
+        "name": "Gong testen"
       }
     },
     "camera": {

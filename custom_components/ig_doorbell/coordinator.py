@@ -74,7 +74,20 @@ SOURCES: dict[str, Source] = {
     "boot": Source("/api/debug/boot", 20),                     # reset reason (disabled by default)
     # 1.4.0: the quick replies (§1.18.8, any role, `id` + `label` only). The picker and its button read it.
     "quick": Source("/api/sequences?quick=1", 10),
+    # 1.8.0: the er10v2's own hardware (API_CONTRACT 1.23). These routes answer 404 on every other
+    # board, so their entities are only CREATED where `features` (below) found the route - never an
+    # entity that can only ever be unavailable on an ER19 or an Ermita 10.
+    "night": Source("/api/night", 2, admin=True),          # IR night mode, ~1 min (it follows the light)
+    "chime": Source("/api/chime", 10, admin=True),         # 433 MHz chime transmitter
+    "keypad": Source("/api/keypad", 10, admin=True),       # MPR121 keypad (diagnostic)
+    "fingerprint": Source("/api/fingerprint", 10, admin=True),  # ZW111 reader (diagnostic)
 }
+
+# The board-specific sources probed once at setup (`async_probe_features`). keypad / fingerprint
+# need more than the route: the route exists on every er10v2 image, `present` says whether the
+# part is fitted (probed once at the doorbell's boot, API_CONTRACT 1.23.3 / 1.23.4).
+FEATURE_SOURCES: tuple[str, ...] = ("night", "chime", "keypad", "fingerprint")
+FEATURES_NEED_PRESENT: tuple[str, ...] = ("keypad", "fingerprint")
 
 
 class DoorbellCoordinator(DataUpdateCoordinator[dict]):
@@ -131,6 +144,32 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         self.selected_quick_reply: int | None = None
         # 1.7.0: the doorbell's link to the relay, as the DOORBELL reports it (cloud_link.py).
         self.cloud_link = CloudLinkTracker()
+        # 1.8.0: which board-specific sources this doorbell has (async_probe_features).
+        self.features: set[str] = set()
+
+    async def async_probe_features(self) -> None:
+        """Find out ONCE, before the platforms are set up, which board-specific routes exist.
+
+        404 = this board does not have it (no entity). 403 = it exists but this pairing is not an
+        admin: the entity is created and stays unavailable, which is what "you may not" looks like
+        everywhere else in this integration. Any other failure (doorbell offline at startup) leaves
+        the feature out until the entry is reloaded: an entity is never created on a guess.
+        """
+        for name in FEATURE_SOURCES:
+            try:
+                data = await api.async_get_json(
+                    self._session, self.device_id, self.credential, SOURCES[name].path
+                )
+            except api.NotAllowedError:
+                if name not in FEATURES_NEED_PRESENT:
+                    self.features.add(name)
+                continue
+            except api.DoorbellApiError:
+                continue
+            if name in FEATURES_NEED_PRESENT and data.get("present") is not True:
+                continue
+            self.features.add(name)
+            self.extra[name] = data
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -348,6 +387,25 @@ class DoorbellCoordinator(DataUpdateCoordinator[dict]):
         except api.DoorbellApiError as err:
             raise self._write_error(err, what) from err
         await self.async_refresh_source("img")
+
+    async def async_post_source(self, name: str, fields: dict[str, str], what: str) -> None:
+        """POST a form to a slow source's route (er10v2 `/api/night`, `/api/chime`) and show what the
+        doorbell ANSWERS - both routes answer the whole object after applying - never what was sent.
+        A field the doorbell did not take fails the service call with a readable reason."""
+        try:
+            answer = await api.async_post_form(
+                self._session, self.device_id, self.credential, SOURCES[name].path, fields
+            )
+        except api.DoorbellApiError as err:
+            raise self._write_error(err, what) from err
+        if answer:
+            self.extra[name] = answer
+            self._due[name] = SOURCES[name].every
+            self.async_update_listeners()
+        for key, sent in fields.items():
+            got = (answer or {}).get(key)
+            if got is not None and str(got) != str(sent) and not _same_number(got, sent):
+                raise HomeAssistantError(f"The doorbell did not apply {what} (it reports {key}={got}).")
 
     # -- helpers several entities use -----------------------------------------------------------
 

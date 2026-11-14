@@ -10,6 +10,25 @@ were updated to the 1.0.0 names (the card's internals were renamed to English in
 Source of truth for the doorbell's own interface (WebRTC, signalling, `pair_app`, events):
 `API_CONTRACT.md` in the IG_Doorbell firmware repository. Don't duplicate it here.
 
+## 1.8.0 (2026-11-14): the card's TURN follows the doorbell's cloud region
+
+Nothing changed in the card's JavaScript but its version. What changed is where its TURN comes from
+(`turn_cloud.py`, `regions.py`): the region the doorbell reports (`cloud_region`), then home, then the
+rest of the firmware's signed list, then the bootstrap. Before, always Germany.
+
+- **The real path, traced on the er10v2 (2026-11-14)**: signalling goes browser -> Home Assistant
+  (its own remote access when outside: Nabu Casa or a proxy/domain) -> `signal_proxy.py` -> the
+  doorbell over the LAN. Media: at home a direct host pair (`prflx->host`, no TURN); outside, the
+  browser's TURN relay candidate to the doorbell's srflx (`relay->srflx`). The relay's WebSocket and
+  its `redirect` + close 4307 are never involved: Home Assistant only uses two HTTP routes of the
+  cloud (`app_turn_credentials`, and the public `GET /regions`), which every region serves.
+- **TURN credentials are valid on every region's coturn** (shared secret, API_CONTRACT 3.0-ha), so a
+  browser on the German TURN reaches a doorbell homed in the US. What matters is that the region
+  ASKED is up: that is what the ordering fixes. A region change drops the cached credential.
+- **Bench**: `tests/card/remote_path/bench.js` now takes `IGD_BENCH_RE` (regex on the HA device name)
+  to point its "Waveshare" slot at any bench doorbell; run against the er10v2 ("IG Doorbell 3").
+  Chromium for the native case C: pass `CHROME=` (the installed Playwright build moves).
+
 ## 1.7.0 (2026-10-16): closing the mic closes the street, whoever closes it
 
 Owner, 2026-10-16 (`docs/audio-invariants.md` rule 5, firmware repo; API_CONTRACT §1.10 note of

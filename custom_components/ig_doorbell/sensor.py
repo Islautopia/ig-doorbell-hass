@@ -40,6 +40,16 @@ async def async_setup_entry(
         MemorySensor(c, "psram_free", ("psram", "libre")),
         LastBootSensor(c),
         ResetReasonSensor(c),
+        # 1.8.0: the multi-region cloud (firmware 1.2.0) and the boot/video self-healing
+        CloudRegionSensor(c, "cloud_region", "cloud_region"),
+        CloudRegionSensor(c, "cloud_home", "cloud_home_region"),
+        RegionListSensor(c),
+        BootGuardSensor(c),
+        VideoRecoverySensor(c),
+        # 1.8.0: er10v2 hardware, only where the doorbell has it (coordinator.async_probe_features)
+        *([ChimeSensor(c)] if "chime" in c.features else []),
+        *([PartStateSensor(c, "keypad")] if "keypad" in c.features else []),
+        *([PartStateSensor(c, "fingerprint")] if "fingerprint" in c.features else []),
     ])
 
 
@@ -309,3 +319,197 @@ class ResetReasonSensor(SourceEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         return (self.source or {}).get("reset_txt") or None
+
+
+# ==================================================================================================
+# 1.8.0: the multi-region cloud (firmware 1.2.0, API_CONTRACT 3.7) and the self-healing diagnostics.
+#
+# All told by the DOORBELL over the LAN (`get_states` every 30 s, `/api/debug/boot` every ~10 min),
+# never asked of our cloud: principle 1, and the same reason as cloud_link.py - asking a region
+# "where is my doorbell?" would depend on the very thing being reported. Technical values in English
+# (region ids, protocol states): they get pasted into reports.
+# ==================================================================================================
+
+
+def _relay_region(coordinator: DoorbellCoordinator) -> dict:
+    relay = (coordinator.extra.get("boot") or {}).get("relay")
+    region = relay.get("region") if isinstance(relay, dict) else None
+    return region if isinstance(region, dict) else {}
+
+
+class CloudRegionSensor(DoorbellEntity, SensorEntity):
+    """`cloud_region` = the region whose relay the doorbell is connected to now; `cloud_home` = the
+    region it belongs to. Different = the doorbell failed over and is away from home (it moves back
+    by itself at a quiet moment, never during a call). Both from `get_states` only: an enabled entity
+    never makes the doorbell serve `/api/debug/boot` (the details are RegionListSensor, disabled by
+    default). Unavailable on a firmware that does not report the field (before the multi-region
+    cloud)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:earth"
+
+    def __init__(self, coordinator: DoorbellCoordinator, field: str, key: str) -> None:
+        super().__init__(coordinator, key)
+        self._field = field
+        self._attr_translation_key = key
+
+    @property
+    def available(self) -> bool:
+        return super().available and isinstance((self.coordinator.data or {}).get(self._field), str)
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.coordinator.data or {}).get(self._field) or None
+
+
+class RegionListSensor(SourceEntity, SensorEntity):
+    """The signed region list the doorbell holds (its serial as the state) and the cloud link's
+    details: where TURN is allocated, whether the list verified, how many failovers and moves home
+    since boot (`/api/debug/boot` -> relay.region, API_CONTRACT 3.7). Disabled by default, like every
+    entity that reads `/api/debug/boot`: enabling it costs the doorbell one request every ~10 min."""
+
+    _source = "boot"
+    _attr_translation_key = "region_list"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:format-list-checks"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "region_list")
+
+    @property
+    def native_value(self) -> int | None:
+        serial = _relay_region(self.coordinator).get("serial")
+        return serial if isinstance(serial, int) and not isinstance(serial, bool) else None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        r = _relay_region(self.coordinator)
+        if not r:
+            return None
+        out = {
+            "region": r.get("id"),
+            "home": r.get("home"),
+            "relay_host": r.get("host"),
+            "turn_server": r.get("turn"),
+            "turn_allocated": (r.get("turn_state") == 4) if "turn_state" in r else None,
+            "source": r.get("source"),
+            "expired": r.get("expired"),
+            "signature_selftest": r.get("sig_selftest"),
+            "regions": r.get("regions"),
+            "failovers": r.get("failovers"),
+            "fast_failovers": r.get("fast_failovers"),
+            "moves_home": r.get("moves_home"),
+            "last_switch": r.get("last_switch") or None,
+        }
+        return {k: v for k, v in out.items() if v is not None}
+
+
+class BootGuardSensor(SourceEntity, SensorEntity):
+    """The boot watchdog (firmware 1.2.0, `/api/debug/boot` -> `arranque_vigilado`): `disarmed` after
+    a normal boot. It turns a boot that hangs into a reset, and a new image that hangs into a
+    rollback; `fired_total` counts how often it had to. Disabled by default."""
+
+    _source = "boot"
+    _attr_translation_key = "boot_guard"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:shield-refresh"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "boot_guard")
+
+    def _g(self) -> dict:
+        g = (self.source or {}).get("arranque_vigilado")
+        return g if isinstance(g, dict) else {}
+
+    @property
+    def native_value(self) -> str | None:
+        return self._g().get("state") or None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        g = self._g()
+        if not g:
+            return None
+        out = {"mode": g.get("mode"), "boot_ms": g.get("boot_ms"),
+               "slowest_stage": g.get("slowest_stage"), "fired_total": g.get("fired_total"),
+               "detached": g.get("detached")}
+        return {k: v for k, v in out.items() if v is not None}
+
+
+class VideoRecoverySensor(SourceEntity, SensorEntity):
+    """The video self-healing ladder (`/api/debug/boot` -> `video_heal`): `idle` when the picture
+    pipeline is healthy. `rungs_total` counts the recoveries per rung (rung 1 = the PPA reset of
+    firmware 1.2.0, the ones nobody sees). Disabled by default."""
+
+    _source = "boot"
+    _attr_translation_key = "video_recovery"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_icon = "mdi:video-wireless-outline"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "video_recovery")
+
+    def _v(self) -> dict:
+        v = (self.source or {}).get("video_heal")
+        return v if isinstance(v, dict) else {}
+
+    @property
+    def native_value(self) -> str | None:
+        ladder = self._v().get("ladder")
+        return (ladder.get("state") or None) if isinstance(ladder, dict) else None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        rungs = self._v().get("rungs")
+        if not isinstance(rungs, dict):
+            return None
+        return {"rungs_total": rungs.get("total"), "rungs_this_boot": rungs.get("boot")}
+
+
+class ChimeSensor(SourceEntity, SensorEntity):
+    """The 433 MHz chime transmitter (er10v2, API_CONTRACT 1.23.5): `running` when it can send.
+    One-way radio: the doorbell cannot know whether a chime HEARD it, so the counters say "keyed on
+    air", never "a chime rang". `selftest` other than `ok` = no chime would accept its frames."""
+
+    _source = "chime"
+    _attr_translation_key = "chime_transmitter"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:bell-ring-outline"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "chime_transmitter")
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.source or {}).get("state") or None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        s = self.source or {}
+        keys = ("selftest", "rings", "tests", "copies_sent", "onair_ms_last_hour", "cap_ms_hour",
+                "dropped_cap", "tx_errors")
+        out = {k: s.get(k) for k in keys if s.get(k) is not None}
+        return out or None
+
+
+class PartStateSensor(SourceEntity, SensorEntity):
+    """The er10v2 keypad / fingerprint reader, in the doorbell's own word (`running`, `idle`,
+    `i2c_errors`, `uart_errors`...). Created only where the part is fitted. Disabled by default:
+    they are for an installer tuning the glass, not for the house. No digit and no finger slot is
+    ever exposed (the doorbell does not return them either)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: DoorbellCoordinator, part: str) -> None:
+        super().__init__(coordinator, f"{part}_state")
+        self._source = part
+        self._attr_translation_key = f"{part}_state"
+        self._attr_icon = "mdi:dialpad" if part == "keypad" else "mdi:fingerprint"
+
+    @property
+    def native_value(self) -> str | None:
+        return (self.source or {}).get("state") or None

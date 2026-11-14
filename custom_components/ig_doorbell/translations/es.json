@@ -162,6 +162,12 @@
       },
       "cloud_connection": {
         "name": "Conexión con la nube"
+      },
+      "cloud_away_from_home": {
+        "name": "Nube fuera de su región"
+      },
+      "night_vision": {
+        "name": "Visión nocturna"
       }
     },
     "event": {
@@ -247,6 +253,15 @@
       },
       "manual_gain": {
         "name": "Ganancia manual"
+      },
+      "ir_intensity": {
+        "name": "Intensidad del infrarrojo"
+      },
+      "chime_volume": {
+        "name": "Volumen del timbre interior"
+      },
+      "chime_melody": {
+        "name": "Melodía del timbre interior"
       }
     },
     "select": {
@@ -294,6 +309,14 @@
       },
       "quick_reply": {
         "name": "Respuesta rápida"
+      },
+      "night_mode": {
+        "name": "Modo noche",
+        "state": {
+          "auto": "Automático",
+          "day": "Siempre día",
+          "night": "Siempre noche"
+        }
       }
     },
     "sensor": {
@@ -363,6 +386,30 @@
       },
       "reset_reason": {
         "name": "Motivo del último reinicio"
+      },
+      "cloud_region": {
+        "name": "Región de la nube"
+      },
+      "cloud_home_region": {
+        "name": "Región de la nube propia"
+      },
+      "boot_guard": {
+        "name": "Vigilancia del arranque"
+      },
+      "video_recovery": {
+        "name": "Recuperación del vídeo"
+      },
+      "chime_transmitter": {
+        "name": "Emisor del timbre interior"
+      },
+      "keypad_state": {
+        "name": "Teclado"
+      },
+      "fingerprint_state": {
+        "name": "Estado del lector de huellas"
+      },
+      "region_list": {
+        "name": "Lista de regiones"
       }
     },
     "switch": {
@@ -399,6 +446,9 @@
       },
       "play_quick_reply": {
         "name": "Reproducir respuesta rápida"
+      },
+      "chime_test": {
+        "name": "Probar el timbre interior"
       }
     },
     "camera": {

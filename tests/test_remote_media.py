@@ -68,6 +68,20 @@ class _FakeVps:
         self.status, self.body, self.delay, self.exc = status, body, delay, exc
 
     def get(self, url, headers=None, timeout=None, **kw):
+        if url.endswith("/regions"):
+            # 1.8.0: the public region-list refresh (turn_cloud.async_fetch_region_list). Kept out of
+            # `calls` so those stay "requests that carry the credential"; it must carry none.
+            assert not headers, headers
+            self.list_calls = getattr(self, "list_calls", 0) + 1
+
+            class _NoList:
+                async def __aenter__(self_inner):
+                    return _Resp(404, {"error": "no_regions"})
+
+                async def __aexit__(self_inner, *a):
+                    return False
+
+            return _NoList()
         self.calls.append((url, dict(headers or {}), kw))
         fake = self
 
@@ -147,7 +161,9 @@ async def test_vps_down_answers_empty_and_does_not_retry_every_time(hass, hass_w
         a, b = await _ask(hass, hass_ws_client, n=2)
     assert a["success"] and a["result"] == {"ice_servers": [], "source": "none"}
     assert b["success"] and b["result"] == {"ice_servers": [], "source": "none"}
-    assert len(vps.calls) == 1
+    # 1.8.0: one try per region of the list (de, then us), and the second ask pays nothing.
+    assert [u.split("/")[2] for u, _, _ in vps.calls] == [
+        "relay.doorbell.islautopia.com", "ha-poc-us.doorbell.islautopia.com"]
 
 
 async def test_rejected_or_banned_means_no_turn_not_an_error(hass, hass_ws_client):

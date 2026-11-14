@@ -50,8 +50,10 @@ async def test_every_entity_has_a_translation_key_and_english_name(hass):
     # memory/boot diagnostics, mic gain) - and the open BUTTON is gone, replaced by the lock.
     # 1.4.0 (Phase 2): 61 - + quick-reply select, its play button, the firmware update, In call.
     # 1.7.0: 62 - + Cloud connection (enabled: it is what explains an "offline" push).
-    assert len(entities) == 62
-    assert sum(1 for e in entities if e.disabled_by is not None) == 12
+    # 1.8.0: 68 - + cloud region, home region, away from home (enabled), region list, boot watchdog,
+    # video recovery (disabled). The er10v2-only ones are not created on this fake doorbell (no route).
+    assert len(entities) == 68
+    assert sum(1 for e in entities if e.disabled_by is not None) == 15
     assert not [e for e in entities if e.domain == "button" and e.unique_id.endswith("_open")]
     en = json.loads((ROOT / "translations" / "en.json").read_text(encoding="utf-8"))["entity"]
     for e in entities:

@@ -42,7 +42,10 @@ async def async_setup_entry(
     if (old := reg.async_get_entity_id("button", DOMAIN, f"{c.device_id}_open")) is not None:
         _LOGGER.info("Removing %s: opening the door is the lock entity since 1.3.0", old)
         reg.async_remove(old)
-    async_add_entities([RebootButton(c), PlayQuickReplyButton(c)])
+    async_add_entities([
+        RebootButton(c), PlayQuickReplyButton(c),
+        *([ChimeTestButton(c)] if "chime" in c.features else []),
+    ])
 
 
 class PlayQuickReplyButton(SourceEntity, ButtonEntity):
@@ -97,3 +100,20 @@ class RebootButton(AdminEntity, ButtonEntity):
                     "The doorbell is installing an update; it restarts by itself when it finishes."
                 ) from err
             raise HomeAssistantError(f"Could not restart the doorbell: {err}") from err
+
+
+class ChimeTestButton(AdminEntity, ButtonEntity):
+    """Make the paired 433 MHz chime ring once (`POST /api/chime action=test_ring`, API_CONTRACT
+    1.23.5): a real RING frame, so the chime in the house rings. The doorbell itself does not ring,
+    no call is started and nobody is notified. For checking a chime after pairing or moving it."""
+
+    _source = "chime"
+    _attr_translation_key = "chime_test"
+    _attr_icon = "mdi:bell-ring"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "chime_test")
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_post_source("chime", {"action": "test_ring"}, "the chime test")

@@ -93,6 +93,12 @@
       },
       "cloud_connection": {
         "name": "Connexion au cloud"
+      },
+      "cloud_away_from_home": {
+        "name": "Cloud hors de sa région"
+      },
+      "night_vision": {
+        "name": "Vision nocturne"
       }
     },
     "event": {
@@ -178,6 +184,15 @@
       },
       "manual_gain": {
         "name": "Gain manuel"
+      },
+      "ir_intensity": {
+        "name": "Intensité infrarouge"
+      },
+      "chime_volume": {
+        "name": "Volume du carillon"
+      },
+      "chime_melody": {
+        "name": "Mélodie du carillon"
       }
     },
     "select": {
@@ -225,6 +240,14 @@
       },
       "quick_reply": {
         "name": "Réponse rapide"
+      },
+      "night_mode": {
+        "name": "Mode nuit",
+        "state": {
+          "auto": "Automatique",
+          "day": "Toujours jour",
+          "night": "Toujours nuit"
+        }
       }
     },
     "sensor": {
@@ -294,6 +317,30 @@
       },
       "reset_reason": {
         "name": "Raison du dernier redémarrage"
+      },
+      "cloud_region": {
+        "name": "Région du cloud"
+      },
+      "cloud_home_region": {
+        "name": "Région cloud d'origine"
+      },
+      "boot_guard": {
+        "name": "Surveillance du démarrage"
+      },
+      "video_recovery": {
+        "name": "Récupération vidéo"
+      },
+      "chime_transmitter": {
+        "name": "Émetteur du carillon"
+      },
+      "keypad_state": {
+        "name": "Clavier"
+      },
+      "fingerprint_state": {
+        "name": "État du lecteur d'empreintes"
+      },
+      "region_list": {
+        "name": "Liste des régions"
       }
     },
     "switch": {
@@ -330,6 +377,9 @@
       },
       "play_quick_reply": {
         "name": "Lire la réponse rapide"
+      },
+      "chime_test": {
+        "name": "Tester le carillon"
       }
     },
     "camera": {

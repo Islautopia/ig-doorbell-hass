@@ -57,6 +57,28 @@ SUMMARY_MAX = 255                 # Home Assistant refuses a longer release_summ
 PROGRESS_EVERY_S = 2
 INSTALL_TIMEOUT_S = 15 * 60       # the contract measures ~5.5 min; generous for a slow line
 BACK_TIMEOUT_S = 5 * 60           # from "restarting" until it must answer again
+# 1.8.0: after the doorbell says `restarting`, leave it alone this long before asking anything. The
+# first boot of a new image is when the er10v2 line once aborted under HTTPS polling (HANDOFF,
+# 2026-11-14: "no HTTPS polling for ~2 min"); firmware 1.2.0 fixed the cause, and this keeps a
+# polling client from being the trigger of any other first-boot fault. Download is ~5 min anyway.
+QUIET_AFTER_RESTART_S = 90
+
+# The doorbell's own verdicts, in words (technical, English: they end up in a report).
+OTA_WORDS = {
+    "rejected_board": "the image is for another board, refused before anything was installed",
+    "rejected_image": "the download is not a doorbell firmware image",
+    "rolled_back": "the new image did not confirm and the doorbell went back to the old one",
+    "not_booted": "the doorbell restarted on the old image",
+    "unexpected_version": "the doorbell runs a version that is neither the old nor the new one",
+}
+
+
+def ota_words(code: str | None) -> str:
+    """`rejected_board` -> `rejected_board: the image is for another board, ...`."""
+    if not code:
+        return "unknown error"
+    words = OTA_WORDS.get(str(code))
+    return f"{code}: {words}" if words else str(code)
 
 
 async def async_setup_entry(
@@ -187,9 +209,11 @@ class DoorbellFirmwareUpdate(DoorbellEntity, UpdateEntity):
                 self._pct = max(0, min(100, int(p["pct"])))
                 self.async_write_ha_state()
             if fase == "failed":
-                raise HomeAssistantError(f"The doorbell's update failed: {p.get('error') or 'unknown error'}")
+                raise HomeAssistantError(f"The doorbell's update failed ({ota_words(p.get('error'))}).")
             if fase == "restarting":
-                restarting_since = restarting_since or time.monotonic()
+                if restarting_since is None:
+                    restarting_since = time.monotonic()
+                    await asyncio.sleep(QUIET_AFTER_RESTART_S)
                 continue
             if restarting_since is not None or (fase == "idle" and not p.get("activa")):
                 # Back (or never went): the verdict is the version it RUNS, never our intention.
@@ -204,6 +228,6 @@ class DoorbellFirmwareUpdate(DoorbellEntity, UpdateEntity):
                 if restarting_since is not None or result:
                     raise HomeAssistantError(
                         f"The doorbell is still on {self.installed_version or old} after the update"
-                        + (f" ({result})." if result else ".")
+                        + (f" ({ota_words(result)})." if result else ".")
                     )
         raise HomeAssistantError("The doorbell's update did not finish in time; check its firmware version.")

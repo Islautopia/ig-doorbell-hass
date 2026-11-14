@@ -197,6 +197,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # entities come up unavailable (entity.py), which is exactly what that means, and the card
     # keeps working.
     await coordinator.async_refresh()
+    # 1.8.0: the board-specific entities (er10v2 night mode, chime...) exist only where the route does.
+    if coordinator.last_update_success:
+        await coordinator.async_probe_features()
 
     # ⚠️ HERE and not further down: the update listener (line further below,
     # `entry.add_update_listener`) is not registered yet, so this first correction does NOT

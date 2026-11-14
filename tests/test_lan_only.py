@@ -63,7 +63,17 @@ PUBLIC_NAME_MODULES = {"https_cloud.py", "https_manager.py"}
 # (1.4.4) The ONE module that fetches TURN credentials for the card's media from outside the home
 # (turn_cloud.py). tests/test_remote_media.py pins what it may do: one route, the credential only in
 # its Authorization header, never waited on by anything local.
-REMOTE_MEDIA_MODULES = {"turn_cloud.py"}
+REMOTE_MEDIA_MODULES = {"turn_cloud.py", "regions.py"}
+# (1.8.0) regions.py holds the region hosts (the firmware's signed list) that turn_cloud.py asks, but
+# it never touches the network itself: test_regions_module_does_no_network pins that.
+
+
+def test_regions_module_does_no_network():
+    import pathlib
+
+    text = (pathlib.Path(net.__file__).parent / "regions.py").read_text(encoding="utf-8")
+    for forbidden in ("aiohttp", "async_get_clientsession", "urllib", "socket", "requests"):
+        assert forbidden not in text, forbidden
 
 
 def test_no_relay_or_turn_left_in_the_code():

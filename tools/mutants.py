@@ -9,6 +9,7 @@ applied -- the failure CLAUDE.md warns about).
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 import subprocess
@@ -461,6 +462,37 @@ MUTANTS = [
      "        return super().available\n"),
     ("cloud link: the events never reach Home Assistant", PKG + "coordinator.py",
      "        if link_event is not None:\n", "        if False:\n"),
+    # --- 1.8.0: multi-region cloud, er10v2 hardware -------------------------------------------
+    ('1.8.0: the region list signature is not checked', PKG + 'regions.py',
+     '        pub.verify(der, payload, ec.ECDSA(hashes.SHA256()))\n',
+     '        pass\n'),
+    ('1.8.0: a host outside our zone is accepted', PKG + 'regions.py',
+     '            and host.endswith(ZONE_SUFFIX) and',
+     '            and'),
+    ('1.8.0: an older region list replaces a newer one', PKG + 'regions.py',
+     '        if new.serial < self.current.serial:\n',
+     '        if False:\n'),
+    ("1.8.0: TURN is asked of the bootstrap before the doorbell's region", PKG + 'regions.py',
+     '        add(self.current.host_of(current))\n',
+     '        add(self.current.bootstrap)\n        add(self.current.host_of(current))\n'),
+    ('1.8.0: a region change keeps the TURN of the region the doorbell left', PKG + 'turn_cloud.py',
+     '        st.region = region\n        st.ice_servers = []\n',
+     '        st.region = region\n'),
+    ('1.8.0: the region list refresh sends a credential', PKG + 'turn_cloud.py',
+     'f"https://{host}/regions", timeout=',
+     'f"https://{host}/regions", headers={"Authorization": "Bearer x"}, timeout='),
+    ('1.8.0: the night mode select exists on every board', PKG + 'select.py',
+     '        *([NightModeSelect(c)] if "night" in c.features else []),',
+     '        NightModeSelect(c),'),
+    ('1.8.0: away from home is inverted', PKG + 'binary_sensor.py',
+     '        return cur != home\n',
+     '        return cur == home\n'),
+    ('1.8.0: a write the doorbell ignored is not reported', PKG + 'coordinator.py',
+     '            if got is not None and str(got) != str(sent) and not _same_number(got, sent):\n                raise HomeAssistantError(f"The doorbell did not apply {what} (it reports {key}={got}).")',
+     '            pass'),
+    ('1.8.0: the region details read /api/debug/boot by default', PKG + 'sensor.py',
+     '    _attr_translation_key = "region_list"\n    _attr_entity_category = EntityCategory.DIAGNOSTIC\n    _attr_entity_registry_enabled_default = False\n',
+     '    _attr_translation_key = "region_list"\n    _attr_entity_category = EntityCategory.DIAGNOSTIC\n'),
 ]
 
 
@@ -475,7 +507,11 @@ def main() -> int:
         return 2
     print("unmutated suite: green")
     survivors = []
-    for name, file_, anchor, change in MUTANTS:
+    # IGD_MUTANTS=<prefix> runs only the mutants whose name starts with it (e.g. "1.8.0:"); the
+    # unmutated-suite control above runs regardless. A full run is still the release gate.
+    only = os.environ.get("IGD_MUTANTS", "")
+    selected = [m for m in MUTANTS if m[0].startswith(only)]
+    for name, file_, anchor, change in selected:
         with tempfile.TemporaryDirectory() as tmp:
             copy_dir = pathlib.Path(tmp) / "repo"
             shutil.copytree(ROOT, copy_dir, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules"))
@@ -494,7 +530,7 @@ def main() -> int:
             print(f"{'RED   (killed)' if red else 'GREEN (SURVIVED)'}  {name}")
             if not red:
                 survivors.append(name)
-    print(f"\n{len(MUTANTS) - len(survivors)}/{len(MUTANTS)} mutants killed")
+    print(f"\n{len(selected) - len(survivors)}/{len(selected)} mutants killed")
     return 1 if survivors else 0
 
 

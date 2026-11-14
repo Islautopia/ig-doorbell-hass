@@ -30,7 +30,7 @@ from homeassistant.helpers.event import async_call_later
 
 from .const import DOMAIN, SIGNAL_EVENT
 from .coordinator import DoorbellCoordinator
-from .entity import AddEntities, DoorbellEntity
+from .entity import AddEntities, DoorbellEntity, SourceEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +53,8 @@ async def async_setup_entry(
         FlipBinarySensor(c, "flip_v", "flip_vertical"),
         FlipBinarySensor(c, "flip_h", "flip_horizontal"),
         CloudConnectionBinarySensor(c),
+        CloudAwayBinarySensor(c),
+        *([NightVisionBinarySensor(c)] if "night" in c.features else []),
     ])
 
 
@@ -282,3 +284,61 @@ class CloudConnectionBinarySensor(DoorbellEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         return self.coordinator.cloud_link.connected
+
+
+class CloudAwayBinarySensor(DoorbellEntity, BinarySensorEntity):
+    """On when the doorbell is connected to a region that is not its home (1.8.0, firmware 1.2.0):
+    its home region failed and it moved to another one. Remote access keeps working from there;
+    the doorbell goes back home by itself at a quiet moment (never during a call). A problem worth
+    an automation only if it lasts: a region drill or a deploy also shows up here for a minute.
+    Told by the doorbell (`cloud_region` / `cloud_home` in get_states), never asked of the cloud.
+    Unavailable on a firmware without those fields, or while the doorbell has no cloud link."""
+
+    _attr_translation_key = "cloud_away_from_home"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:earth-arrow-right"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "cloud_away_from_home")
+
+    def _pair(self) -> tuple[str | None, str | None]:
+        d = self.coordinator.data or {}
+        cur, home = d.get("cloud_region"), d.get("cloud_home")
+        return (cur if isinstance(cur, str) and cur else None,
+                home if isinstance(home, str) and home else None)
+
+    @property
+    def available(self) -> bool:
+        cur, home = self._pair()
+        return super().available and cur is not None and home is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        cur, home = self._pair()
+        if cur is None or home is None:
+            return None
+        return cur != home
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        cur, home = self._pair()
+        return {"region": cur, "home": home} if cur and home else None
+
+
+class NightVisionBinarySensor(SourceEntity, BinarySensorEntity):
+    """On while the er10v2 is in NIGHT (IR-cut filter out + IR LEDs on), API_CONTRACT 1.23.2. Read
+    every ~1 min (`/api/night`), so it lags the switch by up to a minute; the doorbell itself holds
+    each state at least 2 min (day) / 5 min (night), so nothing is missed in between."""
+
+    _source = "night"
+    _attr_translation_key = "night_vision"
+    _attr_icon = "mdi:weather-night"
+
+    def __init__(self, coordinator: DoorbellCoordinator) -> None:
+        super().__init__(coordinator, "night_vision")
+
+    @property
+    def is_on(self) -> bool | None:
+        state = (self.source or {}).get("state")
+        return None if state not in ("day", "night") else state == "night"
